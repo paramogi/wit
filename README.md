@@ -1,3 +1,11 @@
-# wit
+A lightweight, static Git web frontend written in Rust
 
-A lightweight static web frontend for Git.
+## Installation
+
+Dependencies:
+
+- libgit2
+
+## Usage:
+
+See wit(1)
