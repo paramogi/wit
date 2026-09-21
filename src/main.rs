@@ -3,13 +3,13 @@ use std::env;
 use std::process;
 
 fn main() {
-    let repo_path = env::args().nth(1).unwrap_or_else(|| {
+    let Some(arg) = env::args().nth(1) else {
         eprintln!("provide the repo path");
         process::exit(1);
-    });
+    };
 
-    let repo = Repository::open_bare(repo_path).unwrap_or_else(|_| {
-        eprintln!("repo must be bare");
+    let repo = Repository::open_bare(arg).unwrap_or_else(|e| {
+        eprintln!("{}", e.message());
         process::exit(1);
     });
 }
