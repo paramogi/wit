@@ -1,8 +1,9 @@
 mod commit_info;
 
+use chrono::{DateTime, FixedOffset};
 use git2::Repository;
-use std::env;
-use std::process;
+use std::{env, process};
+
 use commit_info::CommitInfo;
 
 fn main() {
@@ -34,13 +35,19 @@ fn handle_repo(repo_path: &str) -> Result<Vec<CommitInfo>, git2::Error> {
 
         let summary = commit.summary()?.unwrap_or_default().to_string();
         let author = commit.author().to_string();
+        let time = format_time(commit.time());
 
-        // TODO : Add date
-        let t = commit.time();
-        let secs = (t.seconds() + t.offset_minutes() as i64 * 60).rem_euclid(86400);
-        let time = format!("{:02}:{:02}", secs / 3600, (secs % 3600) / 60).to_string();
-
-        commit_list.push(CommitInfo::new(summary, author, time));
+        commit_list.push(CommitInfo::new(summary, author, time.unwrap()));
     }
     Ok(commit_list)
+}
+
+fn format_time(time: git2::Time) -> Option<String> {
+    let offset = FixedOffset::east_opt(time.offset_minutes() * 60)?;
+    let date = DateTime::from_timestamp(time.seconds(), 0)?;
+    Some(
+        date.with_timezone(&offset)
+            .format("%Y-%m-%d %H:%M")
+            .to_string(),
+    )
 }

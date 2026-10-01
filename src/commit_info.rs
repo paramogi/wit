@@ -8,7 +8,11 @@ pub struct CommitInfo {
 
 impl CommitInfo {
     pub fn new(summary: String, author: String, time: String) -> Self {
-        CommitInfo { summary, author, time }
+        CommitInfo {
+            summary,
+            author,
+            time,
+        }
     }
 }
 
