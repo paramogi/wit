@@ -35,11 +35,15 @@ fn handle_repo(repo_path: &str) -> Result<Vec<CommitInfo>, WitError> {
     for oid in rev {
         let commit = repo.find_commit(oid?)?;
 
+        let id = commit.id().to_string();
         let summary = commit.summary()?.unwrap_or_default().to_string();
-        let author = commit.author().to_string();
+        let message = commit.message().unwrap_or_default().to_string();
+        let sig = commit.author();
+        let author_name = sig.name().unwrap_or_default().to_string();
+        let author_email = sig.email().unwrap_or_default().to_string();
         let time = format_time(commit.time()).ok_or(WitError::InvalidDate)?;
 
-        commit_list.push(CommitInfo::new(summary, author, time));
+        commit_list.push(CommitInfo::new(id, summary, message, author_name, author_email, time));
     }
     Ok(commit_list)
 }

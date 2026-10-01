@@ -1,16 +1,24 @@
 use std::fmt;
 
 pub struct CommitInfo {
+    pub id: String,
     pub summary: String,
-    pub author: String,
+    pub message: String,
+    pub author_name: String,
+    pub author_email: String,
     pub time: String,
 }
 
 impl CommitInfo {
-    pub fn new(summary: String, author: String, time: String) -> Self {
+    pub fn new(
+        id: String, summary: String, message: String, author_name: String, author_email: String, time: String
+    ) -> Self {
         CommitInfo {
+            id,
             summary,
-            author,
+            message,
+            author_name,
+            author_email,
             time,
         }
     }
@@ -18,6 +26,14 @@ impl CommitInfo {
 
 impl fmt::Display for CommitInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.summary, self.author, self.time)
+        write!(f, "
+---\n\
+id: {}\n\
+summary: {}\n\
+message: {}\
+author: {} <{}>\n\
+time: {}\n\
+---",
+            self.id, self.summary, self.message, self.author_name, self.author_email, self.time)
     }
 }
