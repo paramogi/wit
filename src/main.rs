@@ -1,6 +1,9 @@
+mod commit_info;
+
 use git2::Repository;
 use std::env;
 use std::process;
+use commit_info::CommitInfo;
 
 fn main() {
     let Some(arg) = env::args().nth(1) else {
@@ -8,43 +11,36 @@ fn main() {
         process::exit(1);
     };
 
-    let commit = match handle_repo(&arg) {
-        Ok(s) => s,
+    let commit_list = match handle_repo(&arg) {
+        Ok(list) => list,
         Err(e) => {
             eprintln!("{}", e.message());
             process::exit(1);
         }
     };
-    println!("{commit}");
+    for commit in commit_list {
+        println!("{}", commit);
+    }
 }
 
-fn handle_repo(repo_path: &str) -> Result<String, git2::Error> {
+fn handle_repo(repo_path: &str) -> Result<Vec<CommitInfo>, git2::Error> {
     let repo = Repository::open_bare(repo_path)?;
     let mut rev = repo.revwalk()?;
     rev.push_head()?;
-    let mut commit_string = String::new();
-    for r in rev {
-        let oid = r?;
-        let commit = repo.find_commit(oid)?;
-        // println!("commit info");
-        // println!("-----------");
-        // println!("msg=\"{}\"", commit.message()?.trim());
-        // println!("summary=\"{}\"", commit.summary()?.unwrap_or_default());
-        // println!("author=\"{}\"", commit.author());
-        commit_string.push_str(commit.summary()?.unwrap_or_default());
-        commit_string.push_str(&commit.author().to_string());
+
+    let mut commit_list = Vec::new();
+    for oid in rev {
+        let commit = repo.find_commit(oid?)?;
+
+        let summary = commit.summary()?.unwrap_or_default().to_string();
+        let author = commit.author().to_string();
 
         // TODO : Add date
-        let commit_time = commit.time();
-        let commit_timezone = commit_time.offset_minutes();
-        let commit_time_seconds = (commit_time.seconds() + commit_timezone as i64 * 60) % 86400;
-        let hour = commit_time_seconds / 3600;
-        let minutes = (commit_time_seconds - hour * 3600) / 60;
+        let t = commit.time();
+        let secs = (t.seconds() + t.offset_minutes() as i64 * 60).rem_euclid(86400);
+        let time = format!("{:02}:{:02}", secs / 3600, (secs % 3600) / 60).to_string();
 
-        commit_string.push_str(&format!(" {:02}:{:02}\n", hour, minutes).to_string());
-        // println!("time={:02}:{:02}", hour, minutes);
-        // println!("-----------\n");
+        commit_list.push(CommitInfo::new(summary, author, time));
     }
-
-    Ok(commit_string)
+    Ok(commit_list)
 }
