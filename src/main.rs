@@ -1,21 +1,23 @@
 mod commit_info;
+mod error;
 
 use chrono::{DateTime, FixedOffset};
 use git2::Repository;
 use std::{env, process};
 
 use commit_info::CommitInfo;
+use error::WitError;
 
 fn main() {
     let Some(arg) = env::args().nth(1) else {
-        eprintln!("provide the repo path");
+        eprintln!("provide a path");
         process::exit(1);
     };
 
     let commit_list = match handle_repo(&arg) {
         Ok(list) => list,
         Err(e) => {
-            eprintln!("{}", e.message());
+            eprintln!("{e}");
             process::exit(1);
         }
     };
@@ -24,7 +26,7 @@ fn main() {
     }
 }
 
-fn handle_repo(repo_path: &str) -> Result<Vec<CommitInfo>, git2::Error> {
+fn handle_repo(repo_path: &str) -> Result<Vec<CommitInfo>, WitError> {
     let repo = Repository::open_bare(repo_path)?;
     let mut rev = repo.revwalk()?;
     rev.push_head()?;
@@ -35,9 +37,9 @@ fn handle_repo(repo_path: &str) -> Result<Vec<CommitInfo>, git2::Error> {
 
         let summary = commit.summary()?.unwrap_or_default().to_string();
         let author = commit.author().to_string();
-        let time = format_time(commit.time());
+        let time = format_time(commit.time()).ok_or(WitError::InvalidDate)?;
 
-        commit_list.push(CommitInfo::new(summary, author, time.unwrap()));
+        commit_list.push(CommitInfo::new(summary, author, time));
     }
     Ok(commit_list)
 }
