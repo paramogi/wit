@@ -1,7 +1,7 @@
 use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
-use git2::Repository;
+use git2::{Repository, Sort};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 #[derive(Debug)]
@@ -11,6 +11,8 @@ pub struct CommitInfo {
     pub message: String,
     pub author_name: String,
     pub author_email: String,
+    pub committer_name: String,
+    pub committer_email: String,
     pub date: String,
 }
 
@@ -54,6 +56,7 @@ impl RepoInfo {
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {
         let mut rev = repo.revwalk()?;
+        rev.set_sorting(Sort::TIME)?;
         rev.push_head()?;
 
         let mut commit_list = Vec::new();
@@ -63,6 +66,9 @@ impl RepoInfo {
             let id = commit.id().to_string();
             let summary = commit.summary()?.unwrap_or_default().to_string();
             let message = commit.message().unwrap_or_default().to_string();
+            let sig = commit.committer();
+            let committer_name = sig.name().unwrap_or_default().to_string();
+            let committer_email = sig.email().unwrap_or_default().to_string();
             let sig = commit.author();
             let author_name = sig.name().unwrap_or_default().to_string();
             let author_email = sig.email().unwrap_or_default().to_string();
@@ -74,6 +80,8 @@ impl RepoInfo {
                 message,
                 author_name,
                 author_email,
+                committer_name,
+                committer_email,
                 time,
             ));
         }
@@ -107,6 +115,8 @@ impl CommitInfo {
         message: String,
         author_name: String,
         author_email: String,
+        committer_name: String,
+        committer_email: String,
         date: String,
     ) -> Self {
         CommitInfo {
@@ -115,6 +125,8 @@ impl CommitInfo {
             message,
             author_name,
             author_email,
+            committer_name,
+            committer_email,
             date,
         }
     }

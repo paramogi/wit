@@ -18,7 +18,7 @@ fn main() {
 fn run() -> Result<(), WitError> {
     let arg = env::args().nth(1).ok_or(WitError::MissingPath)?;
     let repo = RepoInfo::open(&arg)?;
-    //println!("{repo:#?}");
+    println!("{repo:#?}");
     let page = gen_page(&repo)?;
     println!("{page}");
     Ok(())
