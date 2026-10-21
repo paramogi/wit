@@ -2,7 +2,7 @@ use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
 use git2::Repository;
-use std::{fmt, fs};
+use std::{fmt, fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 pub struct CommitInfo {
     pub id: String,
@@ -44,10 +44,8 @@ impl RepoInfo {
             .to_str()
             .unwrap_or_default();
         let name = name.strip_suffix(".git").unwrap_or(name).to_string();
-        let description_path = repo_path.join("description");
-        let description = fs::read_to_string(description_path)?.trim().to_string();
-        let owner_path = repo_path.join("owner");
-        let owner = fs::read_to_string(owner_path)?.trim().to_string();
+        let description = Self::read_optional_file(repo_path, "description")?;
+        let owner = Self::read_optional_file(repo_path, "owner")?;
         let commit_list = Self::handle_commits(&repo)?;
         Ok(Self::new(name, description, owner, commit_list))
     }
@@ -88,6 +86,15 @@ impl RepoInfo {
                 .format("%d-%m-%Y %H:%M")
                 .to_string(),
         )
+    }
+
+    fn read_optional_file(repo_path: &Path, file_name: &str) -> Result<String, WitError> {
+        let real_path = repo_path.join(file_name);
+        match read_to_string(real_path) {
+            Ok(s) => Ok(s.trim().to_string()),
+            Err(e) if e.kind() == NotFound => Ok(String::new()),
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
