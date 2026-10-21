@@ -3,6 +3,21 @@ use crate::repo_info::RepoInfo;
 
 use std::fmt::Write;
 
+fn escape_str(s: &str) -> String {
+    let mut escaped_str = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '&' => escaped_str.push_str("&amp;"),
+            '<' => escaped_str.push_str("&lt;"),
+            '>' => escaped_str.push_str("&gt;"),
+            '"' => escaped_str.push_str("&quot;"),
+            '\'' => escaped_str.push_str("&#39;"),
+            _ => escaped_str.push(c),
+        }
+    }
+    escaped_str
+}
+
 pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
     let mut page = String::new();
 
@@ -12,6 +27,7 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
 <!DOCTYPE html>\n\
 <html>\n\
 \t<head>\n\
+\t\t<meta charset=\"utf-8\">\n\
 \t\t<title>{}</title>\n\
 \t</head>\n\
 \t<body>\n\
@@ -19,7 +35,8 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
 \t</body>\n\
 </html>\
 ",
-        repo.name, repo.description
+        escape_str(&repo.name),
+        escape_str(&repo.description)
     )?;
 
     Ok(page)
