@@ -2,17 +2,19 @@ use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
 use git2::Repository;
-use std::{fmt, fs::read_to_string, io::ErrorKind::NotFound, path::Path};
+use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
+#[derive(Debug)]
 pub struct CommitInfo {
     pub id: String,
     pub summary: String,
     pub message: String,
     pub author_name: String,
     pub author_email: String,
-    pub time: String,
+    pub date: String,
 }
 
+#[derive(Debug)]
 pub struct RepoInfo {
     pub name: String,
     pub description: String,
@@ -98,25 +100,6 @@ impl RepoInfo {
     }
 }
 
-impl fmt::Display for RepoInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "\
-name: {}\n\
-description: {}\n\
-owner: {}\n\
-last commit time: {}\n\
-",
-            self.name, self.description, self.owner, self.commit_list[0].time
-        )?;
-        for commit in &self.commit_list {
-            write!(f, "{commit}")?;
-        }
-        Ok(())
-    }
-}
-
 impl CommitInfo {
     pub fn new(
         id: String,
@@ -124,7 +107,7 @@ impl CommitInfo {
         message: String,
         author_name: String,
         author_email: String,
-        time: String,
+        date: String,
     ) -> Self {
         CommitInfo {
             id,
@@ -132,23 +115,7 @@ impl CommitInfo {
             message,
             author_name,
             author_email,
-            time,
+            date,
         }
-    }
-}
-
-impl fmt::Display for CommitInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "\
-id: {}\n\
-summary: {}\n\
-message: {}\
-author: {} <{}>\n\
-time: {}\
-",
-            self.id, self.summary, self.message, self.author_name, self.author_email, self.time
-        )
     }
 }

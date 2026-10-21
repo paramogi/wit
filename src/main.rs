@@ -19,6 +19,7 @@ fn main() {
             process::exit(1);
         }
     };
+    //println!("{repo:#?}");
 
     let page = match gen_page(&repo) {
         Ok(page) => page,
