@@ -6,28 +6,20 @@ use html::gen_page;
 use repo_info::RepoInfo;
 use std::{env, process};
 
+use crate::error::WitError;
+
 fn main() {
-    let Some(arg) = env::args().nth(1) else {
-        eprintln!("provide a path");
+    if let Err(e) = run() {
+        eprintln!("{e}");
         process::exit(1);
-    };
+    }
+}
 
-    let repo = match RepoInfo::open(&arg) {
-        Ok(repo) => repo,
-        Err(e) => {
-            eprintln!("{e}");
-            process::exit(1);
-        }
-    };
+fn run() -> Result<(), WitError> {
+    let arg = env::args().nth(1).ok_or(WitError::MissingPath)?;
+    let repo = RepoInfo::open(&arg)?;
     //println!("{repo:#?}");
-
-    let page = match gen_page(&repo) {
-        Ok(page) => page,
-        Err(e) => {
-            eprint!("{e}");
-            process::exit(1);
-        }
-    };
-
+    let page = gen_page(&repo)?;
     println!("{page}");
+    Ok(())
 }
