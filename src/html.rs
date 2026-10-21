@@ -12,14 +12,14 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
 <!DOCTYPE html>\n\
 <html>\n\
 \t<head>\n\
-\t\t<title>hello</title>\n\
+\t\t<title>{}</title>\n\
 \t</head>\n\
 \t<body>\n\
 \t\t<p>{}</p>\n\
 \t</body>\n\
 </html>\
 ",
-        repo.description
+        repo.name, repo.description
     )?;
 
     Ok(page)

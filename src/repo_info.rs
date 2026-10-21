@@ -14,24 +14,42 @@ pub struct CommitInfo {
 }
 
 pub struct RepoInfo {
+    pub name: String,
     pub description: String,
+    pub owner: String,
     pub commit_list: Vec<CommitInfo>,
 }
 
 impl RepoInfo {
-    pub fn new(description: String, commit_list: Vec<CommitInfo>) -> Self {
+    pub fn new(
+        name: String,
+        description: String,
+        owner: String,
+        commit_list: Vec<CommitInfo>,
+    ) -> Self {
         RepoInfo {
+            name,
             description,
+            owner,
             commit_list,
         }
     }
 
     pub fn open(path: &str) -> Result<Self, WitError> {
         let repo = Repository::open_bare(path)?;
-        let description_path = repo.path().join("description");
+        let repo_path = repo.path();
+        let name = repo_path
+            .file_name()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap_or_default();
+        let name = name.strip_suffix(".git").unwrap_or(name).to_string();
+        let description_path = repo_path.join("description");
         let description = fs::read_to_string(description_path)?.trim().to_string();
+        let owner_path = repo_path.join("owner");
+        let owner = fs::read_to_string(owner_path)?.trim().to_string();
         let commit_list = Self::handle_commits(&repo)?;
-        Ok(Self::new(description, commit_list))
+        Ok(Self::new(name, description, owner, commit_list))
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {
@@ -78,10 +96,12 @@ impl fmt::Display for RepoInfo {
         writeln!(
             f,
             "\
+name: {}\n\
 description: {}\n\
+owner: {}\n\
 last commit time: {}\n\
 ",
-            self.description, self.commit_list[0].time
+            self.name, self.description, self.owner, self.commit_list[0].time
         )?;
         for commit in &self.commit_list {
             write!(f, "{commit}")?;
