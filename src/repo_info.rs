@@ -72,7 +72,7 @@ impl RepoInfo {
             let sig = commit.author();
             let author_name = sig.name().unwrap_or_default().to_string();
             let author_email = sig.email().unwrap_or_default().to_string();
-            let time = Self::format_time(commit.time()).ok_or(WitError::InvalidDate)?;
+            let date = Self::format_time(commit.time()).ok_or(WitError::InvalidDate)?;
 
             commit_list.push(CommitInfo::new(
                 id,
@@ -82,7 +82,7 @@ impl RepoInfo {
                 author_email,
                 committer_name,
                 committer_email,
-                time,
+                date,
             ));
         }
         Ok(commit_list)
