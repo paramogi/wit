@@ -2,9 +2,10 @@ A lightweight, static Git web frontend written in Rust
 
 ## Installation
 
-Dependencies:
+Create dependencies:
 
-- libgit2
+- git2
+- chrono
 
 ## Usage:
 
