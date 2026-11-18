@@ -23,6 +23,8 @@ pub struct CommitInfo {
 pub struct TreeEntry {
     pub name: String,
     pub is_dir: bool,
+    pub lines: Option<usize>,
+    pub bytes: Option<usize>,
 }
 
 pub struct RefInfo {
@@ -95,7 +97,7 @@ impl RepoInfo {
                 name: name.to_string(),
                 dir: format!("heads/{name}"),
                 id: commit.id().to_string(),
-                root: Self::root_entries(&commit)?,
+                root: Self::root_entries(repo, &commit)?,
             };
             branches.push((commit.committer().when().seconds(), info));
         }
@@ -121,26 +123,44 @@ impl RepoInfo {
                 name: name.to_string(),
                 dir: format!("tags/{name}"),
                 id: commit.id().to_string(),
-                root: Self::root_entries(&commit)?,
+                root: Self::root_entries(repo, &commit)?,
             };
             tags.push((time.seconds(), info));
         }
         Ok(Self::newest_first(tags))
     }
 
-    fn root_entries(commit: &Commit) -> Result<Vec<TreeEntry>, WitError> {
+    fn root_entries(repo: &Repository, commit: &Commit) -> Result<Vec<TreeEntry>, WitError> {
         let mut entries = Vec::new();
         for entry in commit.tree()?.iter() {
             let Ok(name) = entry.name() else {
                 continue;
             };
+            let (lines, bytes) = if entry.kind() == Some(ObjectType::Blob) {
+                let blob = repo.find_blob(entry.id())?;
+                let lines = (!blob.is_binary()).then(|| Self::count_lines(blob.content()));
+                (lines, Some(blob.size()))
+            } else {
+                (None, None)
+            };
             entries.push(TreeEntry {
                 name: name.to_string(),
                 is_dir: entry.kind() == Some(ObjectType::Tree),
+                lines,
+                bytes,
             });
         }
         entries.sort_by_key(|entry| !entry.is_dir);
         Ok(entries)
+    }
+
+    fn count_lines(content: &[u8]) -> usize {
+        let newlines = content.iter().filter(|&&b| b == b'\n').count();
+        if content.last().is_some_and(|&b| b != b'\n') {
+            newlines + 1
+        } else {
+            newlines
+        }
     }
 
     fn newest_first(mut refs: Vec<(i64, RefInfo)>) -> Vec<RefInfo> {

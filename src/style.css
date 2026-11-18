@@ -169,6 +169,11 @@ p {
   border-bottom: 0;
 }
 
+.tree-size {
+  width: 60px;
+  text-align: right;
+}
+
 .tree-path {
   word-wrap: break-word;
 }
@@ -283,6 +288,7 @@ p {
 .navs a,
 code,
 .mono,
+.tree-size,
 .tree-path a {
   font-style: normal;
 }

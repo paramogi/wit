@@ -10,6 +10,8 @@ const BRIEF_COUNT: usize = 12;
 
 const SUMMARY_REF_COUNT: usize = 3;
 
+const BYTE_UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
+
 pub const STYLE: &str = include_str!("style.css");
 
 const FILE_ICON: &str = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"16\" width=\"16\" viewBox=\"0 0 384 512\"><path d=\"M320 464c8.8 0 16-7.2 16-16V160H256c-17.7 0-32-14.3-32-32V48H64c-8.8 0-16 7.2-16 16V448c0 8.8 7.2 16 16 16H320zM0 64C0 28.7 28.7 0 64 0H229.5c17 0 33.3 6.7 45.3 18.7l90.5 90.5c12 12 18.7 28.3 18.7 45.3V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64z\"/></svg>";
@@ -84,6 +86,24 @@ fn escape_str(s: &str) -> String {
         }
     }
     escaped_str
+}
+
+fn format_bytes(bytes: usize) -> String {
+    if bytes < 1000 {
+        return format!("{bytes} B");
+    }
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1000.0 && unit + 1 < BYTE_UNITS.len() {
+        value /= 1000.0;
+        unit += 1;
+    }
+    let value = (value * 10.0 + 0.5).floor() / 10.0;
+    if value < 10.0 {
+        format!("{value:.1} {}", BYTE_UNITS[unit])
+    } else {
+        format!("{value:.0} {}", BYTE_UNITS[unit])
+    }
 }
 
 fn percent_encode(s: &str) -> String {
@@ -318,18 +338,30 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo) -> String {
         escape_str(&git_ref.name),
         escape_str(&repo.description)
     );
-    for TreeEntry { name, is_dir } in &git_ref.root {
+    for TreeEntry {
+        name,
+        is_dir,
+        lines,
+        bytes,
+    } in &git_ref.root
+    {
         let (icon, href) = if *is_dir {
             (FOLDER_ICON, percent_encode(&format!("{name}/index.html")))
         } else {
             (FILE_ICON, percent_encode(&format!("{blob_dir}{name}.html")))
         };
+        let lines = lines.map(|n| format!("{n} L")).unwrap_or_default();
+        let bytes = bytes.map(format_bytes).unwrap_or_default();
         body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
 <div class=\"flex-1 tree-path flex items-center gap\">\n\
 {icon}\n\
 <a href=\"{href}\">{}</a>\n\
+</div>\n\
+<div class=\"flex items-center gap\">\n\
+<div class=\"tree-size\">{lines}</div>\n\
+<div class=\"tree-size\">{bytes}</div>\n\
 </div>\n\
 </div>\n\
 ",
