@@ -5,6 +5,8 @@ use std::{cmp::Reverse, fmt::Write};
 
 const BRAND: &str = "wit";
 
+const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
+
 pub const STYLE: &str = include_str!("style.css");
 
 #[derive(Clone, Copy, PartialEq)]
@@ -195,6 +197,43 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
         tab: Tab::Summary,
         depth: 0,
     };
-    let body = format!("<p>{}</p>\n", escape_str(&repo.description));
+    let last_change = repo
+        .commit_list
+        .first()
+        .map(|commit| commit.author_date.format("%Y-%m-%d").to_string());
+    let mut rows: Vec<(&str, &str)> =
+        vec![("name", &repo.name), ("description", &repo.description)];
+    if !repo.owner.is_empty() {
+        rows.push(("owner", &repo.owner));
+    }
+    if let Some(date) = &last_change {
+        rows.push(("last change", date));
+    }
+
+    let mut body = String::from("<div class=\"box summary-meta-box\">\n");
+    for (key, val) in rows {
+        write!(
+            &mut body,
+            "\
+<div class=\"summary-meta-row border-b\">\n\
+<span class=\"summary-meta-key\">{key}</span>\n\
+<span class=\"summary-meta-val\">{}</span>\n\
+</div>\n\
+",
+            escape_str(val)
+        )?;
+    }
+    write!(
+        &mut body,
+        "\
+<div class=\"summary-meta-row\">\n\
+<span class=\"summary-meta-key\">clone url</span>\n\
+<div class=\"summary-meta-clone m-0\">{CLONE_URL_BASE}{}.git</div>\n\
+</div>\n\
+</div>\n\
+",
+        escape_str(&repo.name)
+    )?;
+
     wrap_page(&repo.name, Some(&nav), &body)
 }
