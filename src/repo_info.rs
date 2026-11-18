@@ -20,12 +20,18 @@ pub struct CommitInfo {
 }
 
 #[derive(Debug)]
+pub struct BranchInfo {
+    pub name: String,
+    pub id: String,
+}
+
+#[derive(Debug)]
 pub struct RepoInfo {
     pub name: String,
     pub description: String,
     pub owner: String,
     pub head: String,
-    pub branches: Vec<String>,
+    pub branches: Vec<BranchInfo>,
     pub commit_list: Vec<CommitInfo>,
 }
 
@@ -35,7 +41,7 @@ impl RepoInfo {
         description: String,
         owner: String,
         head: String,
-        branches: Vec<String>,
+        branches: Vec<BranchInfo>,
         commit_list: Vec<CommitInfo>,
     ) -> Self {
         RepoInfo {
@@ -80,7 +86,7 @@ impl RepoInfo {
         (!name.is_empty()).then(|| name.to_string())
     }
 
-    fn handle_branches(repo: &Repository) -> Result<Vec<String>, WitError> {
+    fn handle_branches(repo: &Repository) -> Result<Vec<BranchInfo>, WitError> {
         let mut branches = Vec::new();
         for branch in repo.branches(Some(BranchType::Local))? {
             let (branch, _) = branch?;
@@ -89,10 +95,14 @@ impl RepoInfo {
             };
             let commit = branch.get().peel_to_commit()?;
             let date = Self::to_date(commit.author().when()).ok_or(WitError::InvalidDate)?;
-            branches.push((date, name.to_string()));
+            let info = BranchInfo {
+                name: name.to_string(),
+                id: commit.id().to_string(),
+            };
+            branches.push((date, info));
         }
-        branches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-        Ok(branches.into_iter().map(|(_, name)| name).collect())
+        branches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
+        Ok(branches.into_iter().map(|(_, info)| info).collect())
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {

@@ -9,6 +9,8 @@ const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
 const BRIEF_COUNT: usize = 12;
 
+const SUMMARY_REF_COUNT: usize = 3;
+
 pub const STYLE: &str = include_str!("style.css");
 
 #[derive(Clone, Copy, PartialEq)]
@@ -237,6 +239,7 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
         escape_str(&repo.name)
     )?;
     write_briefs(&mut body, repo)?;
+    write_summary_branches(&mut body, repo)?;
 
     wrap_page(&repo.name, Some(&nav), &body)
 }
@@ -258,8 +261,8 @@ pub fn gen_branches(repo: &RepoInfo) -> Result<String, WitError> {
 <div><a href=\"{}\">{}</a></div>\n\
 </div>\n\
 ",
-            escape_str(&Tab::Tree.href(branch)),
-            escape_str(branch)
+            escape_str(&Tab::Tree.href(&branch.name)),
+            escape_str(&branch.name)
         )?;
     }
     body.push_str("</div>\n");
@@ -280,6 +283,18 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
     );
     for commit in repo.commit_list.iter().take(BRIEF_COUNT) {
         let id = &commit.id;
+        let labels: String = repo
+            .branches
+            .iter()
+            .filter(|branch| branch.id == *id)
+            .map(|branch| {
+                format!(
+                    "<code><a href=\"{}\">{}</a></code>\n",
+                    escape_str(&Tab::Tree.href(&branch.name)),
+                    escape_str(&branch.name)
+                )
+            })
+            .collect();
         write!(
             body,
             "\
@@ -291,6 +306,7 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
 <span>{}</span>\n\
 </div>\n\
+{labels}\
 </div>\n\
 <div class=\"summary-commit-msg\">\n\
 <a href=\"commits/{id}.html\">{}</a>\n\
@@ -304,5 +320,42 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
         )?;
     }
     body.push_str("</div>\n</div>\n</div>\n");
+    Ok(())
+}
+
+fn write_summary_branches(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
+    if repo.branches.len() < 2 {
+        return Ok(());
+    }
+    body.push_str(
+        "\
+<div class=\"summary-branches\">\n\
+<header class=\"subtitle\">\n\
+<h2>branches</h2>\n\
+</header>\n\
+<div id=\"branches_content\" class=\"box p-0\">\n\
+",
+    );
+    for branch in repo.branches.iter().take(SUMMARY_REF_COUNT) {
+        write!(
+            body,
+            "\
+<section class=\"branches_wrapper border-b py px\">\n\
+<div class=\"branch\"><a href=\"{}\">{}</a></div>\n\
+</section>\n\
+",
+            escape_str(&Tab::Tree.href(&branch.name)),
+            escape_str(&branch.name)
+        )?;
+    }
+    body.push_str(
+        "\
+<div class=\"navs_wrapper py px\">\n\
+<div class=\"navs\"><a href=\"branches.html\">all branches</a></div>\n\
+</div>\n\
+</div>\n\
+</div>\n\
+",
+    );
     Ok(())
 }
