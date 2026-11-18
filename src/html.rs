@@ -1,6 +1,6 @@
 use crate::repo_info::{Folder, RefInfo, RepoInfo, TreeEntry};
 
-use pulldown_cmark::{Event, Options, Parser, Tag, html::push_html};
+use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, html::push_html};
 use std::cmp::Reverse;
 
 const BRAND: &str = "wit";
@@ -445,11 +445,13 @@ pub fn gen_blob(
     let text = entry.lines.is_some();
     match image_type(&entry.name) {
         Some(mime) if !code => body.push_str(&format!(
-            "<div class=\"box\"><img src=\"data:{mime};base64,{}\" alt=\"{}\"></div>\n",
-            base64(content),
+            "<div class=\"box\"><img src=\"{}\" alt=\"{}\"></div>\n",
+            data_uri(mime, content),
             escape_str(&entry.name)
         )),
-        None if !code && text && is_markdown(&entry.name) => write_markdown(&mut body, content),
+        None if !code && text && is_markdown(&entry.name) => {
+            write_markdown(&mut body, repo, git_ref, &folder.path, &repo_root, content)
+        }
         _ if text => write_code(&mut body, content),
         _ => body.push_str("binary file, cannot display\n"),
     }
@@ -467,7 +469,14 @@ fn is_markdown(name: &str) -> bool {
         .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("md"))
 }
 
-fn write_markdown(body: &mut String, content: &[u8]) {
+fn write_markdown(
+    body: &mut String,
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    base: &str,
+    repo_root: &str,
+    content: &[u8],
+) {
     let text = String::from_utf8_lossy(content);
     let options = Options::ENABLE_TABLES
         | Options::ENABLE_STRIKETHROUGH
@@ -478,11 +487,120 @@ fn write_markdown(body: &mut String, content: &[u8]) {
         Event::Start(Tag::FootnoteDefinition(label)) => {
             Event::Start(Tag::FootnoteDefinition(format!("fn-{label}").into()))
         }
+        Event::Start(Tag::Link {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) if link_type != LinkType::Email => {
+            let dest_url =
+                link_target(git_ref, base, repo_root, &dest_url).map_or(dest_url, Into::into);
+            Event::Start(Tag::Link {
+                link_type,
+                dest_url,
+                title,
+                id,
+            })
+        }
+        Event::Start(Tag::Image {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) => {
+            let dest_url = image_data(repo, git_ref, base, &dest_url).map_or(dest_url, Into::into);
+            Event::Start(Tag::Image {
+                link_type,
+                dest_url,
+                title,
+                id,
+            })
+        }
         _ => event,
     });
     body.push_str("<div class=\"box markdown-body\">");
     push_html(body, events);
     body.push_str("</div>\n");
+}
+
+fn link_target(git_ref: &RefInfo, base: &str, repo_root: &str, url: &str) -> Option<String> {
+    let path = repo_path(base, url.split(['?', '#']).next()?)?;
+    let href = if git_ref.folders.iter().any(|folder| folder.path == path) {
+        Tab::Tree.href(&join_path(&git_ref.dir, &path))
+    } else {
+        find_file(git_ref, &path)?;
+        percent_encode(&format!("blob/{}/{path}.html", git_ref.dir))
+    };
+    let fragment = url
+        .split_once('#')
+        .map(|(_, fragment)| format!("#{fragment}"))
+        .unwrap_or_default();
+    Some(format!("{repo_root}{href}{fragment}"))
+}
+
+fn image_data(repo: &RepoInfo, git_ref: &RefInfo, base: &str, url: &str) -> Option<String> {
+    let path = repo_path(base, url.split(['?', '#']).next()?)?;
+    let mime = image_type(&path)?;
+    let blob = repo.git.find_blob(find_file(git_ref, &path)?.blob?).ok()?;
+    Some(data_uri(mime, blob.content()))
+}
+
+fn repo_path(base: &str, url: &str) -> Option<String> {
+    if url.is_empty() || url.starts_with("//") || url.split('/').next()?.contains(':') {
+        return None;
+    }
+    let url = percent_decode(url)?;
+    let mut parts: Vec<&str> = if url.starts_with('/') {
+        Vec::new()
+    } else {
+        base.split('/').filter(|part| !part.is_empty()).collect()
+    };
+    for part in url.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            _ => parts.push(part),
+        }
+    }
+    Some(parts.join("/"))
+}
+
+fn find_file<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
+    let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
+    git_ref
+        .folders
+        .iter()
+        .find(|folder| folder.path == dir)?
+        .entries
+        .iter()
+        .find(|entry| entry.name == name && entry.blob.is_some())
+}
+
+fn percent_decode(s: &str) -> Option<String> {
+    let mut bytes = Vec::with_capacity(s.len());
+    let mut i = 0;
+    while i < s.len() {
+        let hex = s
+            .get(i + 1..i + 3)
+            .filter(|hex| s.as_bytes()[i] == b'%' && hex.bytes().all(|b| b.is_ascii_hexdigit()));
+        match hex.and_then(|hex| u8::from_str_radix(hex, 16).ok()) {
+            Some(byte) => {
+                bytes.push(byte);
+                i += 3;
+            }
+            None => {
+                bytes.push(s.as_bytes()[i]);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(bytes).ok()
+}
+
+fn data_uri(mime: &str, content: &[u8]) -> String {
+    format!("data:{mime};base64,{}", base64(content))
 }
 
 fn image_type(name: &str) -> Option<&'static str> {
