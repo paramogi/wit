@@ -12,6 +12,11 @@ const SUMMARY_REF_COUNT: usize = 3;
 
 const BYTE_UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
 
+const REPO_FILES: [(&str, [&str; 2]); 2] = [
+    ("README", ["README.md", "README"]),
+    ("LICENSE", ["LICENSE", "COPYING"]),
+];
+
 pub const STYLE: &str = include_str!("style.css");
 
 const FILE_ICON: &str = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"16\" width=\"16\" viewBox=\"0 0 384 512\"><path d=\"M320 464c8.8 0 16-7.2 16-16V160H256c-17.7 0-32-14.3-32-32V48H64c-8.8 0-16 7.2-16 16V448c0 8.8 7.2 16 16 16H320zM0 64C0 28.7 28.7 0 64 0H229.5c17 0 33.3 6.7 45.3 18.7l90.5 90.5c12 12 18.7 28.3 18.7 45.3V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64z\"/></svg>";
@@ -119,6 +124,29 @@ fn percent_encode(s: &str) -> String {
     encoded
 }
 
+fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
+    let Some(root) = nav
+        .repo
+        .branches
+        .iter()
+        .chain(&nav.repo.tags)
+        .find(|git_ref| git_ref.dir == nav.git_ref)
+        .and_then(|git_ref| git_ref.folders.iter().find(|f| f.path.is_empty()))
+    else {
+        return Vec::new();
+    };
+    REPO_FILES
+        .iter()
+        .filter_map(|(label, names)| {
+            let name = names
+                .iter()
+                .find(|name| root.entries.iter().any(|e| !e.is_dir && e.name == **name))?;
+            let href = percent_encode(&format!("blob/{}/{name}.html", nav.git_ref));
+            Some(format!("<a href=\"{repo_root}{href}\">{label}</a>"))
+        })
+        .collect()
+}
+
 fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
     let (root, title) = match nav {
         Some(nav) => (
@@ -170,7 +198,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
             page.push_str(&format!(
                 "\
 <nav id=\"site_path\"><div id=\"site_link\">{}</div></nav>\n\
-<div class=\"navs_wrapper\"><nav class=\"navs\">\n\
+<div class=\"navs_wrapper flex justify-between\"><nav class=\"navs\">\n\
 ",
                 crumbs.join(" / ")
             ));
@@ -188,7 +216,15 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
                     )
                 })
                 .collect();
-            page.push_str(&format!("{}\n</nav></div>\n", links.join(" |\n")));
+            page.push_str(&format!("{}\n</nav>\n", links.join(" |\n")));
+            let files = file_links(nav, &repo_root);
+            if !files.is_empty() {
+                page.push_str(&format!(
+                    "<nav class=\"navs flex gap-2\">\n{}\n</nav>\n",
+                    files.join("\n")
+                ));
+            }
+            page.push_str("</div>\n");
             nav.tab.main_class()
         }
         None => "action-index",
@@ -388,7 +424,7 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
     }
     body.push_str("</div>\n");
 
-    let title = format!("{}@{}", repo.name, git_ref.name);
+    let title = format!("{}/{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
 }
 
