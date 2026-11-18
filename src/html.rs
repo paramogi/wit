@@ -165,7 +165,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
 
 pub fn gen_index(repos: &[RepoInfo]) -> String {
     let mut sorted: Vec<&RepoInfo> = repos.iter().collect();
-    sorted.sort_by_key(|repo| Reverse(repo.commit_list.first().map(|c| c.author_date)));
+    sorted.sort_by_key(|repo| Reverse(repo.commit_list.first().map(|c| c.committer_date)));
 
     let mut body = String::from("<div class=\"home-grid\">\n");
     for repo in sorted {
@@ -210,7 +210,7 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
     let last_change = repo
         .commit_list
         .first()
-        .map(|commit| commit.author_date.format("%Y-%m-%d").to_string());
+        .map(|commit| commit.committer_date.format("%Y-%m-%d").to_string());
     let mut rows: Vec<(&str, &str)> =
         vec![("name", &repo.name), ("description", &repo.description)];
     if !repo.owner.is_empty() {

@@ -90,7 +90,7 @@ impl RepoInfo {
                 dir: format!("heads/{name}"),
                 id: commit.id().to_string(),
             };
-            branches.push((commit.author().when().seconds(), info));
+            branches.push((commit.committer().when().seconds(), info));
         }
         Ok(Self::newest_first(branches))
     }
@@ -109,7 +109,7 @@ impl RepoInfo {
                 .peel_to_tag()
                 .ok()
                 .and_then(|tag| tag.tagger().map(|sig| sig.when()));
-            let time = tagger_time.unwrap_or(commit.author().when());
+            let time = tagger_time.unwrap_or(commit.committer().when());
             let info = RefInfo {
                 name: name.to_string(),
                 dir: format!("tags/{name}"),
