@@ -71,7 +71,7 @@ impl RepoInfo {
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {
         let mut rev = repo.revwalk()?;
-        rev.set_sorting(Sort::TIME)?;
+        rev.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         rev.push_head()?;
 
         let mut commit_list = Vec::new();

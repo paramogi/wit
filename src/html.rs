@@ -7,6 +7,8 @@ const BRAND: &str = "wit";
 
 const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
+const BRIEF_COUNT: usize = 12;
+
 pub const STYLE: &str = include_str!("style.css");
 
 #[derive(Clone, Copy, PartialEq)]
@@ -234,6 +236,47 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
 ",
         escape_str(&repo.name)
     )?;
+    write_briefs(&mut body, repo)?;
 
     wrap_page(&repo.name, Some(&nav), &body)
+}
+
+fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
+    body.push_str(
+        "\
+<div class=\"summary-briefs\">\n\
+<header class=\"subtitle\">\n\
+<h2>commit briefs</h2>\n\
+</header>\n\
+<div id=\"briefs_content\">\n\
+<div class=\"box summary-commit-box\">\n\
+",
+    );
+    for commit in repo.commit_list.iter().take(BRIEF_COUNT) {
+        let id = &commit.id;
+        write!(
+            body,
+            "\
+<div class=\"summary-commit-row border-b\">\n\
+<div class=\"flex items-center gap mb text-sm\">\n\
+<a href=\"commits/{id}.html\" class=\"mono\">{}</a>\n\
+<div class=\"flex items-center gap-xs\">\n\
+<span>{}</span>\n\
+<span>&nbsp;&centerdot;&nbsp;</span>\n\
+<span>{}</span>\n\
+</div>\n\
+</div>\n\
+<div class=\"summary-commit-msg\">\n\
+<a href=\"commits/{id}.html\">{}</a>\n\
+</div>\n\
+</div>\n\
+",
+            &id[..7],
+            escape_str(&commit.author_name),
+            commit.author_date.format("%Y-%m-%d"),
+            escape_str(&commit.summary)
+        )?;
+    }
+    body.push_str("</div>\n</div>\n</div>\n");
+    Ok(())
 }
