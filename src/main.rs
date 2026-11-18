@@ -49,12 +49,15 @@ fn run() -> Result<(), WitError> {
     let args = parse_args()?;
     let mut repos: Vec<RepoInfo> = Vec::new();
     for path in &args.repos {
-        let repo = RepoInfo::open(path, args.owner.as_deref())?;
-        if let Some(i) = repos.iter().position(|r| r.name == repo.name) {
+        let Some(repo) = RepoInfo::open(path, args.owner.as_deref())? else {
+            eprintln!("{path}: HEAD's branch has no commits, skipped");
+            continue;
+        };
+        if let Some(first) = repos.iter().find(|r| r.name == repo.name) {
             return Err(WitError::DuplicateName {
                 name: repo.name,
-                first: args.repos[i].clone(),
-                second: path.clone(),
+                first: first.path.clone(),
+                second: repo.path,
             });
         }
         repos.push(repo);

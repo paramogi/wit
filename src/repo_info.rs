@@ -1,7 +1,7 @@
 use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
-use git2::{BranchType, Repository, Sort};
+use git2::{BranchType, ErrorCode, Repository, Sort};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -24,6 +24,7 @@ pub struct RefInfo {
 }
 
 pub struct RepoInfo {
+    pub path: String,
     pub name: String,
     pub description: String,
     pub owner: String,
@@ -34,8 +35,13 @@ pub struct RepoInfo {
 }
 
 impl RepoInfo {
-    pub fn open(path: &str, default_owner: Option<&str>) -> Result<Self, WitError> {
+    pub fn open(path: &str, default_owner: Option<&str>) -> Result<Option<Self>, WitError> {
         let repo = Repository::open(path)?;
+        let head = match repo.head() {
+            Ok(head) => head.shorthand()?.to_string(),
+            Err(e) if e.code() == ErrorCode::UnbornBranch => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
         let repo_path = repo.path();
         let name = Self::repo_name(&repo).ok_or_else(|| WitError::NoName(path.to_string()))?;
         let mut description = Self::read_optional_file(repo_path, "description")?;
@@ -46,11 +52,11 @@ impl RepoInfo {
         if owner.is_empty() {
             owner = default_owner.unwrap_or_default().to_string();
         }
-        let head = repo.head()?.shorthand()?.to_string();
         let branches = Self::handle_branches(&repo)?;
         let tags = Self::handle_tags(&repo)?;
         let commit_list = Self::handle_commits(&repo)?;
-        Ok(Self {
+        Ok(Some(Self {
+            path: path.to_string(),
             name,
             description,
             owner,
@@ -58,7 +64,7 @@ impl RepoInfo {
             branches,
             tags,
             commit_list,
-        })
+        }))
     }
 
     fn repo_name(repo: &Repository) -> Option<String> {
