@@ -39,7 +39,7 @@ impl RepoInfo {
         }
     }
 
-    pub fn open(path: &str) -> Result<Self, WitError> {
+    pub fn open(path: &str, default_owner: Option<&str>) -> Result<Self, WitError> {
         let repo = Repository::open_bare(path)?;
         let repo_path = repo.path();
         let name = repo_path
@@ -49,7 +49,10 @@ impl RepoInfo {
             .unwrap_or_default();
         let name = name.strip_suffix(".git").unwrap_or(name).to_string();
         let description = Self::read_optional_file(repo_path, "description")?;
-        let owner = Self::read_optional_file(repo_path, "owner")?;
+        let mut owner = Self::read_optional_file(repo_path, "owner")?;
+        if owner.is_empty() {
+            owner = default_owner.unwrap_or_default().to_string();
+        }
         let commit_list = Self::handle_commits(&repo)?;
         Ok(Self::new(name, description, owner, commit_list))
     }

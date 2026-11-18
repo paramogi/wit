@@ -12,7 +12,7 @@ pub enum WitError {
 impl fmt::Display for WitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WitError::Usage => write!(f, "usage: wit -o outdir repo.git..."),
+            WitError::Usage => write!(f, "usage: wit [-O owner] -o outdir repo.git..."),
             WitError::InvalidDate => write!(f, "invalid commit date"),
             WitError::Git(e) => write!(f, "{}", e.message()),
             WitError::Io(e) => write!(f, "{e}"),
