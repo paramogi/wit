@@ -28,37 +28,14 @@ body {
   max-width: 86rem;
 }
 
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-code,
-pre {
-  font-family: monospace;
-}
-
 code {
+  font-family: monospace;
   font-size: 90%;
   padding: 0.025rem 0.3rem;
   border: 1px solid #7689b3;
 }
 
-pre {
-  border: 1px solid #7689b3;
-  padding: 0.65rem;
-  overflow-x: auto;
-}
-
-pre > code {
-  padding: 0;
-  border: none;
-}
-
-h1,
-h2,
-h3,
-h4 {
+h2 {
   font-style: italic;
   font-size: 1rem;
   font-weight: bold;
@@ -66,10 +43,6 @@ h4 {
   margin: 0 0 0.65rem 0;
   padding: 0;
   border: 0;
-}
-
-path {
-  fill: #1a2a44;
 }
 
 a {
@@ -115,10 +88,6 @@ p {
   margin-bottom: 1.3rem;
 }
 
-.font-bold {
-  font-weight: bold;
-}
-
 .mono {
   font-family: monospace;
   font-style: normal;
@@ -130,14 +99,6 @@ p {
 
 .flex {
   display: flex;
-}
-
-.flex-wrap {
-  flex-wrap: wrap;
-}
-
-.flex-1 {
-  flex: 1;
 }
 
 .items-center {
@@ -156,18 +117,7 @@ p {
   gap: 1.3rem;
 }
 
-.group-2 {
-  display: flex;
-  flex-direction: column;
-  gap: 1.3rem;
-}
-
 .mb {
-  margin-bottom: 0.65rem;
-}
-
-.my {
-  margin-top: 0.65rem;
   margin-bottom: 0.65rem;
 }
 
@@ -205,32 +155,6 @@ p {
 
 .border-b:last-child {
   border-bottom: 0;
-}
-
-.white-space-bs {
-  white-space: break-spaces;
-}
-
-.color-green {
-  color: #009926;
-}
-
-.color-red {
-  color: #aa0000;
-}
-
-.tree-size {
-  width: 60px;
-  text-align: right;
-}
-
-.tree-path {
-  word-wrap: break-word;
-}
-
-.diff-stat {
-  width: 100px;
-  text-align: right;
 }
 
 .summary-commit-box {
@@ -342,52 +266,8 @@ p {
 
 .navs a,
 code,
-pre,
-.mono,
-.tree-size,
-.tree-path a {
+.mono {
   font-style: normal;
-}
-
-.chroma {
-  background-color: #ffffff;
-}
-
-.chroma .line {
-  display: flex;
-}
-
-.chroma .ln {
-  white-space: pre;
-  -webkit-user-select: none;
-  user-select: none;
-  margin-right: 0.2em;
-  padding: 0 0.3em 0 0;
-  color: #7f7f7f;
-}
-
-.chroma .ln:target {
-  background-color: #e5e5e5;
-}
-
-.chroma .lnlinks {
-  outline: none;
-  text-decoration: none;
-  color: inherit;
-}
-
-.chroma .gd {
-  color: #000000;
-  background-color: #ffdddd;
-}
-
-.chroma .gi {
-  color: #000000;
-  background-color: #ddffdd;
-}
-
-.chroma .gu {
-  color: #aaaaaa;
 }
 
 @media only screen and (max-width: 900px) {
