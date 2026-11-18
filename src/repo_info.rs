@@ -1,4 +1,4 @@
-use crate::error::WitError;
+use anyhow::{Context, Result};
 
 use chrono::{DateTime, FixedOffset};
 use git2::{BranchType, Commit, ErrorCode, ObjectType, Oid, Repository, Sort, Tree};
@@ -53,7 +53,7 @@ pub struct RepoInfo {
 }
 
 impl RepoInfo {
-    pub fn open(path: &str, default_owner: Option<&str>) -> Result<Option<Self>, WitError> {
+    pub fn open(path: &str, default_owner: Option<&str>) -> Result<Option<Self>> {
         let repo = Repository::open(path)?;
         let head_dir = match repo.head() {
             Ok(head) => format!("heads/{}", head.shorthand()?),
@@ -61,7 +61,7 @@ impl RepoInfo {
             Err(e) => return Err(e.into()),
         };
         let repo_path = repo.path();
-        let name = Self::repo_name(&repo).ok_or_else(|| WitError::NoName(path.to_string()))?;
+        let name = Self::repo_name(&repo).context("could not work out the repo's name")?;
         let mut description = Self::read_optional_file(repo_path, "description")?;
         if description.is_empty() {
             description = DEFAULT_DESCRIPTION.to_string();
@@ -93,7 +93,7 @@ impl RepoInfo {
         (!name.is_empty()).then(|| name.to_string())
     }
 
-    fn handle_branches(repo: &Repository) -> Result<Vec<RefInfo>, WitError> {
+    fn handle_branches(repo: &Repository) -> Result<Vec<RefInfo>> {
         let mut branches = Vec::new();
         for branch in repo.branches(Some(BranchType::Local))? {
             let (branch, _) = branch?;
@@ -112,7 +112,7 @@ impl RepoInfo {
         Ok(Self::newest_first(branches))
     }
 
-    fn handle_tags(repo: &Repository) -> Result<Vec<RefInfo>, WitError> {
+    fn handle_tags(repo: &Repository) -> Result<Vec<RefInfo>> {
         let mut tags = Vec::new();
         for tag_ref in repo.references_glob("refs/tags/*")? {
             let tag_ref = tag_ref?;
@@ -138,7 +138,7 @@ impl RepoInfo {
         Ok(Self::newest_first(tags))
     }
 
-    fn read_folders(repo: &Repository, commit: &Commit) -> Result<Vec<Folder>, WitError> {
+    fn read_folders(repo: &Repository, commit: &Commit) -> Result<Vec<Folder>> {
         let mut folders = Vec::new();
         Self::read_folder(repo, &commit.tree()?, "", &mut folders)?;
         Ok(folders)
@@ -149,7 +149,7 @@ impl RepoInfo {
         tree: &Tree,
         path: &str,
         folders: &mut Vec<Folder>,
-    ) -> Result<(), WitError> {
+    ) -> Result<()> {
         let mut entries = Vec::new();
         for entry in tree.iter() {
             let Ok(name) = entry.name() else {
@@ -202,7 +202,7 @@ impl RepoInfo {
         refs.into_iter().map(|(_, info)| info).collect()
     }
 
-    fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {
+    fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>> {
         let mut rev = repo.revwalk()?;
         rev.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         rev.push_head()?;
@@ -222,10 +222,12 @@ impl RepoInfo {
                 message: commit.message().unwrap_or_default().to_string(),
                 author_name: author.name().unwrap_or_default().to_string(),
                 author_email: author.email().unwrap_or_default().to_string(),
-                author_date: Self::to_date(author.when()).ok_or(WitError::InvalidDate)?,
+                author_date: Self::to_date(author.when())
+                    .with_context(|| format!("commit {}: invalid author date", commit.id()))?,
                 committer_name: committer.name().unwrap_or_default().to_string(),
                 committer_email: committer.email().unwrap_or_default().to_string(),
-                committer_date: Self::to_date(committer.when()).ok_or(WitError::InvalidDate)?,
+                committer_date: Self::to_date(committer.when())
+                    .with_context(|| format!("commit {}: invalid committer date", commit.id()))?,
             });
         }
         Ok(commit_list)
@@ -237,12 +239,12 @@ impl RepoInfo {
         Some(date.with_timezone(&offset))
     }
 
-    fn read_optional_file(repo_path: &Path, file_name: &str) -> Result<String, WitError> {
+    fn read_optional_file(repo_path: &Path, file_name: &str) -> Result<String> {
         let real_path = repo_path.join(file_name);
         match read_to_string(real_path) {
             Ok(s) => Ok(s.trim().to_string()),
             Err(e) if e.kind() == NotFound => Ok(String::new()),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e).context(file_name.to_string()),
         }
     }
 }

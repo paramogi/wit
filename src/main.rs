@@ -1,14 +1,18 @@
-mod error;
 mod html;
 mod repo_info;
 
+use anyhow::{Context, Result, bail};
 use html::{
     STYLE, gen_blob, gen_branches, gen_index, gen_summary, gen_tags, gen_tree, has_code_page,
 };
 use repo_info::RepoInfo;
-use std::{env, fs, path::PathBuf, process};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process,
+};
 
-use crate::error::WitError;
+const USAGE: &str = "usage: wit [-O owner] -o outdir repo.git...";
 
 struct Args {
     owner: Option<String>,
@@ -18,27 +22,27 @@ struct Args {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("{e}");
+        eprintln!("{e:#}");
         process::exit(1);
     }
 }
 
-fn parse_args() -> Result<Args, WitError> {
+fn parse_args() -> Result<Args> {
     let mut owner = None;
     let mut out_dir = None;
     let mut repos = Vec::new();
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "-O" => owner = Some(args.next().ok_or(WitError::Usage)?),
-            "-o" => out_dir = Some(PathBuf::from(args.next().ok_or(WitError::Usage)?)),
-            s if s.starts_with('-') => return Err(WitError::Usage),
+            "-O" => owner = Some(args.next().context(USAGE)?),
+            "-o" => out_dir = Some(PathBuf::from(args.next().context(USAGE)?)),
+            s if s.starts_with('-') => bail!(USAGE),
             _ => repos.push(arg),
         }
     }
-    let out_dir = out_dir.ok_or(WitError::Usage)?;
+    let out_dir = out_dir.context(USAGE)?;
     if repos.is_empty() {
-        return Err(WitError::Usage);
+        bail!(USAGE);
     }
     Ok(Args {
         owner,
@@ -47,57 +51,64 @@ fn parse_args() -> Result<Args, WitError> {
     })
 }
 
-fn run() -> Result<(), WitError> {
+fn write_file(path: &Path, contents: &str) -> Result<()> {
+    let dir = path.parent().unwrap_or(Path::new(""));
+    fs::create_dir_all(dir)
+        .and_then(|()| fs::write(path, contents))
+        .with_context(|| path.display().to_string())
+}
+
+fn run() -> Result<()> {
     let args = parse_args()?;
     let mut repos: Vec<RepoInfo> = Vec::new();
     for path in &args.repos {
-        let Some(repo) = RepoInfo::open(path, args.owner.as_deref())? else {
+        let repo = RepoInfo::open(path, args.owner.as_deref()).with_context(|| path.clone())?;
+        let Some(repo) = repo else {
             eprintln!("{path}: HEAD's branch has no commits, skipped");
             continue;
         };
         if let Some(first) = repos.iter().find(|r| r.name == repo.name) {
-            return Err(WitError::DuplicateName {
-                name: repo.name,
-                first: first.path.clone(),
-                second: repo.path,
-            });
+            bail!(
+                "{} and {} are both named {}",
+                first.path,
+                repo.path,
+                repo.name
+            );
         }
         repos.push(repo);
     }
-    fs::create_dir_all(&args.out_dir)?;
-    fs::write(args.out_dir.join("style.css"), STYLE)?;
-    fs::write(args.out_dir.join("index.html"), gen_index(&repos))?;
+    write_file(&args.out_dir.join("style.css"), STYLE)?;
+    write_file(&args.out_dir.join("index.html"), &gen_index(&repos))?;
     for repo in &repos {
         let repo_dir = args.out_dir.join(&repo.name);
-        fs::create_dir_all(&repo_dir)?;
-        fs::write(repo_dir.join("index.html"), gen_summary(repo))?;
-        fs::write(repo_dir.join("branches.html"), gen_branches(repo))?;
+        write_file(&repo_dir.join("index.html"), &gen_summary(repo))?;
+        write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
         if !repo.tags.is_empty() {
-            fs::write(repo_dir.join("tags.html"), gen_tags(repo))?;
+            write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
         }
         for git_ref in repo.branches.iter().chain(&repo.tags) {
             for folder in &git_ref.folders {
                 let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
-                fs::create_dir_all(&tree_dir)?;
-                fs::write(tree_dir.join("index.html"), gen_tree(repo, git_ref, folder))?;
+                write_file(
+                    &tree_dir.join("index.html"),
+                    &gen_tree(repo, git_ref, folder),
+                )?;
                 let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&folder.path);
                 let code_dir = repo_dir.join("code").join(&git_ref.dir).join(&folder.path);
                 for entry in &folder.entries {
                     let Some(id) = entry.blob else {
                         continue;
                     };
-                    let blob = repo.git.find_blob(id)?;
+                    let blob = repo.git.find_blob(id).with_context(|| repo.path.clone())?;
                     let page_name = format!("{}.html", entry.name);
-                    fs::create_dir_all(&blob_dir)?;
-                    fs::write(
-                        blob_dir.join(&page_name),
-                        gen_blob(repo, git_ref, folder, entry, blob.content(), false),
+                    write_file(
+                        &blob_dir.join(&page_name),
+                        &gen_blob(repo, git_ref, folder, entry, blob.content(), false),
                     )?;
                     if has_code_page(entry) {
-                        fs::create_dir_all(&code_dir)?;
-                        fs::write(
-                            code_dir.join(&page_name),
-                            gen_blob(repo, git_ref, folder, entry, blob.content(), true),
+                        write_file(
+                            &code_dir.join(&page_name),
+                            &gen_blob(repo, git_ref, folder, entry, blob.content(), true),
                         )?;
                     }
                 }
