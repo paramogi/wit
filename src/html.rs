@@ -292,6 +292,7 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
         .commit_list
         .first()
         .map(|commit| commit.committer_date.format("%Y-%m-%d").to_string());
+    let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
     let mut rows: Vec<(&str, &str)> =
         vec![("name", &repo.name), ("description", &repo.description)];
     if !repo.owner.is_empty() {
@@ -300,6 +301,7 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
     if let Some(date) = &last_change {
         rows.push(("last change", date));
     }
+    rows.push(("clone url", &clone_url));
 
     let mut body = String::from("<div class=\"box summary-meta-box\">\n");
     for (key, val) in rows {
@@ -313,16 +315,7 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
             escape_str(val)
         ));
     }
-    body.push_str(&format!(
-        "\
-<div class=\"summary-meta-row\">\n\
-<span class=\"summary-meta-key\">clone url</span>\n\
-<div class=\"summary-meta-clone m-0\">{CLONE_URL_BASE}{}.git</div>\n\
-</div>\n\
-</div>\n\
-",
-        escape_str(&repo.name)
-    ));
+    body.push_str("</div>\n");
     write_briefs(&mut body, repo);
     if repo.branches.len() > 1 {
         write_summary_refs(

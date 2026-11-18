@@ -158,10 +158,6 @@ p {
   border: 1px solid #7689b3;
 }
 
-.m-0 {
-  margin: 0;
-}
-
 .mt-0 {
   margin-top: 0;
 }
@@ -224,14 +220,6 @@ p {
 .summary-meta-val {
   display: block;
   margin-left: 10.5rem;
-  word-break: break-word;
-}
-
-.summary-meta-clone {
-  border: 0;
-  padding: 0;
-  overflow-x: auto;
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
