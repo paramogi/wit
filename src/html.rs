@@ -71,6 +71,7 @@ struct RepoNav<'a> {
     git_ref: &'a str,
     tab: Tab,
     depth: usize,
+    trail: Vec<(String, String)>,
 }
 
 fn escape_str(s: &str) -> String {
@@ -149,13 +150,29 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
     let main_class = match nav {
         Some(nav) => {
             let repo_root = "../".repeat(nav.depth);
+            let mut crumbs = vec![
+                (nav.repo.name.clone(), "index.html".to_string()),
+                (nav.tab.label().to_string(), nav.tab.href(nav.git_ref)),
+            ];
+            crumbs.extend(nav.trail.iter().cloned());
+            let last = crumbs.len() - 1;
+            let crumbs: Vec<String> = crumbs
+                .iter()
+                .enumerate()
+                .map(|(i, (text, href))| {
+                    if i == last {
+                        format!("<a class=\"btn-active\" href=\"\">{}</a>", escape_str(text))
+                    } else {
+                        format!("<a href=\"{repo_root}{href}\">{}</a>", escape_str(text))
+                    }
+                })
+                .collect();
             page.push_str(&format!(
                 "\
-<nav id=\"site_path\"><div id=\"site_link\"><a href=\"{repo_root}index.html\">{}</a> / <a class=\"btn-active\" href=\"\">{}</a></div></nav>\n\
+<nav id=\"site_path\"><div id=\"site_link\">{}</div></nav>\n\
 <div class=\"navs_wrapper\"><nav class=\"navs\">\n\
 ",
-                escape_str(&nav.repo.name),
-                nav.tab.label()
+                crumbs.join(" / ")
             ));
             let links: Vec<String> = repo_tabs(nav.repo)
                 .map(|tab| {
@@ -233,6 +250,7 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
         git_ref: &repo.head_dir,
         tab: Tab::Summary,
         depth: 0,
+        trail: Vec::new(),
     };
     let last_change = repo
         .commit_list
@@ -300,6 +318,7 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         git_ref: &repo.head_dir,
         tab,
         depth: 0,
+        trail: Vec::new(),
     };
 
     let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
@@ -320,57 +339,23 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
 }
 
 pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
-    let tree_path = if folder.path.is_empty() {
-        git_ref.dir.clone()
-    } else {
-        format!("{}/{}", git_ref.dir, folder.path)
-    };
+    let mut tree_path = git_ref.dir.clone();
+    let mut trail = vec![(git_ref.name.clone(), Tab::Tree.href(&tree_path))];
+    for part in folder.path.split('/').filter(|p| !p.is_empty()) {
+        tree_path = format!("{tree_path}/{part}");
+        trail.push((part.to_string(), Tab::Tree.href(&tree_path)));
+    }
     let depth = 1 + tree_path.split('/').count();
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
         tab: Tab::Tree,
         depth,
+        trail,
     };
-    let repo_root = "../".repeat(depth);
-    let blob_dir = format!("{repo_root}blob/{tree_path}/");
+    let blob_dir = format!("{}blob/{tree_path}/", "../".repeat(depth));
 
-    let mut body = format!(
-        "\
-<div class=\"box sticky flex items-center gap border-visited flex-wrap mt-0\">\n\
-<code>{}</code>\n\
-",
-        escape_str(&git_ref.name)
-    );
-    let parts: Vec<&str> = folder.path.split('/').filter(|p| !p.is_empty()).collect();
-    if let Some((last, parents)) = parts.split_last() {
-        let mut dir = git_ref.dir.clone();
-        body.push_str(&format!(
-            "<a href=\"{repo_root}{}\">{}</a> <span>/</span>\n",
-            Tab::Tree.href(&dir),
-            escape_str(&repo.name)
-        ));
-        for part in parents {
-            dir = format!("{dir}/{part}");
-            body.push_str(&format!(
-                "<a href=\"{repo_root}{}\">{}</a> <span>/</span>\n",
-                Tab::Tree.href(&dir),
-                escape_str(part)
-            ));
-        }
-        body.push_str(&format!(
-            "<span class=\"font-bold\">{}</span>\n",
-            escape_str(last)
-        ));
-    }
-    body.push_str(&format!(
-        "\
-</div>\n\
-<p>{}</p>\n\
-<div class=\"box p-0\">\n\
-",
-        escape_str(&repo.description)
-    ));
+    let mut body = String::from("<div class=\"box p-0\">\n");
     for TreeEntry {
         name,
         is_dir,
