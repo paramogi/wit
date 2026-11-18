@@ -55,8 +55,13 @@ impl Tab {
     }
 }
 
+fn repo_tabs(repo: &RepoInfo) -> impl Iterator<Item = Tab> {
+    TABS.into_iter()
+        .filter(move |&tab| tab != Tab::Tags || !repo.tags.is_empty())
+}
+
 struct RepoNav<'a> {
-    name: &'a str,
+    repo: &'a RepoInfo,
     git_ref: &'a str,
     tab: Tab,
     depth: usize,
@@ -110,12 +115,11 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
 <nav id=\"site_path\"><div id=\"site_link\"><a href=\"{repo_root}index.html\">{}</a> / {}</div></nav>\n\
 <div class=\"navs_wrapper\"><nav class=\"navs\">\n\
 ",
-                escape_str(nav.name),
+                escape_str(&nav.repo.name),
                 nav.tab.label()
             ));
-            let links: Vec<String> = TABS
-                .iter()
-                .map(|&tab| {
+            let links: Vec<String> = repo_tabs(nav.repo)
+                .map(|tab| {
                     let class = if tab == nav.tab {
                         " class=\"btn-active\""
                     } else {
@@ -154,9 +158,8 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
     let mut body = String::from("<div class=\"home-grid\">\n");
     for repo in sorted {
         let name = escape_str(&repo.name);
-        let links: Vec<String> = TABS
-            .iter()
-            .map(|&tab| {
+        let links: Vec<String> = repo_tabs(repo)
+            .map(|tab| {
                 let label = if tab == Tab::Log {
                     "commits"
                 } else {
@@ -189,7 +192,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
 
 pub fn gen_summary(repo: &RepoInfo) -> String {
     let nav = RepoNav {
-        name: &repo.name,
+        repo,
         git_ref: &repo.head,
         tab: Tab::Summary,
         depth: 0,
@@ -256,7 +259,7 @@ pub fn gen_tags(repo: &RepoInfo) -> String {
 
 fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
     let nav = RepoNav {
-        name: &repo.name,
+        repo,
         git_ref: &repo.head,
         tab,
         depth: 0,

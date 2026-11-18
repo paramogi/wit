@@ -67,7 +67,9 @@ fn run() -> Result<(), WitError> {
         fs::create_dir_all(&repo_dir)?;
         fs::write(repo_dir.join("index.html"), gen_summary(repo))?;
         fs::write(repo_dir.join("branches.html"), gen_branches(repo))?;
-        fs::write(repo_dir.join("tags.html"), gen_tags(repo))?;
+        if !repo.tags.is_empty() {
+            fs::write(repo_dir.join("tags.html"), gen_tags(repo))?;
+        }
     }
     Ok(())
 }
