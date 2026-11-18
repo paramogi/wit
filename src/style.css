@@ -28,6 +28,11 @@ body {
   max-width: 86rem;
 }
 
+img {
+  max-width: 100%;
+  height: auto;
+}
+
 code,
 pre {
   font-family: monospace;

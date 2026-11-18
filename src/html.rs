@@ -17,6 +17,17 @@ const REPO_FILES: [(&str, [&str; 2]); 2] = [
     ("LICENSE", ["LICENSE", "COPYING"]),
 ];
 
+const IMAGE_TYPES: [(&str, &str); 6] = [
+    ("png", "image/png"),
+    ("jpg", "image/jpeg"),
+    ("jpeg", "image/jpeg"),
+    ("gif", "image/gif"),
+    ("webp", "image/webp"),
+    ("svg", "image/svg+xml"),
+];
+
+const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 pub const STYLE: &str = include_str!("style.css");
 
 const FILE_ICON: &str = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"16\" width=\"16\" viewBox=\"0 0 384 512\"><path d=\"M320 464c8.8 0 16-7.2 16-16V160H256c-17.7 0-32-14.3-32-32V48H64c-8.8 0-16 7.2-16 16V448c0 8.8 7.2 16 16 16H320zM0 64C0 28.7 28.7 0 64 0H229.5c17 0 33.3 6.7 45.3 18.7l90.5 90.5c12 12 18.7 28.3 18.7 45.3V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64z\"/></svg>";
@@ -397,6 +408,7 @@ pub fn gen_blob(
     folder: &Folder,
     entry: &TreeEntry,
     content: &[u8],
+    code: bool,
 ) -> String {
     let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
     let nav = RepoNav {
@@ -405,21 +417,70 @@ pub fn gen_blob(
         tab: Tab::Tree,
         depth,
     };
+    let repo_root = "../".repeat(depth);
     let path = join_path(&folder.path, &entry.name);
-    let sizes = format!(
-        "<div class=\"ml-auto flex items-center gap\">\n{}</div>\n",
-        size_cells(entry)
-    );
+    let mut details = String::from("<div class=\"ml-auto flex items-center gap\">\n");
+    if has_code_page(entry) {
+        let root = if code { "blob" } else { "code" };
+        let other = format!(
+            "{repo_root}{}",
+            percent_encode(&format!("{root}/{}/{path}.html", git_ref.dir))
+        );
+        let (rendered_href, code_href) = if code {
+            (Some(other), None)
+        } else {
+            (None, Some(other))
+        };
+        details.push_str(&format!(
+            "<nav class=\"navs\">{} |\n{}</nav>\n",
+            crumb("rendered", rendered_href),
+            crumb("code", code_href)
+        ));
+    }
+    details.push_str(&size_cells(entry));
+    details.push_str("</div>\n");
 
-    let mut body = ref_bar(git_ref, &path, &"../".repeat(depth), &sizes);
-    if entry.lines.is_some() {
-        write_code(&mut body, content);
-    } else {
-        body.push_str("binary file, cannot display\n");
+    let mut body = ref_bar(git_ref, &path, &repo_root, &details);
+    match image_type(&entry.name) {
+        Some(mime) if !code => body.push_str(&format!(
+            "<div class=\"box\"><img src=\"data:{mime};base64,{}\" alt=\"{}\"></div>\n",
+            base64(content),
+            escape_str(&entry.name)
+        )),
+        _ if entry.lines.is_some() => write_code(&mut body, content),
+        _ => body.push_str("binary file, cannot display\n"),
     }
 
     let title = format!("{}/{}/{path}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
+}
+
+pub fn has_code_page(entry: &TreeEntry) -> bool {
+    image_type(&entry.name).is_some() && entry.lines.is_some()
+}
+
+fn image_type(name: &str) -> Option<&'static str> {
+    let (_, ext) = name.rsplit_once('.')?;
+    IMAGE_TYPES
+        .iter()
+        .find(|(known, _)| ext.eq_ignore_ascii_case(known))
+        .map(|(_, mime)| *mime)
+}
+
+fn base64(bytes: &[u8]) -> String {
+    let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let byte = |i: usize| chunk.get(i).copied().unwrap_or(0);
+        let n = u32::from_be_bytes([0, byte(0), byte(1), byte(2)]);
+        for i in 0..4 {
+            if i <= chunk.len() {
+                encoded.push(BASE64_CHARS[((n >> (18 - 6 * i)) & 63) as usize] as char);
+            } else {
+                encoded.push('=');
+            }
+        }
+    }
+    encoded
 }
 
 fn join_path(parent: &str, child: &str) -> String {

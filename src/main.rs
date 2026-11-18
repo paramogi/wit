@@ -2,7 +2,9 @@ mod error;
 mod html;
 mod repo_info;
 
-use html::{STYLE, gen_blob, gen_branches, gen_index, gen_summary, gen_tags, gen_tree};
+use html::{
+    STYLE, gen_blob, gen_branches, gen_index, gen_summary, gen_tags, gen_tree, has_code_page,
+};
 use repo_info::RepoInfo;
 use std::{env, fs, path::PathBuf, process};
 
@@ -79,16 +81,25 @@ fn run() -> Result<(), WitError> {
                 fs::create_dir_all(&tree_dir)?;
                 fs::write(tree_dir.join("index.html"), gen_tree(repo, git_ref, folder))?;
                 let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&folder.path);
+                let code_dir = repo_dir.join("code").join(&git_ref.dir).join(&folder.path);
                 for entry in &folder.entries {
                     let Some(id) = entry.blob else {
                         continue;
                     };
                     let blob = repo.git.find_blob(id)?;
+                    let page_name = format!("{}.html", entry.name);
                     fs::create_dir_all(&blob_dir)?;
                     fs::write(
-                        blob_dir.join(format!("{}.html", entry.name)),
-                        gen_blob(repo, git_ref, folder, entry, blob.content()),
+                        blob_dir.join(&page_name),
+                        gen_blob(repo, git_ref, folder, entry, blob.content(), false),
                     )?;
+                    if has_code_page(entry) {
+                        fs::create_dir_all(&code_dir)?;
+                        fs::write(
+                            code_dir.join(&page_name),
+                            gen_blob(repo, git_ref, folder, entry, blob.content(), true),
+                        )?;
+                    }
                 }
             }
         }
