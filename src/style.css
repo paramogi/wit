@@ -1,0 +1,414 @@
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #ffffff;
+  color: #1a2a44;
+  font-size: 16px;
+  line-height: 1.3rem;
+  font-family:
+    "Iowan Old Style",
+    "Palatino Linotype",
+    "Book Antiqua",
+    Palatino,
+    "URW Palladio L",
+    "Times New Roman",
+    Times,
+    serif;
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+}
+
+body {
+  margin: 0 auto;
+  padding: 0 1rem;
+  max-width: 86rem;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+code,
+pre {
+  font-family: monospace;
+}
+
+code {
+  font-size: 90%;
+  padding: 0.025rem 0.3rem;
+  border: 1px solid #7689b3;
+}
+
+pre {
+  border: 1px solid #7689b3;
+  padding: 0.65rem;
+  overflow-x: auto;
+}
+
+pre > code {
+  padding: 0;
+  border: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-style: italic;
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1.3rem;
+  margin: 0 0 0.65rem 0;
+  padding: 0;
+  border: 0;
+}
+
+path {
+  fill: #1a2a44;
+}
+
+a {
+  text-decoration: none;
+  color: #1a2a44;
+}
+
+a:hover,
+a:visited:hover {
+  color: #7689b3;
+  text-decoration: underline;
+}
+
+a:visited {
+  color: #1a2a44;
+}
+
+header {
+  margin: 1rem auto;
+}
+
+#header {
+  overflow: hidden;
+}
+
+#got_link {
+  float: left;
+  width: 480px;
+}
+
+.brand {
+  display: block;
+  width: 100%;
+  font-weight: 700;
+}
+
+.root-header-shell {
+  overflow: hidden;
+}
+
+p {
+  margin-top: 1.3rem;
+  margin-bottom: 1.3rem;
+}
+
+footer {
+  text-align: center;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+.mono {
+  font-family: monospace;
+  font-style: normal;
+}
+
+.text-sm {
+  font-size: 0.8rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap {
+  gap: 0.65rem;
+}
+
+.gap-2 {
+  gap: 1.3rem;
+}
+
+.group-2 {
+  display: flex;
+  flex-direction: column;
+  gap: 1.3rem;
+}
+
+.mb {
+  margin-bottom: 0.65rem;
+}
+
+.my {
+  margin-top: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.px {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.py {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
+.box {
+  margin: 1rem 0;
+  padding: 0.65rem;
+  border: 1px solid #7689b3;
+}
+
+.m-0 {
+  margin: 0;
+}
+
+.mt-0 {
+  margin-top: 0;
+}
+
+.p-0 {
+  padding: 0;
+}
+
+.border-b {
+  border-bottom: 1px solid #7689b3;
+}
+
+.border-b:last-child {
+  border-bottom: 0;
+}
+
+.white-space-bs {
+  white-space: break-spaces;
+}
+
+.muted {
+  opacity: 0.55;
+}
+
+.color-green {
+  color: #009926;
+}
+
+.color-red {
+  color: #aa0000;
+}
+
+.tree-size {
+  width: 60px;
+  text-align: right;
+}
+
+.tree-path {
+  word-wrap: break-word;
+}
+
+.diff-stat {
+  width: 100px;
+  text-align: right;
+}
+
+.summary-commit-box {
+  margin: 0;
+  padding: 0;
+}
+
+.summary-commit-row {
+  padding: 0.45rem 0.55rem;
+}
+
+.summary-commit-row .mb {
+  margin-bottom: 0.2rem;
+}
+
+.summary-commit-msg {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.summary-meta-box {
+  margin-top: 0;
+  padding: 0;
+}
+
+.summary-meta-row {
+  padding: 0.45rem 0.55rem;
+  overflow: hidden;
+}
+
+.summary-meta-key {
+  float: left;
+  width: 10rem;
+  font-style: italic;
+}
+
+.summary-meta-val {
+  display: block;
+  margin-left: 10.5rem;
+  word-break: break-word;
+}
+
+.summary-meta-clone {
+  border: 0;
+  padding: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.home-grid {
+  width: 100%;
+}
+
+.home-card {
+  float: none;
+  width: 100%;
+  margin: 0 0 0.8rem 0;
+  padding: 0.55rem 0.7rem;
+  overflow: hidden;
+}
+
+@media screen and (min-width: 681px) {
+  .home-grid {
+    overflow: hidden;
+    margin-right: -0.8rem;
+  }
+
+  .home-card {
+    float: left;
+    width: 47.5%;
+    margin: 0 0.8rem 0.8rem 0;
+  }
+}
+
+@media screen and (min-width: 1201px) {
+  .home-card {
+    width: 31.2%;
+  }
+}
+
+.repo-name {
+  font-size: 1.22rem;
+  line-height: 1.1;
+  font-weight: 700;
+  margin: 0 0 0.2rem 0;
+}
+
+.repo-desc {
+  font-size: 0.88rem;
+  line-height: 1.25;
+  min-height: 2.5em;
+  opacity: 0.92;
+}
+
+.repo-links {
+  clear: both;
+  margin-top: 0.65rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid #7689b3;
+  font-size: 0.88rem;
+}
+
+#site_path,
+.navs,
+.text-sm {
+  font-style: italic;
+}
+
+.navs a,
+code,
+pre,
+.mono,
+.tree-size,
+.tree-path a {
+  font-style: normal;
+}
+
+.chroma {
+  background-color: #ffffff;
+}
+
+.chroma .line {
+  display: flex;
+}
+
+.chroma .ln {
+  white-space: pre;
+  -webkit-user-select: none;
+  user-select: none;
+  margin-right: 0.2em;
+  padding: 0 0.3em 0 0;
+  color: #7f7f7f;
+}
+
+.chroma .ln:target {
+  background-color: #e5e5e5;
+}
+
+.chroma .lnlinks {
+  outline: none;
+  text-decoration: none;
+  color: inherit;
+}
+
+.chroma .gd {
+  color: #000000;
+  background-color: #ffdddd;
+}
+
+.chroma .gi {
+  color: #000000;
+  background-color: #ddffdd;
+}
+
+.chroma .gu {
+  color: #aaaaaa;
+}
+
+@media only screen and (max-width: 900px) {
+  body {
+    padding: 0 0.5rem;
+  }
+
+  header {
+    margin: 0;
+  }
+
+  #got_link {
+    float: none;
+    width: 100%;
+  }
+}

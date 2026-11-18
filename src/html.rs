@@ -5,6 +5,8 @@ use std::fmt::Write;
 
 const BRAND: &str = "wit";
 
+pub const STYLE: &str = include_str!("style.css");
+
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
     Summary,

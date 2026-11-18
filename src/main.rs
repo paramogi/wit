@@ -2,7 +2,7 @@ mod error;
 mod html;
 mod repo_info;
 
-use html::gen_page;
+use html::{STYLE, gen_page};
 use repo_info::RepoInfo;
 use std::{env, fs, path::PathBuf, process};
 
@@ -59,6 +59,8 @@ fn run() -> Result<(), WitError> {
         }
         repos.push((path, repo));
     }
+    fs::create_dir_all(&args.out_dir)?;
+    fs::write(args.out_dir.join("style.css"), STYLE)?;
     for (_, repo) in &repos {
         let page = gen_page(repo)?;
         let repo_dir = args.out_dir.join(&repo.name);
