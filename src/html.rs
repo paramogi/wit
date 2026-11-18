@@ -187,7 +187,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
     wrap_page("index", None, &body)
 }
 
-pub fn gen_page(repo: &RepoInfo) -> String {
+pub fn gen_summary(repo: &RepoInfo) -> String {
     let nav = RepoNav {
         name: &repo.name,
         git_ref: &repo.head,
