@@ -1,6 +1,5 @@
 use std::fmt;
 
-#[derive(Debug)]
 pub enum WitError {
     Usage,
     NoName(String),
@@ -30,8 +29,6 @@ impl fmt::Display for WitError {
         }
     }
 }
-
-impl std::error::Error for WitError {}
 
 impl From<git2::Error> for WitError {
     fn from(e: git2::Error) -> Self {

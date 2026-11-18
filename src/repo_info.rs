@@ -6,7 +6,6 @@ use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
 
-#[derive(Debug)]
 pub struct CommitInfo {
     pub id: String,
     pub summary: String,
@@ -19,13 +18,11 @@ pub struct CommitInfo {
     pub committer_date: DateTime<FixedOffset>,
 }
 
-#[derive(Debug)]
 pub struct BranchInfo {
     pub name: String,
     pub id: String,
 }
 
-#[derive(Debug)]
 pub struct RepoInfo {
     pub name: String,
     pub description: String,
