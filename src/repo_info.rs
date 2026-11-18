@@ -76,12 +76,11 @@ impl RepoInfo {
                 continue;
             };
             let commit = branch.get().peel_to_commit()?;
-            let date = Self::to_date(commit.author().when()).ok_or(WitError::InvalidDate)?;
             let info = BranchInfo {
                 name: name.to_string(),
                 id: commit.id().to_string(),
             };
-            branches.push((date, info));
+            branches.push((commit.author().when().seconds(), info));
         }
         branches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
         Ok(branches.into_iter().map(|(_, info)| info).collect())
