@@ -1,6 +1,6 @@
 use crate::repo_info::{Folder, RefInfo, RepoInfo, TreeEntry};
 
-use pulldown_cmark::{Options, Parser, html::push_html};
+use pulldown_cmark::{Event, Options, Parser, Tag, html::push_html};
 use std::cmp::Reverse;
 
 const BRAND: &str = "wit";
@@ -473,8 +473,15 @@ fn write_markdown(body: &mut String, content: &[u8]) {
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_FOOTNOTES;
+    let events = Parser::new_ext(&text, options).map(|event| match event {
+        Event::FootnoteReference(label) => Event::FootnoteReference(format!("fn-{label}").into()),
+        Event::Start(Tag::FootnoteDefinition(label)) => {
+            Event::Start(Tag::FootnoteDefinition(format!("fn-{label}").into()))
+        }
+        _ => event,
+    });
     body.push_str("<div class=\"box markdown-body\">");
-    push_html(body, Parser::new_ext(&text, options));
+    push_html(body, events);
     body.push_str("</div>\n");
 }
 
