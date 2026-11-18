@@ -1,7 +1,6 @@
-use crate::error::WitError;
 use crate::repo_info::RepoInfo;
 
-use std::{cmp::Reverse, fmt::Write};
+use std::cmp::Reverse;
 
 const BRAND: &str = "wit";
 
@@ -78,15 +77,12 @@ fn escape_str(s: &str) -> String {
     escaped_str
 }
 
-fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, WitError> {
+fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
     let root = match nav {
         Some(nav) => "../".repeat(nav.depth + 1),
         None => String::new(),
     };
-    let mut page = String::new();
-
-    write!(
-        &mut page,
+    let mut page = format!(
         "\
 <!DOCTYPE html>\n\
 <html lang=\"en\">\n\
@@ -104,20 +100,19 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
 </header>\n\
 ",
         escape_str(title)
-    )?;
+    );
 
     let main_class = match nav {
         Some(nav) => {
             let repo_root = "../".repeat(nav.depth);
-            write!(
-                &mut page,
+            page.push_str(&format!(
                 "\
 <nav id=\"site_path\"><div id=\"site_link\"><a href=\"{repo_root}index.html\">{}</a> / {}</div></nav>\n\
 <div class=\"navs_wrapper\"><nav class=\"navs\">\n\
 ",
                 escape_str(nav.name),
                 nav.tab.label()
-            )?;
+            ));
             let links: Vec<String> = TABS
                 .iter()
                 .map(|&tab| {
@@ -133,14 +128,13 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
                     )
                 })
                 .collect();
-            write!(&mut page, "{}\n</nav></div>\n", links.join(" |\n"))?;
+            page.push_str(&format!("{}\n</nav></div>\n", links.join(" |\n")));
             nav.tab.main_class()
         }
         None => "action-index",
     };
 
-    write!(
-        &mut page,
+    page.push_str(&format!(
         "\
 <main class=\"{main_class}\">\n\
 {body}\
@@ -148,12 +142,12 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
 </body>\n\
 </html>\n\
 "
-    )?;
+    ));
 
-    Ok(page)
+    page
 }
 
-pub fn gen_index(repos: &[RepoInfo]) -> Result<String, WitError> {
+pub fn gen_index(repos: &[RepoInfo]) -> String {
     let mut sorted: Vec<&RepoInfo> = repos.iter().collect();
     sorted.sort_by_key(|repo| Reverse(repo.commit_list.first().map(|c| c.author_date)));
 
@@ -174,8 +168,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> Result<String, WitError> {
                 )
             })
             .collect();
-        write!(
-            &mut body,
+        body.push_str(&format!(
             "\
 <div class=\"box home-card\">\n\
 <div>\n\
@@ -187,14 +180,14 @@ pub fn gen_index(repos: &[RepoInfo]) -> Result<String, WitError> {
 ",
             escape_str(&repo.description),
             links.join(" | ")
-        )?;
+        ));
     }
     body.push_str("</div>\n");
 
     wrap_page("index", None, &body)
 }
 
-pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
+pub fn gen_page(repo: &RepoInfo) -> String {
     let nav = RepoNav {
         name: &repo.name,
         git_ref: &repo.head,
@@ -216,8 +209,7 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
 
     let mut body = String::from("<div class=\"box summary-meta-box\">\n");
     for (key, val) in rows {
-        write!(
-            &mut body,
+        body.push_str(&format!(
             "\
 <div class=\"summary-meta-row border-b\">\n\
 <span class=\"summary-meta-key\">{key}</span>\n\
@@ -225,10 +217,9 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
 </div>\n\
 ",
             escape_str(val)
-        )?;
+        ));
     }
-    write!(
-        &mut body,
+    body.push_str(&format!(
         "\
 <div class=\"summary-meta-row\">\n\
 <span class=\"summary-meta-key\">clone url</span>\n\
@@ -237,14 +228,14 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
 </div>\n\
 ",
         escape_str(&repo.name)
-    )?;
-    write_briefs(&mut body, repo)?;
-    write_summary_branches(&mut body, repo)?;
+    ));
+    write_briefs(&mut body, repo);
+    write_summary_branches(&mut body, repo);
 
     wrap_page(&repo.name, Some(&nav), &body)
 }
 
-pub fn gen_branches(repo: &RepoInfo) -> Result<String, WitError> {
+pub fn gen_branches(repo: &RepoInfo) -> String {
     let nav = RepoNav {
         name: &repo.name,
         git_ref: &repo.head,
@@ -254,8 +245,7 @@ pub fn gen_branches(repo: &RepoInfo) -> Result<String, WitError> {
 
     let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
     for branch in &repo.branches {
-        write!(
-            &mut body,
+        body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
 <div><a href=\"{}\">{}</a></div>\n\
@@ -263,14 +253,14 @@ pub fn gen_branches(repo: &RepoInfo) -> Result<String, WitError> {
 ",
             escape_str(&Tab::Tree.href(&branch.name)),
             escape_str(&branch.name)
-        )?;
+        ));
     }
     body.push_str("</div>\n");
 
     wrap_page(&format!("branches - {}", repo.name), Some(&nav), &body)
 }
 
-fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
+fn write_briefs(body: &mut String, repo: &RepoInfo) {
     body.push_str(
         "\
 <div class=\"summary-briefs\">\n\
@@ -295,8 +285,7 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
                 )
             })
             .collect();
-        write!(
-            body,
+        body.push_str(&format!(
             "\
 <div class=\"summary-commit-row border-b\">\n\
 <div class=\"flex items-center gap mb text-sm\">\n\
@@ -317,15 +306,14 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
             escape_str(&commit.author_name),
             commit.author_date.format("%Y-%m-%d %H:%M:%S %z"),
             escape_str(&commit.summary)
-        )?;
+        ));
     }
     body.push_str("</div>\n</div>\n</div>\n");
-    Ok(())
 }
 
-fn write_summary_branches(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
+fn write_summary_branches(body: &mut String, repo: &RepoInfo) {
     if repo.branches.len() < 2 {
-        return Ok(());
+        return;
     }
     body.push_str(
         "\
@@ -337,8 +325,7 @@ fn write_summary_branches(body: &mut String, repo: &RepoInfo) -> Result<(), WitE
 ",
     );
     for branch in repo.branches.iter().take(SUMMARY_REF_COUNT) {
-        write!(
-            body,
+        body.push_str(&format!(
             "\
 <section class=\"branches_wrapper border-b py px\">\n\
 <div class=\"branch\"><a href=\"{}\">{}</a></div>\n\
@@ -346,7 +333,7 @@ fn write_summary_branches(body: &mut String, repo: &RepoInfo) -> Result<(), WitE
 ",
             escape_str(&Tab::Tree.href(&branch.name)),
             escape_str(&branch.name)
-        )?;
+        ));
     }
     body.push_str(
         "\
@@ -357,5 +344,4 @@ fn write_summary_branches(body: &mut String, repo: &RepoInfo) -> Result<(), WitE
 </div>\n\
 ",
     );
-    Ok(())
 }
