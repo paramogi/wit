@@ -2,7 +2,7 @@ mod error;
 mod html;
 mod repo_info;
 
-use html::{STYLE, gen_branches, gen_index, gen_summary, gen_tags, gen_tree};
+use html::{STYLE, gen_blob, gen_branches, gen_index, gen_summary, gen_tags, gen_tree};
 use repo_info::RepoInfo;
 use std::{env, fs, path::PathBuf, process};
 
@@ -78,6 +78,18 @@ fn run() -> Result<(), WitError> {
                 let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
                 fs::create_dir_all(&tree_dir)?;
                 fs::write(tree_dir.join("index.html"), gen_tree(repo, git_ref, folder))?;
+                let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&folder.path);
+                for entry in &folder.entries {
+                    let Some(id) = entry.blob else {
+                        continue;
+                    };
+                    let blob = repo.git.find_blob(id)?;
+                    fs::create_dir_all(&blob_dir)?;
+                    fs::write(
+                        blob_dir.join(format!("{}.html", entry.name)),
+                        gen_blob(repo, git_ref, folder, entry, blob.content()),
+                    )?;
+                }
             }
         }
     }

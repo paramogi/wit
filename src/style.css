@@ -28,11 +28,26 @@ body {
   max-width: 86rem;
 }
 
-code {
+code,
+pre {
   font-family: monospace;
+}
+
+code {
   font-size: 90%;
   padding: 0.025rem 0.3rem;
   border: 1px solid #7689b3;
+}
+
+pre {
+  border: 1px solid #7689b3;
+  padding: 0.65rem;
+  overflow-x: auto;
+}
+
+pre > code {
+  padding: 0;
+  border: none;
 }
 
 h2 {
@@ -118,6 +133,10 @@ p {
   display: flex;
 }
 
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
 .flex-1 {
   flex: 1;
 }
@@ -140,6 +159,10 @@ p {
 
 .mb {
   margin-bottom: 0.65rem;
+}
+
+.ml-auto {
+  margin-left: auto;
 }
 
 .px {
@@ -181,6 +204,29 @@ p {
 
 .tree-path {
   word-wrap: break-word;
+}
+
+.chroma .line {
+  display: flex;
+}
+
+.chroma .ln {
+  white-space: pre;
+  -webkit-user-select: none;
+  user-select: none;
+  margin-right: 0.2em;
+  padding: 0 0.3em 0 0;
+  color: #7f7f7f;
+}
+
+.chroma .ln:target {
+  background-color: #e5e5e5;
+}
+
+.chroma .lnlinks {
+  outline: none;
+  text-decoration: none;
+  color: inherit;
 }
 
 .summary-commit-box {
@@ -284,6 +330,7 @@ p {
 
 .navs a,
 code,
+pre,
 .mono,
 .tree-size,
 .tree-path a {

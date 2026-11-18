@@ -1,7 +1,7 @@
 use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
-use git2::{BranchType, Commit, ErrorCode, ObjectType, Repository, Sort, Tree};
+use git2::{BranchType, Commit, ErrorCode, ObjectType, Oid, Repository, Sort, Tree};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -23,6 +23,7 @@ pub struct CommitInfo {
 pub struct TreeEntry {
     pub name: String,
     pub is_dir: bool,
+    pub blob: Option<Oid>,
     pub lines: Option<usize>,
     pub bytes: Option<usize>,
 }
@@ -40,6 +41,7 @@ pub struct RefInfo {
 }
 
 pub struct RepoInfo {
+    pub git: Repository,
     pub path: String,
     pub name: String,
     pub description: String,
@@ -72,6 +74,7 @@ impl RepoInfo {
         let tags = Self::handle_tags(&repo)?;
         let commit_list = Self::handle_commits(&repo)?;
         Ok(Some(Self {
+            git: repo,
             path: path.to_string(),
             name,
             description,
@@ -152,11 +155,11 @@ impl RepoInfo {
             let Ok(name) = entry.name() else {
                 continue;
             };
-            let (lines, bytes) = match entry.kind() {
+            let (blob, lines, bytes) = match entry.kind() {
                 Some(ObjectType::Blob) => {
                     let blob = repo.find_blob(entry.id())?;
                     let lines = (!blob.is_binary()).then(|| Self::count_lines(blob.content()));
-                    (lines, Some(blob.size()))
+                    (Some(entry.id()), lines, Some(blob.size()))
                 }
                 Some(ObjectType::Tree) => {
                     let sub_path = if path.is_empty() {
@@ -165,13 +168,14 @@ impl RepoInfo {
                         format!("{path}/{name}")
                     };
                     Self::read_folder(repo, &repo.find_tree(entry.id())?, &sub_path, folders)?;
-                    (None, None)
+                    (None, None, None)
                 }
-                _ => (None, None),
+                _ => (None, None, None),
             };
             entries.push(TreeEntry {
                 name: name.to_string(),
                 is_dir: entry.kind() == Some(ObjectType::Tree),
+                blob,
                 lines,
                 bytes,
             });

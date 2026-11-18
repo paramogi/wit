@@ -76,7 +76,13 @@ struct RepoNav<'a> {
     git_ref: &'a str,
     tab: Tab,
     depth: usize,
-    trail: Vec<(String, String)>,
+}
+
+fn crumb(text: &str, href: Option<String>) -> String {
+    match href {
+        Some(href) => format!("<a href=\"{href}\">{}</a>", escape_str(text)),
+        None => format!("<a class=\"btn-active\" href=\"\">{}</a>", escape_str(text)),
+    }
 }
 
 fn escape_str(s: &str) -> String {
@@ -179,29 +185,13 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
     let main_class = match nav {
         Some(nav) => {
             let repo_root = "../".repeat(nav.depth);
-            let mut crumbs = vec![
-                (nav.repo.name.clone(), "index.html".to_string()),
-                (nav.tab.label().to_string(), nav.tab.href(nav.git_ref)),
-            ];
-            crumbs.extend(nav.trail.iter().cloned());
-            let last = crumbs.len() - 1;
-            let crumbs: Vec<String> = crumbs
-                .iter()
-                .enumerate()
-                .map(|(i, (text, href))| {
-                    if i == last {
-                        format!("<a class=\"btn-active\" href=\"\">{}</a>", escape_str(text))
-                    } else {
-                        format!("<a href=\"{repo_root}{href}\">{}</a>", escape_str(text))
-                    }
-                })
-                .collect();
+            let summary_href = (nav.tab != Tab::Summary).then(|| format!("{repo_root}index.html"));
             page.push_str(&format!(
                 "\
 <nav id=\"site_path\"><div id=\"site_link\">{}</div></nav>\n\
 <div class=\"navs_wrapper flex justify-between\"><nav class=\"navs\">\n\
 ",
-                crumbs.join(" / ")
+                crumb(&nav.repo.name, summary_href)
             ));
             let links: Vec<String> = repo_tabs(nav.repo)
                 .map(|tab| {
@@ -253,6 +243,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
         let name = escape_str(&repo.name);
         let dir = percent_encode(&repo.name);
         let links: Vec<String> = repo_tabs(repo)
+            .filter(|&tab| tab != Tab::Summary)
             .map(|tab| {
                 let label = if tab == Tab::Log {
                     "commits"
@@ -287,7 +278,6 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
         git_ref: &repo.head_dir,
         tab: Tab::Summary,
         depth: 0,
-        trail: Vec::new(),
     };
     let last_change = repo
         .commit_list
@@ -363,7 +353,6 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         git_ref: &repo.head_dir,
         tab,
         depth: 0,
-        trail: Vec::new(),
     };
 
     let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
@@ -384,39 +373,113 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
 }
 
 pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
-    let mut tree_path = git_ref.dir.clone();
-    let mut trail = vec![(git_ref.name.clone(), Tab::Tree.href(&tree_path))];
-    for part in folder.path.split('/').filter(|p| !p.is_empty()) {
-        tree_path = format!("{tree_path}/{part}");
-        trail.push((part.to_string(), Tab::Tree.href(&tree_path)));
-    }
+    let tree_path = join_path(&git_ref.dir, &folder.path);
     let depth = 1 + tree_path.split('/').count();
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
         tab: Tab::Tree,
         depth,
-        trail,
     };
-    let blob_dir = format!("{}blob/{tree_path}/", "../".repeat(depth));
+    let repo_root = "../".repeat(depth);
+    let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
-    let mut body = String::new();
+    let mut body = ref_bar(git_ref, &folder.path, &repo_root, "");
     write_listing(&mut body, folder, "", &blob_dir);
 
     let title = format!("{}/{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
 }
 
+pub fn gen_blob(
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    folder: &Folder,
+    entry: &TreeEntry,
+    content: &[u8],
+) -> String {
+    let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
+    let nav = RepoNav {
+        repo,
+        git_ref: &git_ref.dir,
+        tab: Tab::Tree,
+        depth,
+    };
+    let path = join_path(&folder.path, &entry.name);
+    let sizes = format!(
+        "<div class=\"ml-auto flex items-center gap\">\n{}</div>\n",
+        size_cells(entry)
+    );
+
+    let mut body = ref_bar(git_ref, &path, &"../".repeat(depth), &sizes);
+    if entry.lines.is_some() {
+        write_code(&mut body, content);
+    } else {
+        body.push_str("binary file, cannot display\n");
+    }
+
+    let title = format!("{}/{}/{path}", repo.name, git_ref.name);
+    wrap_page(&title, Some(&nav), &body)
+}
+
+fn join_path(parent: &str, child: &str) -> String {
+    if parent.is_empty() || child.is_empty() {
+        format!("{parent}{child}")
+    } else {
+        format!("{parent}/{child}")
+    }
+}
+
+fn ref_bar(git_ref: &RefInfo, path: &str, repo_root: &str, details: &str) -> String {
+    let mut tree_path = git_ref.dir.clone();
+    let mut levels = vec![(git_ref.name.clone(), Tab::Tree.href(&tree_path))];
+    for part in path.split('/').filter(|p| !p.is_empty()) {
+        tree_path = format!("{tree_path}/{part}");
+        levels.push((part.to_string(), Tab::Tree.href(&tree_path)));
+    }
+
+    let mut bar =
+        String::from("<div class=\"box sticky flex items-center gap border-visited flex-wrap\">\n");
+    let last = levels.len() - 1;
+    for (i, (text, href)) in levels.iter().enumerate() {
+        let link = crumb(text, (i != last).then(|| format!("{repo_root}{href}")));
+        match i {
+            0 => bar.push_str(&format!("<code>{link}</code>\n")),
+            1 => bar.push_str(&format!("{link}\n")),
+            _ => bar.push_str(&format!("<span>/</span>\n{link}\n")),
+        }
+    }
+    bar.push_str(details);
+    bar.push_str("</div>\n");
+    bar
+}
+
+fn size_cells(entry: &TreeEntry) -> String {
+    let lines = entry.lines.map(|n| format!("{n} L")).unwrap_or_default();
+    let bytes = entry.bytes.map(format_bytes).unwrap_or_default();
+    format!("<div class=\"tree-size\">{lines}</div>\n<div class=\"tree-size\">{bytes}</div>\n")
+}
+
+fn write_code(body: &mut String, content: &[u8]) {
+    let text = String::from_utf8_lossy(content);
+    let lines: Vec<&str> = text.split_inclusive('\n').collect();
+    let width = lines.len().to_string().len();
+    body.push_str("<pre class=\"chroma\"><code>");
+    for (i, line) in lines.iter().enumerate() {
+        let n = i + 1;
+        body.push_str(&format!(
+            "<span class=\"line\"><span class=\"ln\" id=\"{n}\"><a class=\"lnlinks\" href=\"#{n}\">{n:>width$}</a></span><span class=\"cl\">{}</span></span>",
+            escape_str(line)
+        ));
+    }
+    body.push_str("</code></pre>\n");
+}
+
 fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &str) {
     body.push_str("<div class=\"box p-0\">\n");
-    for TreeEntry {
-        name,
-        is_dir,
-        lines,
-        bytes,
-    } in &folder.entries
-    {
-        let (icon, href) = if *is_dir {
+    for entry in &folder.entries {
+        let name = &entry.name;
+        let (icon, href) = if entry.is_dir {
             (
                 FOLDER_ICON,
                 percent_encode(&format!("{tree_dir}{name}/index.html")),
@@ -424,8 +487,6 @@ fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &
         } else {
             (FILE_ICON, percent_encode(&format!("{blob_dir}{name}.html")))
         };
-        let lines = lines.map(|n| format!("{n} L")).unwrap_or_default();
-        let bytes = bytes.map(format_bytes).unwrap_or_default();
         body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
@@ -434,12 +495,12 @@ fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &
 <a href=\"{href}\">{}</a>\n\
 </div>\n\
 <div class=\"flex items-center gap\">\n\
-<div class=\"tree-size\">{lines}</div>\n\
-<div class=\"tree-size\">{bytes}</div>\n\
+{}\
 </div>\n\
 </div>\n\
 ",
-            escape_str(name)
+            escape_str(name),
+            size_cells(entry)
         ));
     }
     body.push_str("</div>\n");
