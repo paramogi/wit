@@ -92,6 +92,10 @@ p {
   margin-bottom: 1.3rem;
 }
 
+.font-bold {
+  font-weight: bold;
+}
+
 .mono {
   font-family: monospace;
   font-style: normal;

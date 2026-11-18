@@ -74,9 +74,11 @@ fn run() -> Result<(), WitError> {
             fs::write(repo_dir.join("tags.html"), gen_tags(repo))?;
         }
         for git_ref in repo.branches.iter().chain(&repo.tags) {
-            let tree_dir = repo_dir.join("tree").join(&git_ref.dir);
-            fs::create_dir_all(&tree_dir)?;
-            fs::write(tree_dir.join("index.html"), gen_tree(repo, git_ref))?;
+            for folder in &git_ref.folders {
+                let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
+                fs::create_dir_all(&tree_dir)?;
+                fs::write(tree_dir.join("index.html"), gen_tree(repo, git_ref, folder))?;
+            }
         }
     }
     Ok(())

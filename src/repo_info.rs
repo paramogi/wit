@@ -1,7 +1,7 @@
 use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
-use git2::{BranchType, Commit, ErrorCode, ObjectType, Repository, Sort};
+use git2::{BranchType, Commit, ErrorCode, ObjectType, Repository, Sort, Tree};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -27,11 +27,16 @@ pub struct TreeEntry {
     pub bytes: Option<usize>,
 }
 
+pub struct Folder {
+    pub path: String,
+    pub entries: Vec<TreeEntry>,
+}
+
 pub struct RefInfo {
     pub name: String,
     pub dir: String,
     pub id: String,
-    pub root: Vec<TreeEntry>,
+    pub folders: Vec<Folder>,
 }
 
 pub struct RepoInfo {
@@ -97,7 +102,7 @@ impl RepoInfo {
                 name: name.to_string(),
                 dir: format!("heads/{name}"),
                 id: commit.id().to_string(),
-                root: Self::root_entries(repo, &commit)?,
+                folders: Self::read_folders(repo, &commit)?,
             };
             branches.push((commit.committer().when().seconds(), info));
         }
@@ -123,25 +128,46 @@ impl RepoInfo {
                 name: name.to_string(),
                 dir: format!("tags/{name}"),
                 id: commit.id().to_string(),
-                root: Self::root_entries(repo, &commit)?,
+                folders: Self::read_folders(repo, &commit)?,
             };
             tags.push((time.seconds(), info));
         }
         Ok(Self::newest_first(tags))
     }
 
-    fn root_entries(repo: &Repository, commit: &Commit) -> Result<Vec<TreeEntry>, WitError> {
+    fn read_folders(repo: &Repository, commit: &Commit) -> Result<Vec<Folder>, WitError> {
+        let mut folders = Vec::new();
+        Self::read_folder(repo, &commit.tree()?, "", &mut folders)?;
+        Ok(folders)
+    }
+
+    fn read_folder(
+        repo: &Repository,
+        tree: &Tree,
+        path: &str,
+        folders: &mut Vec<Folder>,
+    ) -> Result<(), WitError> {
         let mut entries = Vec::new();
-        for entry in commit.tree()?.iter() {
+        for entry in tree.iter() {
             let Ok(name) = entry.name() else {
                 continue;
             };
-            let (lines, bytes) = if entry.kind() == Some(ObjectType::Blob) {
-                let blob = repo.find_blob(entry.id())?;
-                let lines = (!blob.is_binary()).then(|| Self::count_lines(blob.content()));
-                (lines, Some(blob.size()))
-            } else {
-                (None, None)
+            let (lines, bytes) = match entry.kind() {
+                Some(ObjectType::Blob) => {
+                    let blob = repo.find_blob(entry.id())?;
+                    let lines = (!blob.is_binary()).then(|| Self::count_lines(blob.content()));
+                    (lines, Some(blob.size()))
+                }
+                Some(ObjectType::Tree) => {
+                    let sub_path = if path.is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{path}/{name}")
+                    };
+                    Self::read_folder(repo, &repo.find_tree(entry.id())?, &sub_path, folders)?;
+                    (None, None)
+                }
+                _ => (None, None),
             };
             entries.push(TreeEntry {
                 name: name.to_string(),
@@ -151,7 +177,11 @@ impl RepoInfo {
             });
         }
         entries.sort_by_key(|entry| !entry.is_dir);
-        Ok(entries)
+        folders.push(Folder {
+            path: path.to_string(),
+            entries,
+        });
+        Ok(())
     }
 
     fn count_lines(content: &[u8]) -> usize {

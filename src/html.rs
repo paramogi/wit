@@ -1,4 +1,4 @@
-use crate::repo_info::{RefInfo, RepoInfo, TreeEntry};
+use crate::repo_info::{Folder, RefInfo, RepoInfo, TreeEntry};
 
 use std::cmp::Reverse;
 
@@ -119,9 +119,12 @@ fn percent_encode(s: &str) -> String {
 }
 
 fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
-    let root = match nav {
-        Some(nav) => "../".repeat(nav.depth + 1),
-        None => String::new(),
+    let (root, title) = match nav {
+        Some(nav) => (
+            "../".repeat(nav.depth + 1),
+            format!("{} - {title}", nav.tab.label()),
+        ),
+        None => (String::new(), title.to_string()),
     };
     let mut page = format!(
         "\
@@ -140,7 +143,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
 </div>\n\
 </header>\n\
 ",
-        escape_str(title)
+        escape_str(&title)
     );
 
     let main_class = match nav {
@@ -221,7 +224,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
     }
     body.push_str("</div>\n");
 
-    wrap_page("index", None, &body)
+    wrap_page("repositories", None, &body)
 }
 
 pub fn gen_summary(repo: &RepoInfo) -> String {
@@ -313,37 +316,67 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
     }
     body.push_str("</div>\n");
 
-    let title = format!("{} - {}", tab.label(), repo.name);
-    wrap_page(&title, Some(&nav), &body)
+    wrap_page(&repo.name, Some(&nav), &body)
 }
 
-pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo) -> String {
-    let depth = 1 + git_ref.dir.split('/').count();
+pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
+    let tree_path = if folder.path.is_empty() {
+        git_ref.dir.clone()
+    } else {
+        format!("{}/{}", git_ref.dir, folder.path)
+    };
+    let depth = 1 + tree_path.split('/').count();
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
         tab: Tab::Tree,
         depth,
     };
-    let blob_dir = format!("{}blob/{}/", "../".repeat(depth), git_ref.dir);
+    let repo_root = "../".repeat(depth);
+    let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
     let mut body = format!(
         "\
 <div class=\"box sticky flex items-center gap border-visited flex-wrap mt-0\">\n\
 <code>{}</code>\n\
+",
+        escape_str(&git_ref.name)
+    );
+    let parts: Vec<&str> = folder.path.split('/').filter(|p| !p.is_empty()).collect();
+    if let Some((last, parents)) = parts.split_last() {
+        let mut dir = git_ref.dir.clone();
+        body.push_str(&format!(
+            "<a href=\"{repo_root}{}\">{}</a> <span>/</span>\n",
+            Tab::Tree.href(&dir),
+            escape_str(&repo.name)
+        ));
+        for part in parents {
+            dir = format!("{dir}/{part}");
+            body.push_str(&format!(
+                "<a href=\"{repo_root}{}\">{}</a> <span>/</span>\n",
+                Tab::Tree.href(&dir),
+                escape_str(part)
+            ));
+        }
+        body.push_str(&format!(
+            "<span class=\"font-bold\">{}</span>\n",
+            escape_str(last)
+        ));
+    }
+    body.push_str(&format!(
+        "\
 </div>\n\
 <p>{}</p>\n\
 <div class=\"box p-0\">\n\
 ",
-        escape_str(&git_ref.name),
         escape_str(&repo.description)
-    );
+    ));
     for TreeEntry {
         name,
         is_dir,
         lines,
         bytes,
-    } in &git_ref.root
+    } in &folder.entries
     {
         let (icon, href) = if *is_dir {
             (FOLDER_ICON, percent_encode(&format!("{name}/index.html")))
@@ -370,7 +403,7 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo) -> String {
     }
     body.push_str("</div>\n");
 
-    let title = format!("files - {}@{}", repo.name, git_ref.name);
+    let title = format!("{}@{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
 }
 
