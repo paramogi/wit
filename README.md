@@ -6,6 +6,7 @@ Create dependencies:
 
 - git2
 - chrono
+- pulldown-cmark
 
 ## Usage:
 

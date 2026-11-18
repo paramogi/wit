@@ -1,5 +1,6 @@
 use crate::repo_info::{Folder, RefInfo, RepoInfo, TreeEntry};
 
+use pulldown_cmark::{Options, Parser, html::push_html};
 use std::cmp::Reverse;
 
 const BRAND: &str = "wit";
@@ -441,13 +442,15 @@ pub fn gen_blob(
     details.push_str("</div>\n");
 
     let mut body = ref_bar(git_ref, &path, &repo_root, &details);
+    let text = entry.lines.is_some();
     match image_type(&entry.name) {
         Some(mime) if !code => body.push_str(&format!(
             "<div class=\"box\"><img src=\"data:{mime};base64,{}\" alt=\"{}\"></div>\n",
             base64(content),
             escape_str(&entry.name)
         )),
-        _ if entry.lines.is_some() => write_code(&mut body, content),
+        None if !code && text && is_markdown(&entry.name) => write_markdown(&mut body, content),
+        _ if text => write_code(&mut body, content),
         _ => body.push_str("binary file, cannot display\n"),
     }
 
@@ -456,7 +459,23 @@ pub fn gen_blob(
 }
 
 pub fn has_code_page(entry: &TreeEntry) -> bool {
-    image_type(&entry.name).is_some() && entry.lines.is_some()
+    entry.lines.is_some() && (image_type(&entry.name).is_some() || is_markdown(&entry.name))
+}
+
+fn is_markdown(name: &str) -> bool {
+    name.rsplit_once('.')
+        .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("md"))
+}
+
+fn write_markdown(body: &mut String, content: &[u8]) {
+    let text = String::from_utf8_lossy(content);
+    let options = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_FOOTNOTES;
+    body.push_str("<div class=\"box markdown-body\">");
+    push_html(body, Parser::new_ext(&text, options));
+    body.push_str("</div>\n");
 }
 
 fn image_type(name: &str) -> Option<&'static str> {
