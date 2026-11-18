@@ -36,24 +36,6 @@ pub struct RepoInfo {
 }
 
 impl RepoInfo {
-    pub fn new(
-        name: String,
-        description: String,
-        owner: String,
-        head: String,
-        branches: Vec<BranchInfo>,
-        commit_list: Vec<CommitInfo>,
-    ) -> Self {
-        RepoInfo {
-            name,
-            description,
-            owner,
-            head,
-            branches,
-            commit_list,
-        }
-    }
-
     pub fn open(path: &str, default_owner: Option<&str>) -> Result<Self, WitError> {
         let repo = Repository::open(path)?;
         let repo_path = repo.path();
@@ -69,14 +51,14 @@ impl RepoInfo {
         let head = repo.head()?.shorthand()?.to_string();
         let branches = Self::handle_branches(&repo)?;
         let commit_list = Self::handle_commits(&repo)?;
-        Ok(Self::new(
+        Ok(Self {
             name,
             description,
             owner,
             head,
             branches,
             commit_list,
-        ))
+        })
     }
 
     fn repo_name(repo: &Repository) -> Option<String> {
@@ -113,30 +95,19 @@ impl RepoInfo {
         let mut commit_list = Vec::new();
         for oid in rev {
             let commit = repo.find_commit(oid?)?;
-
-            let id = commit.id().to_string();
-            let summary = commit.summary()?.unwrap_or_default().to_string();
-            let message = commit.message().unwrap_or_default().to_string();
-            let sig = commit.committer();
-            let committer_name = sig.name().unwrap_or_default().to_string();
-            let committer_email = sig.email().unwrap_or_default().to_string();
-            let committer_date = Self::to_date(sig.when()).ok_or(WitError::InvalidDate)?;
-            let sig = commit.author();
-            let author_name = sig.name().unwrap_or_default().to_string();
-            let author_email = sig.email().unwrap_or_default().to_string();
-            let author_date = Self::to_date(sig.when()).ok_or(WitError::InvalidDate)?;
-
-            commit_list.push(CommitInfo::new(
-                id,
-                summary,
-                message,
-                author_name,
-                author_email,
-                author_date,
-                committer_name,
-                committer_email,
-                committer_date,
-            ));
+            let author = commit.author();
+            let committer = commit.committer();
+            commit_list.push(CommitInfo {
+                id: commit.id().to_string(),
+                summary: commit.summary()?.unwrap_or_default().to_string(),
+                message: commit.message().unwrap_or_default().to_string(),
+                author_name: author.name().unwrap_or_default().to_string(),
+                author_email: author.email().unwrap_or_default().to_string(),
+                author_date: Self::to_date(author.when()).ok_or(WitError::InvalidDate)?,
+                committer_name: committer.name().unwrap_or_default().to_string(),
+                committer_email: committer.email().unwrap_or_default().to_string(),
+                committer_date: Self::to_date(committer.when()).ok_or(WitError::InvalidDate)?,
+            });
         }
         Ok(commit_list)
     }
@@ -153,32 +124,6 @@ impl RepoInfo {
             Ok(s) => Ok(s.trim().to_string()),
             Err(e) if e.kind() == NotFound => Ok(String::new()),
             Err(e) => Err(e.into()),
-        }
-    }
-}
-
-impl CommitInfo {
-    pub fn new(
-        id: String,
-        summary: String,
-        message: String,
-        author_name: String,
-        author_email: String,
-        author_date: DateTime<FixedOffset>,
-        committer_name: String,
-        committer_email: String,
-        committer_date: DateTime<FixedOffset>,
-    ) -> Self {
-        CommitInfo {
-            id,
-            summary,
-            message,
-            author_name,
-            author_email,
-            author_date,
-            committer_name,
-            committer_email,
-            committer_date,
         }
     }
 }
