@@ -3,7 +3,7 @@ mod repo_info;
 
 use anyhow::{Context, Result, bail};
 use html::{
-    STYLE, gen_blob, gen_branches, gen_index, gen_summary, gen_tags, gen_tree, has_code_page,
+    STYLE, gen_blob, gen_branches, gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
 };
 use repo_info::RepoInfo;
 use std::{
@@ -94,7 +94,10 @@ fn run() -> Result<()> {
                     &gen_tree(repo, git_ref, folder),
                 )?;
                 let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&folder.path);
-                let code_dir = repo_dir.join("code").join(&git_ref.dir).join(&folder.path);
+                let source_dir = repo_dir
+                    .join("source")
+                    .join(&git_ref.dir)
+                    .join(&folder.path);
                 for entry in &folder.entries {
                     let Some(id) = entry.blob else {
                         continue;
@@ -105,9 +108,9 @@ fn run() -> Result<()> {
                         &blob_dir.join(&page_name),
                         &gen_blob(repo, git_ref, folder, entry, blob.content(), false),
                     )?;
-                    if has_code_page(entry) {
+                    if has_source_page(entry) {
                         write_file(
-                            &code_dir.join(&page_name),
+                            &source_dir.join(&page_name),
                             &gen_blob(repo, git_ref, folder, entry, blob.content(), true),
                         )?;
                     }

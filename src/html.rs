@@ -409,7 +409,7 @@ pub fn gen_blob(
     folder: &Folder,
     entry: &TreeEntry,
     content: &[u8],
-    code: bool,
+    source: bool,
 ) -> String {
     let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
     let nav = RepoNav {
@@ -421,21 +421,21 @@ pub fn gen_blob(
     let repo_root = "../".repeat(depth);
     let path = join_path(&folder.path, &entry.name);
     let mut details = String::from("<div class=\"ml-auto flex items-center gap\">\n");
-    if has_code_page(entry) {
-        let root = if code { "blob" } else { "code" };
+    if has_source_page(entry) {
+        let root = if source { "blob" } else { "source" };
         let other = format!(
             "{repo_root}{}",
             percent_encode(&format!("{root}/{}/{path}.html", git_ref.dir))
         );
-        let (rendered_href, code_href) = if code {
-            (Some(other), None)
-        } else {
+        let (source_href, rendered_href) = if source {
             (None, Some(other))
+        } else {
+            (Some(other), None)
         };
         details.push_str(&format!(
             "<nav class=\"navs\">{} |\n{}</nav>\n",
-            crumb("rendered", rendered_href),
-            crumb("code", code_href)
+            crumb("source", source_href),
+            crumb("rendered", rendered_href)
         ));
     }
     details.push_str(&size_cells(entry));
@@ -444,12 +444,12 @@ pub fn gen_blob(
     let mut body = ref_bar(git_ref, &path, &repo_root, &details);
     let text = entry.lines.is_some();
     match image_type(&entry.name) {
-        Some(mime) if !code => body.push_str(&format!(
+        Some(mime) if !source => body.push_str(&format!(
             "<div class=\"box\"><img src=\"{}\" alt=\"{}\"></div>\n",
             data_uri(mime, content),
             escape_str(&entry.name)
         )),
-        None if !code && text && is_markdown(&entry.name) => {
+        None if !source && text && is_markdown(&entry.name) => {
             write_markdown(&mut body, repo, git_ref, &folder.path, &repo_root, content)
         }
         _ if text => write_code(&mut body, content),
@@ -460,7 +460,7 @@ pub fn gen_blob(
     wrap_page(&title, Some(&nav), &body)
 }
 
-pub fn has_code_page(entry: &TreeEntry) -> bool {
+pub fn has_source_page(entry: &TreeEntry) -> bool {
     entry.lines.is_some() && (image_type(&entry.name).is_some() || is_markdown(&entry.name))
 }
 
