@@ -87,6 +87,19 @@ header {
   overflow: hidden;
 }
 
+#site_path {
+  margin-bottom: 0.65rem;
+}
+
+.btn-active {
+  text-decoration: underline;
+}
+
+main {
+  margin-top: 1rem;
+  padding-bottom: 2rem;
+}
+
 p {
   margin-top: 1.3rem;
   margin-bottom: 1.3rem;

@@ -151,7 +151,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
             let repo_root = "../".repeat(nav.depth);
             page.push_str(&format!(
                 "\
-<nav id=\"site_path\"><div id=\"site_link\"><a href=\"{repo_root}index.html\">{}</a> / {}</div></nav>\n\
+<nav id=\"site_path\"><div id=\"site_link\"><a href=\"{repo_root}index.html\">{}</a> / <a class=\"btn-active\" href=\"\">{}</a></div></nav>\n\
 <div class=\"navs_wrapper\"><nav class=\"navs\">\n\
 ",
                 escape_str(&nav.repo.name),
