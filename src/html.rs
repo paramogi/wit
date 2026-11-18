@@ -1,4 +1,4 @@
-use crate::repo_info::RepoInfo;
+use crate::repo_info::{RefInfo, RepoInfo};
 
 use std::cmp::Reverse;
 
@@ -230,34 +230,54 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
         escape_str(&repo.name)
     ));
     write_briefs(&mut body, repo);
-    write_summary_branches(&mut body, repo);
+    if repo.branches.len() > 1 {
+        write_summary_refs(
+            &mut body,
+            Tab::Branches,
+            &repo.branches,
+            "branches_wrapper",
+            "branch",
+        );
+    }
+    if !repo.tags.is_empty() {
+        write_summary_refs(&mut body, Tab::Tags, &repo.tags, "tag_wrapper", "tag_name");
+    }
 
     wrap_page(&repo.name, Some(&nav), &body)
 }
 
 pub fn gen_branches(repo: &RepoInfo) -> String {
+    gen_refs(repo, Tab::Branches, &repo.branches)
+}
+
+pub fn gen_tags(repo: &RepoInfo) -> String {
+    gen_refs(repo, Tab::Tags, &repo.tags)
+}
+
+fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
     let nav = RepoNav {
         name: &repo.name,
         git_ref: &repo.head,
-        tab: Tab::Branches,
+        tab,
         depth: 0,
     };
 
     let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
-    for branch in &repo.branches {
+    for git_ref in refs {
         body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
 <div><a href=\"{}\">{}</a></div>\n\
 </div>\n\
 ",
-            escape_str(&Tab::Tree.href(&branch.name)),
-            escape_str(&branch.name)
+            escape_str(&Tab::Tree.href(&git_ref.name)),
+            escape_str(&git_ref.name)
         ));
     }
     body.push_str("</div>\n");
 
-    wrap_page(&format!("branches - {}", repo.name), Some(&nav), &body)
+    let title = format!("{} - {}", tab.label(), repo.name);
+    wrap_page(&title, Some(&nav), &body)
 }
 
 fn write_briefs(body: &mut String, repo: &RepoInfo) {
@@ -311,37 +331,36 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
     body.push_str("</div>\n</div>\n</div>\n");
 }
 
-fn write_summary_branches(body: &mut String, repo: &RepoInfo) {
-    if repo.branches.len() < 2 {
-        return;
-    }
-    body.push_str(
+fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &str, inner: &str) {
+    let label = tab.label();
+    body.push_str(&format!(
         "\
-<div class=\"summary-branches\">\n\
+<div class=\"summary-{label}\">\n\
 <header class=\"subtitle\">\n\
-<h2>branches</h2>\n\
+<h2>{label}</h2>\n\
 </header>\n\
-<div id=\"branches_content\" class=\"box p-0\">\n\
-",
-    );
-    for branch in repo.branches.iter().take(SUMMARY_REF_COUNT) {
+<div id=\"{label}_content\" class=\"box p-0\">\n\
+"
+    ));
+    for git_ref in refs.iter().take(SUMMARY_REF_COUNT) {
         body.push_str(&format!(
             "\
-<section class=\"branches_wrapper border-b py px\">\n\
-<div class=\"branch\"><a href=\"{}\">{}</a></div>\n\
+<section class=\"{wrapper} border-b py px\">\n\
+<div class=\"{inner}\"><a href=\"{}\">{}</a></div>\n\
 </section>\n\
 ",
-            escape_str(&Tab::Tree.href(&branch.name)),
-            escape_str(&branch.name)
+            escape_str(&Tab::Tree.href(&git_ref.name)),
+            escape_str(&git_ref.name)
         ));
     }
-    body.push_str(
+    body.push_str(&format!(
         "\
 <div class=\"navs_wrapper py px\">\n\
-<div class=\"navs\"><a href=\"branches.html\">all branches</a></div>\n\
+<div class=\"navs\"><a href=\"{}\">all {label}</a></div>\n\
 </div>\n\
 </div>\n\
 </div>\n\
 ",
-    );
+        tab.href("")
+    ));
 }

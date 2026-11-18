@@ -18,7 +18,7 @@ pub struct CommitInfo {
     pub committer_date: DateTime<FixedOffset>,
 }
 
-pub struct BranchInfo {
+pub struct RefInfo {
     pub name: String,
     pub id: String,
 }
@@ -28,7 +28,8 @@ pub struct RepoInfo {
     pub description: String,
     pub owner: String,
     pub head: String,
-    pub branches: Vec<BranchInfo>,
+    pub branches: Vec<RefInfo>,
+    pub tags: Vec<RefInfo>,
     pub commit_list: Vec<CommitInfo>,
 }
 
@@ -47,6 +48,7 @@ impl RepoInfo {
         }
         let head = repo.head()?.shorthand()?.to_string();
         let branches = Self::handle_branches(&repo)?;
+        let tags = Self::handle_tags(&repo)?;
         let commit_list = Self::handle_commits(&repo)?;
         Ok(Self {
             name,
@@ -54,6 +56,7 @@ impl RepoInfo {
             owner,
             head,
             branches,
+            tags,
             commit_list,
         })
     }
@@ -65,7 +68,7 @@ impl RepoInfo {
         (!name.is_empty()).then(|| name.to_string())
     }
 
-    fn handle_branches(repo: &Repository) -> Result<Vec<BranchInfo>, WitError> {
+    fn handle_branches(repo: &Repository) -> Result<Vec<RefInfo>, WitError> {
         let mut branches = Vec::new();
         for branch in repo.branches(Some(BranchType::Local))? {
             let (branch, _) = branch?;
@@ -73,14 +76,42 @@ impl RepoInfo {
                 continue;
             };
             let commit = branch.get().peel_to_commit()?;
-            let info = BranchInfo {
+            let info = RefInfo {
                 name: name.to_string(),
                 id: commit.id().to_string(),
             };
             branches.push((commit.author().when().seconds(), info));
         }
-        branches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
-        Ok(branches.into_iter().map(|(_, info)| info).collect())
+        Ok(Self::newest_first(branches))
+    }
+
+    fn handle_tags(repo: &Repository) -> Result<Vec<RefInfo>, WitError> {
+        let mut tags = Vec::new();
+        for tag_ref in repo.references_glob("refs/tags/*")? {
+            let tag_ref = tag_ref?;
+            let Ok(name) = tag_ref.shorthand() else {
+                continue;
+            };
+            let Ok(commit) = tag_ref.peel_to_commit() else {
+                continue;
+            };
+            let tagger_time = tag_ref
+                .peel_to_tag()
+                .ok()
+                .and_then(|tag| tag.tagger().map(|sig| sig.when()));
+            let time = tagger_time.unwrap_or(commit.author().when());
+            let info = RefInfo {
+                name: name.to_string(),
+                id: commit.id().to_string(),
+            };
+            tags.push((time.seconds(), info));
+        }
+        Ok(Self::newest_first(tags))
+    }
+
+    fn newest_first(mut refs: Vec<(i64, RefInfo)>) -> Vec<RefInfo> {
+        refs.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
+        refs.into_iter().map(|(_, info)| info).collect()
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {

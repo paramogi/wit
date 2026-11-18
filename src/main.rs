@@ -2,7 +2,7 @@ mod error;
 mod html;
 mod repo_info;
 
-use html::{STYLE, gen_branches, gen_index, gen_summary};
+use html::{STYLE, gen_branches, gen_index, gen_summary, gen_tags};
 use repo_info::RepoInfo;
 use std::{env, fs, path::PathBuf, process};
 
@@ -67,6 +67,7 @@ fn run() -> Result<(), WitError> {
         fs::create_dir_all(&repo_dir)?;
         fs::write(repo_dir.join("index.html"), gen_summary(repo))?;
         fs::write(repo_dir.join("branches.html"), gen_branches(repo))?;
+        fs::write(repo_dir.join("tags.html"), gen_tags(repo))?;
     }
     Ok(())
 }
