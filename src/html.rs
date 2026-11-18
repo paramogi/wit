@@ -299,12 +299,13 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
         let labels: String = repo
             .branches
             .iter()
-            .filter(|branch| branch.id == *id)
-            .map(|branch| {
+            .chain(&repo.tags)
+            .filter(|git_ref| git_ref.id == *id)
+            .map(|git_ref| {
                 format!(
                     "<code><a href=\"{}\">{}</a></code>\n",
-                    escape_str(&Tab::Tree.href(&branch.name)),
-                    escape_str(&branch.name)
+                    escape_str(&Tab::Tree.href(&git_ref.name)),
+                    escape_str(&git_ref.name)
                 )
             })
             .collect();
