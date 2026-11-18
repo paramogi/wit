@@ -45,6 +45,10 @@ h2 {
   border: 0;
 }
 
+path {
+  fill: #1a2a44;
+}
+
 a {
   text-decoration: none;
   color: #1a2a44;
@@ -101,6 +105,14 @@ p {
   display: flex;
 }
 
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
 .items-center {
   align-items: center;
 }
@@ -155,6 +167,10 @@ p {
 
 .border-b:last-child {
   border-bottom: 0;
+}
+
+.tree-path {
+  word-wrap: break-word;
 }
 
 .summary-commit-box {
@@ -266,7 +282,8 @@ p {
 
 .navs a,
 code,
-.mono {
+.mono,
+.tree-path a {
   font-style: normal;
 }
 

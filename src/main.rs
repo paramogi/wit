@@ -2,7 +2,7 @@ mod error;
 mod html;
 mod repo_info;
 
-use html::{STYLE, gen_branches, gen_index, gen_summary, gen_tags};
+use html::{STYLE, gen_branches, gen_index, gen_summary, gen_tags, gen_tree};
 use repo_info::RepoInfo;
 use std::{env, fs, path::PathBuf, process};
 
@@ -72,6 +72,11 @@ fn run() -> Result<(), WitError> {
         fs::write(repo_dir.join("branches.html"), gen_branches(repo))?;
         if !repo.tags.is_empty() {
             fs::write(repo_dir.join("tags.html"), gen_tags(repo))?;
+        }
+        for git_ref in repo.branches.iter().chain(&repo.tags) {
+            let tree_dir = repo_dir.join("tree").join(&git_ref.dir);
+            fs::create_dir_all(&tree_dir)?;
+            fs::write(tree_dir.join("index.html"), gen_tree(repo, git_ref))?;
         }
     }
     Ok(())

@@ -1,4 +1,4 @@
-use crate::repo_info::{RefInfo, RepoInfo};
+use crate::repo_info::{RefInfo, RepoInfo, TreeEntry};
 
 use std::cmp::Reverse;
 
@@ -11,6 +11,10 @@ const BRIEF_COUNT: usize = 12;
 const SUMMARY_REF_COUNT: usize = 3;
 
 pub const STYLE: &str = include_str!("style.css");
+
+const FILE_ICON: &str = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"16\" width=\"16\" viewBox=\"0 0 384 512\"><path d=\"M320 464c8.8 0 16-7.2 16-16V160H256c-17.7 0-32-14.3-32-32V48H64c-8.8 0-16 7.2-16 16V448c0 8.8 7.2 16 16 16H320zM0 64C0 28.7 28.7 0 64 0H229.5c17 0 33.3 6.7 45.3 18.7l90.5 90.5c12 12 18.7 28.3 18.7 45.3V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64z\"/></svg>";
+
+const FOLDER_ICON: &str = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"16\" width=\"16\" viewBox=\"0 0 512 512\"><path d=\"M0 96C0 60.7 28.7 32 64 32H196.1c19.1 0 37.4 7.6 50.9 21.1L289.9 96H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM64 80c-8.8 0-16 7.2-16 16V416c0 8.8 7.2 16 16 16H448c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16H286.6c-10.6 0-20.8-4.2-28.3-11.7L213.1 87c-4.5-4.5-10.6-7-17-7H64z\"/></svg>";
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -290,6 +294,51 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
     body.push_str("</div>\n");
 
     let title = format!("{} - {}", tab.label(), repo.name);
+    wrap_page(&title, Some(&nav), &body)
+}
+
+pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo) -> String {
+    let depth = 1 + git_ref.dir.split('/').count();
+    let nav = RepoNav {
+        repo,
+        git_ref: &git_ref.dir,
+        tab: Tab::Tree,
+        depth,
+    };
+    let blob_dir = format!("{}blob/{}/", "../".repeat(depth), git_ref.dir);
+
+    let mut body = format!(
+        "\
+<div class=\"box sticky flex items-center gap border-visited flex-wrap mt-0\">\n\
+<code>{}</code>\n\
+</div>\n\
+<p>{}</p>\n\
+<div class=\"box p-0\">\n\
+",
+        escape_str(&git_ref.name),
+        escape_str(&repo.description)
+    );
+    for TreeEntry { name, is_dir } in &git_ref.root {
+        let (icon, href) = if *is_dir {
+            (FOLDER_ICON, percent_encode(&format!("{name}/index.html")))
+        } else {
+            (FILE_ICON, percent_encode(&format!("{blob_dir}{name}.html")))
+        };
+        body.push_str(&format!(
+            "\
+<div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
+<div class=\"flex-1 tree-path flex items-center gap\">\n\
+{icon}\n\
+<a href=\"{href}\">{}</a>\n\
+</div>\n\
+</div>\n\
+",
+            escape_str(name)
+        ));
+    }
+    body.push_str("</div>\n");
+
+    let title = format!("files - {}@{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
 }
 

@@ -1,7 +1,7 @@
 use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
-use git2::{BranchType, ErrorCode, Repository, Sort};
+use git2::{BranchType, Commit, ErrorCode, ObjectType, Repository, Sort};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -20,10 +20,16 @@ pub struct CommitInfo {
     pub committer_date: DateTime<FixedOffset>,
 }
 
+pub struct TreeEntry {
+    pub name: String,
+    pub is_dir: bool,
+}
+
 pub struct RefInfo {
     pub name: String,
     pub dir: String,
     pub id: String,
+    pub root: Vec<TreeEntry>,
 }
 
 pub struct RepoInfo {
@@ -89,6 +95,7 @@ impl RepoInfo {
                 name: name.to_string(),
                 dir: format!("heads/{name}"),
                 id: commit.id().to_string(),
+                root: Self::root_entries(&commit)?,
             };
             branches.push((commit.committer().when().seconds(), info));
         }
@@ -114,10 +121,26 @@ impl RepoInfo {
                 name: name.to_string(),
                 dir: format!("tags/{name}"),
                 id: commit.id().to_string(),
+                root: Self::root_entries(&commit)?,
             };
             tags.push((time.seconds(), info));
         }
         Ok(Self::newest_first(tags))
+    }
+
+    fn root_entries(commit: &Commit) -> Result<Vec<TreeEntry>, WitError> {
+        let mut entries = Vec::new();
+        for entry in commit.tree()?.iter() {
+            let Ok(name) = entry.name() else {
+                continue;
+            };
+            entries.push(TreeEntry {
+                name: name.to_string(),
+                is_dir: entry.kind() == Some(ObjectType::Tree),
+            });
+        }
+        entries.sort_by_key(|entry| !entry.is_dir);
+        Ok(entries)
     }
 
     fn newest_first(mut refs: Vec<(i64, RefInfo)>) -> Vec<RefInfo> {

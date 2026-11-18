@@ -11,6 +11,10 @@ Create dependencies:
 
 // TODO
 
+## Credits
+
+The file and folder icons are from [Font Awesome Free 6](https://fontawesome.com) by Fonticons, Inc., licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 ---
 
 <a href="https://brainmade.org/">
