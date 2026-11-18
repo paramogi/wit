@@ -11,9 +11,10 @@ pub struct CommitInfo {
     pub message: String,
     pub author_name: String,
     pub author_email: String,
+    pub author_date: DateTime<FixedOffset>,
     pub committer_name: String,
     pub committer_email: String,
-    pub date: String,
+    pub committer_date: DateTime<FixedOffset>,
 }
 
 #[derive(Debug)]
@@ -72,10 +73,11 @@ impl RepoInfo {
             let sig = commit.committer();
             let committer_name = sig.name().unwrap_or_default().to_string();
             let committer_email = sig.email().unwrap_or_default().to_string();
+            let committer_date = Self::to_date(sig.when()).ok_or(WitError::InvalidDate)?;
             let sig = commit.author();
             let author_name = sig.name().unwrap_or_default().to_string();
             let author_email = sig.email().unwrap_or_default().to_string();
-            let date = Self::format_time(commit.time()).ok_or(WitError::InvalidDate)?;
+            let author_date = Self::to_date(sig.when()).ok_or(WitError::InvalidDate)?;
 
             commit_list.push(CommitInfo::new(
                 id,
@@ -83,22 +85,19 @@ impl RepoInfo {
                 message,
                 author_name,
                 author_email,
+                author_date,
                 committer_name,
                 committer_email,
-                date,
+                committer_date,
             ));
         }
         Ok(commit_list)
     }
 
-    fn format_time(time: git2::Time) -> Option<String> {
+    fn to_date(time: git2::Time) -> Option<DateTime<FixedOffset>> {
         let offset = FixedOffset::east_opt(time.offset_minutes() * 60)?;
         let date = DateTime::from_timestamp(time.seconds(), 0)?;
-        Some(
-            date.with_timezone(&offset)
-                .format("%d-%m-%Y %H:%M")
-                .to_string(),
-        )
+        Some(date.with_timezone(&offset))
     }
 
     fn read_optional_file(repo_path: &Path, file_name: &str) -> Result<String, WitError> {
@@ -118,9 +117,10 @@ impl CommitInfo {
         message: String,
         author_name: String,
         author_email: String,
+        author_date: DateTime<FixedOffset>,
         committer_name: String,
         committer_email: String,
-        date: String,
+        committer_date: DateTime<FixedOffset>,
     ) -> Self {
         CommitInfo {
             id,
@@ -128,9 +128,10 @@ impl CommitInfo {
             message,
             author_name,
             author_email,
+            author_date,
             committer_name,
             committer_email,
-            date,
+            committer_date,
         }
     }
 }
