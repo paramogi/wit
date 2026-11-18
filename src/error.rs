@@ -3,6 +3,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum WitError {
     Usage,
+    NoName(String),
     DuplicateName {
         name: String,
         first: String,
@@ -18,6 +19,7 @@ impl fmt::Display for WitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             WitError::Usage => write!(f, "usage: wit [-O owner] -o outdir repo.git..."),
+            WitError::NoName(path) => write!(f, "{path}: could not work out the repo's name"),
             WitError::DuplicateName {
                 name,
                 first,

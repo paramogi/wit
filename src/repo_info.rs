@@ -46,14 +46,9 @@ impl RepoInfo {
     }
 
     pub fn open(path: &str, default_owner: Option<&str>) -> Result<Self, WitError> {
-        let repo = Repository::open_bare(path)?;
+        let repo = Repository::open(path)?;
         let repo_path = repo.path();
-        let name = repo_path
-            .file_name()
-            .unwrap_or_default()
-            .to_str()
-            .unwrap_or_default();
-        let name = name.strip_suffix(".git").unwrap_or(name).to_string();
+        let name = Self::repo_name(&repo).ok_or_else(|| WitError::NoName(path.to_string()))?;
         let mut description = Self::read_optional_file(repo_path, "description")?;
         if description.is_empty() {
             description = DEFAULT_DESCRIPTION.to_string();
@@ -65,6 +60,13 @@ impl RepoInfo {
         let head = repo.head()?.shorthand()?.to_string();
         let commit_list = Self::handle_commits(&repo)?;
         Ok(Self::new(name, description, owner, head, commit_list))
+    }
+
+    fn repo_name(repo: &Repository) -> Option<String> {
+        let dir = repo.workdir().unwrap_or(repo.path());
+        let name = dir.file_name()?.to_str()?;
+        let name = name.strip_suffix(".git").unwrap_or(name);
+        (!name.is_empty()).then(|| name.to_string())
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {
