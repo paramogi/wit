@@ -22,6 +22,7 @@ pub struct CommitInfo {
 
 pub struct RefInfo {
     pub name: String,
+    pub dir: String,
     pub id: String,
 }
 
@@ -30,7 +31,7 @@ pub struct RepoInfo {
     pub name: String,
     pub description: String,
     pub owner: String,
-    pub head: String,
+    pub head_dir: String,
     pub branches: Vec<RefInfo>,
     pub tags: Vec<RefInfo>,
     pub commit_list: Vec<CommitInfo>,
@@ -39,8 +40,8 @@ pub struct RepoInfo {
 impl RepoInfo {
     pub fn open(path: &str, default_owner: Option<&str>) -> Result<Option<Self>, WitError> {
         let repo = Repository::open(path)?;
-        let head = match repo.head() {
-            Ok(head) => head.shorthand()?.to_string(),
+        let head_dir = match repo.head() {
+            Ok(head) => format!("heads/{}", head.shorthand()?),
             Err(e) if e.code() == ErrorCode::UnbornBranch => return Ok(None),
             Err(e) => return Err(e.into()),
         };
@@ -62,7 +63,7 @@ impl RepoInfo {
             name,
             description,
             owner,
-            head,
+            head_dir,
             branches,
             tags,
             commit_list,
@@ -86,6 +87,7 @@ impl RepoInfo {
             let commit = branch.get().peel_to_commit()?;
             let info = RefInfo {
                 name: name.to_string(),
+                dir: format!("heads/{name}"),
                 id: commit.id().to_string(),
             };
             branches.push((commit.author().when().seconds(), info));
@@ -110,6 +112,7 @@ impl RepoInfo {
             let time = tagger_time.unwrap_or(commit.author().when());
             let info = RefInfo {
                 name: name.to_string(),
+                dir: format!("tags/{name}"),
                 id: commit.id().to_string(),
             };
             tags.push((time.seconds(), info));

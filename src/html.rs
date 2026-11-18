@@ -47,8 +47,8 @@ impl Tab {
     fn href(self, git_ref: &str) -> String {
         match self {
             Tab::Summary => "index.html".to_string(),
-            Tab::Tree => format!("tree/{git_ref}/index.html"),
-            Tab::Log => format!("logs/{git_ref}/index.html"),
+            Tab::Tree => format!("tree/{}/index.html", percent_encode(git_ref)),
+            Tab::Log => format!("logs/{}/index.html", percent_encode(git_ref)),
             Tab::Branches => "branches.html".to_string(),
             Tab::Tags => "tags.html".to_string(),
         }
@@ -80,6 +80,18 @@ fn escape_str(s: &str) -> String {
         }
     }
     escaped_str
+}
+
+fn percent_encode(s: &str) -> String {
+    let mut encoded = String::with_capacity(s.len());
+    for b in s.bytes() {
+        if b.is_ascii_alphanumeric() || b"-._~/".contains(&b) {
+            encoded.push(b as char);
+        } else {
+            encoded.push_str(&format!("%{b:02X}"));
+        }
+    }
+    encoded
 }
 
 fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
@@ -127,7 +139,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
                     };
                     format!(
                         "<a{class} href=\"{repo_root}{}\">{}</a>",
-                        escape_str(&tab.href(nav.git_ref)),
+                        tab.href(nav.git_ref),
                         tab.label()
                     )
                 })
@@ -158,6 +170,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
     let mut body = String::from("<div class=\"home-grid\">\n");
     for repo in sorted {
         let name = escape_str(&repo.name);
+        let dir = percent_encode(&repo.name);
         let links: Vec<String> = repo_tabs(repo)
             .map(|tab| {
                 let label = if tab == Tab::Log {
@@ -165,17 +178,14 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
                 } else {
                     tab.label()
                 };
-                format!(
-                    "<a href=\"{name}/{}\">{label}</a>",
-                    escape_str(&tab.href(&repo.head))
-                )
+                format!("<a href=\"{dir}/{}\">{label}</a>", tab.href(&repo.head_dir))
             })
             .collect();
         body.push_str(&format!(
             "\
 <div class=\"box home-card\">\n\
 <div>\n\
-<p class=\"repo-name\"><a href=\"{name}/index.html\">{name}</a></p>\n\
+<p class=\"repo-name\"><a href=\"{dir}/index.html\">{name}</a></p>\n\
 <div class=\"repo-desc\">{}</div>\n\
 </div>\n\
 <nav class=\"repo-links\">{}</nav>\n\
@@ -193,7 +203,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
 pub fn gen_summary(repo: &RepoInfo) -> String {
     let nav = RepoNav {
         repo,
-        git_ref: &repo.head,
+        git_ref: &repo.head_dir,
         tab: Tab::Summary,
         depth: 0,
     };
@@ -260,7 +270,7 @@ pub fn gen_tags(repo: &RepoInfo) -> String {
 fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
     let nav = RepoNav {
         repo,
-        git_ref: &repo.head,
+        git_ref: &repo.head_dir,
         tab,
         depth: 0,
     };
@@ -273,7 +283,7 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
 <div><a href=\"{}\">{}</a></div>\n\
 </div>\n\
 ",
-            escape_str(&Tab::Tree.href(&git_ref.name)),
+            Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name)
         ));
     }
@@ -304,7 +314,7 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
             .map(|git_ref| {
                 format!(
                     "<code><a href=\"{}\">{}</a></code>\n",
-                    escape_str(&Tab::Tree.href(&git_ref.name)),
+                    Tab::Tree.href(&git_ref.dir),
                     escape_str(&git_ref.name)
                 )
             })
@@ -353,7 +363,7 @@ fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &s
 <div class=\"{inner}\"><a href=\"{}\">{}</a></div>\n\
 </section>\n\
 ",
-            escape_str(&Tab::Tree.href(&git_ref.name)),
+            Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name)
         ));
     }
