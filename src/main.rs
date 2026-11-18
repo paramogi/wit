@@ -47,9 +47,20 @@ fn parse_args() -> Result<Args, WitError> {
 
 fn run() -> Result<(), WitError> {
     let args = parse_args()?;
+    let mut repos: Vec<(&str, RepoInfo)> = Vec::new();
     for path in &args.repos {
         let repo = RepoInfo::open(path, args.owner.as_deref())?;
-        let page = gen_page(&repo)?;
+        if let Some((first, _)) = repos.iter().find(|(_, r)| r.name == repo.name) {
+            return Err(WitError::DuplicateName {
+                name: repo.name,
+                first: first.to_string(),
+                second: path.clone(),
+            });
+        }
+        repos.push((path, repo));
+    }
+    for (_, repo) in &repos {
+        let page = gen_page(repo)?;
         let repo_dir = args.out_dir.join(&repo.name);
         fs::create_dir_all(&repo_dir)?;
         fs::write(repo_dir.join("index.html"), page)?;

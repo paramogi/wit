@@ -3,6 +3,11 @@ use std::fmt;
 #[derive(Debug)]
 pub enum WitError {
     Usage,
+    DuplicateName {
+        name: String,
+        first: String,
+        second: String,
+    },
     InvalidDate,
     Git(git2::Error),
     Io(std::io::Error),
@@ -13,6 +18,11 @@ impl fmt::Display for WitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             WitError::Usage => write!(f, "usage: wit [-O owner] -o outdir repo.git..."),
+            WitError::DuplicateName {
+                name,
+                first,
+                second,
+            } => write!(f, "{first} and {second} are both named {name}"),
             WitError::InvalidDate => write!(f, "invalid commit date"),
             WitError::Git(e) => write!(f, "{}", e.message()),
             WitError::Io(e) => write!(f, "{e}"),
