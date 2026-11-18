@@ -241,6 +241,32 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
     wrap_page(&repo.name, Some(&nav), &body)
 }
 
+pub fn gen_branches(repo: &RepoInfo) -> Result<String, WitError> {
+    let nav = RepoNav {
+        name: &repo.name,
+        git_ref: &repo.head,
+        tab: Tab::Branches,
+        depth: 0,
+    };
+
+    let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
+    for branch in &repo.branches {
+        write!(
+            &mut body,
+            "\
+<div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
+<div><a href=\"{}\">{}</a></div>\n\
+</div>\n\
+",
+            escape_str(&Tab::Tree.href(branch)),
+            escape_str(branch)
+        )?;
+    }
+    body.push_str("</div>\n");
+
+    wrap_page(&format!("branches - {}", repo.name), Some(&nav), &body)
+}
+
 fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
     body.push_str(
         "\
@@ -273,7 +299,7 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) -> Result<(), WitError> {
 ",
             &id[..7],
             escape_str(&commit.author_name),
-            commit.author_date.format("%Y-%m-%d"),
+            commit.author_date.format("%Y-%m-%d %H:%M:%S %z"),
             escape_str(&commit.summary)
         )?;
     }

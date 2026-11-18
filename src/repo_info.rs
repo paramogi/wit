@@ -1,7 +1,7 @@
 use crate::error::WitError;
 
 use chrono::{DateTime, FixedOffset};
-use git2::{Repository, Sort};
+use git2::{BranchType, Repository, Sort};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -25,6 +25,7 @@ pub struct RepoInfo {
     pub description: String,
     pub owner: String,
     pub head: String,
+    pub branches: Vec<String>,
     pub commit_list: Vec<CommitInfo>,
 }
 
@@ -34,6 +35,7 @@ impl RepoInfo {
         description: String,
         owner: String,
         head: String,
+        branches: Vec<String>,
         commit_list: Vec<CommitInfo>,
     ) -> Self {
         RepoInfo {
@@ -41,6 +43,7 @@ impl RepoInfo {
             description,
             owner,
             head,
+            branches,
             commit_list,
         }
     }
@@ -58,8 +61,16 @@ impl RepoInfo {
             owner = default_owner.unwrap_or_default().to_string();
         }
         let head = repo.head()?.shorthand()?.to_string();
+        let branches = Self::handle_branches(&repo)?;
         let commit_list = Self::handle_commits(&repo)?;
-        Ok(Self::new(name, description, owner, head, commit_list))
+        Ok(Self::new(
+            name,
+            description,
+            owner,
+            head,
+            branches,
+            commit_list,
+        ))
     }
 
     fn repo_name(repo: &Repository) -> Option<String> {
@@ -67,6 +78,21 @@ impl RepoInfo {
         let name = dir.file_name()?.to_str()?;
         let name = name.strip_suffix(".git").unwrap_or(name);
         (!name.is_empty()).then(|| name.to_string())
+    }
+
+    fn handle_branches(repo: &Repository) -> Result<Vec<String>, WitError> {
+        let mut branches = Vec::new();
+        for branch in repo.branches(Some(BranchType::Local))? {
+            let (branch, _) = branch?;
+            let Some(name) = branch.name()? else {
+                continue;
+            };
+            let commit = branch.get().peel_to_commit()?;
+            let date = Self::to_date(commit.author().when()).ok_or(WitError::InvalidDate)?;
+            branches.push((date, name.to_string()));
+        }
+        branches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+        Ok(branches.into_iter().map(|(_, name)| name).collect())
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {
