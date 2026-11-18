@@ -6,6 +6,8 @@ use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
 
+const NO_MESSAGE: &str = "(no message)";
+
 pub struct CommitInfo {
     pub id: String,
     pub summary: String,
@@ -132,7 +134,11 @@ impl RepoInfo {
             let committer = commit.committer();
             commit_list.push(CommitInfo {
                 id: commit.id().to_string(),
-                summary: commit.summary()?.unwrap_or_default().to_string(),
+                summary: commit
+                    .summary()?
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(NO_MESSAGE)
+                    .to_string(),
                 message: commit.message().unwrap_or_default().to_string(),
                 author_name: author.name().unwrap_or_default().to_string(),
                 author_email: author.email().unwrap_or_default().to_string(),
