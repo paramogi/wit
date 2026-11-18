@@ -4,6 +4,8 @@ use chrono::{DateTime, FixedOffset};
 use git2::{Repository, Sort};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
+const DEFAULT_DESCRIPTION: &str = "[no description]";
+
 #[derive(Debug)]
 pub struct CommitInfo {
     pub id: String,
@@ -52,7 +54,10 @@ impl RepoInfo {
             .to_str()
             .unwrap_or_default();
         let name = name.strip_suffix(".git").unwrap_or(name).to_string();
-        let description = Self::read_optional_file(repo_path, "description")?;
+        let mut description = Self::read_optional_file(repo_path, "description")?;
+        if description.is_empty() {
+            description = DEFAULT_DESCRIPTION.to_string();
+        }
         let mut owner = Self::read_optional_file(repo_path, "owner")?;
         if owner.is_empty() {
             owner = default_owner.unwrap_or_default().to_string();

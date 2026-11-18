@@ -1,7 +1,7 @@
 use crate::error::WitError;
 use crate::repo_info::RepoInfo;
 
-use std::fmt::Write;
+use std::{cmp::Reverse, fmt::Write};
 
 const BRAND: &str = "wit";
 
@@ -84,18 +84,18 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
         "\
 <!DOCTYPE html>\n\
 <html lang=\"en\">\n\
-\t<head>\n\
-\t\t<meta charset=\"utf-8\">\n\
-\t\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
-\t\t<title>{}</title>\n\
-\t\t<link rel=\"stylesheet\" href=\"{root}style.css\">\n\
-\t</head>\n\
-\t<body>\n\
-\t\t<header id=\"header\">\n\
-\t\t\t<div class=\"root-header-shell\">\n\
-\t\t\t\t<div id=\"got_link\"><a class=\"brand\" href=\"{root}index.html\">{BRAND}</a></div>\n\
-\t\t\t</div>\n\
-\t\t</header>\n\
+<head>\n\
+<meta charset=\"utf-8\">\n\
+<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
+<title>{}</title>\n\
+<link rel=\"stylesheet\" href=\"{root}style.css\">\n\
+</head>\n\
+<body>\n\
+<header id=\"header\">\n\
+<div class=\"root-header-shell\">\n\
+<div id=\"got_link\"><a class=\"brand\" href=\"{root}index.html\">{BRAND}</a></div>\n\
+</div>\n\
+</header>\n\
 ",
         escape_str(title)
     )?;
@@ -106,8 +106,8 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
             write!(
                 &mut page,
                 "\
-\t\t<nav id=\"site_path\"><div id=\"site_link\"><a href=\"{repo_root}index.html\">{}</a> / {}</div></nav>\n\
-\t\t<div class=\"navs_wrapper\"><nav class=\"navs\">\n\
+<nav id=\"site_path\"><div id=\"site_link\"><a href=\"{repo_root}index.html\">{}</a> / {}</div></nav>\n\
+<div class=\"navs_wrapper\"><nav class=\"navs\">\n\
 ",
                 escape_str(nav.name),
                 nav.tab.label()
@@ -121,13 +121,13 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
                         ""
                     };
                     format!(
-                        "\t\t\t<a{class} href=\"{repo_root}{}\">{}</a>",
+                        "<a{class} href=\"{repo_root}{}\">{}</a>",
                         escape_str(&tab.href(nav.git_ref)),
                         tab.label()
                     )
                 })
                 .collect();
-            write!(&mut page, "{}\n\t\t</nav></div>\n", links.join(" |\n"))?;
+            write!(&mut page, "{}\n</nav></div>\n", links.join(" |\n"))?;
             nav.tab.main_class()
         }
         None => "action-index",
@@ -136,15 +136,56 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
     write!(
         &mut page,
         "\
-\t\t<main class=\"{main_class}\">\n\
+<main class=\"{main_class}\">\n\
 {body}\
-\t\t</main>\n\
-\t</body>\n\
+</main>\n\
+</body>\n\
 </html>\n\
 "
     )?;
 
     Ok(page)
+}
+
+pub fn gen_index(repos: &[RepoInfo]) -> Result<String, WitError> {
+    let mut sorted: Vec<&RepoInfo> = repos.iter().collect();
+    sorted.sort_by_key(|repo| Reverse(repo.commit_list.first().map(|c| c.author_date)));
+
+    let mut body = String::from("<div class=\"home-grid\">\n");
+    for repo in sorted {
+        let name = escape_str(&repo.name);
+        let links: Vec<String> = TABS
+            .iter()
+            .map(|&tab| {
+                let label = if tab == Tab::Log {
+                    "commits"
+                } else {
+                    tab.label()
+                };
+                format!(
+                    "<a href=\"{name}/{}\">{label}</a>",
+                    escape_str(&tab.href(&repo.head))
+                )
+            })
+            .collect();
+        write!(
+            &mut body,
+            "\
+<div class=\"box home-card\">\n\
+<div>\n\
+<p class=\"repo-name\"><a href=\"{name}/index.html\">{name}</a></p>\n\
+<div class=\"repo-desc\">{}</div>\n\
+</div>\n\
+<nav class=\"repo-links\">{}</nav>\n\
+</div>\n\
+",
+            escape_str(&repo.description),
+            links.join(" | ")
+        )?;
+    }
+    body.push_str("</div>\n");
+
+    wrap_page("index", None, &body)
 }
 
 pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
@@ -154,6 +195,6 @@ pub fn gen_page(repo: &RepoInfo) -> Result<String, WitError> {
         tab: Tab::Summary,
         depth: 0,
     };
-    let body = format!("\t\t\t<p>{}</p>\n", escape_str(&repo.description));
+    let body = format!("<p>{}</p>\n", escape_str(&repo.description));
     wrap_page(&repo.name, Some(&nav), &body)
 }
