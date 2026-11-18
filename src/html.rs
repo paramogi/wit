@@ -139,7 +139,6 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> Result<String, W
 \t\t<main class=\"{main_class}\">\n\
 {body}\
 \t\t</main>\n\
-\t\t<footer id=\"site_owner_wrapper\"><p id=\"site_owner\">powered by wit</p></footer>\n\
 \t</body>\n\
 </html>\n\
 "
