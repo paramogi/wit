@@ -22,6 +22,7 @@ pub struct RepoInfo {
     pub name: String,
     pub description: String,
     pub owner: String,
+    pub head: String,
     pub commit_list: Vec<CommitInfo>,
 }
 
@@ -30,12 +31,14 @@ impl RepoInfo {
         name: String,
         description: String,
         owner: String,
+        head: String,
         commit_list: Vec<CommitInfo>,
     ) -> Self {
         RepoInfo {
             name,
             description,
             owner,
+            head,
             commit_list,
         }
     }
@@ -54,8 +57,9 @@ impl RepoInfo {
         if owner.is_empty() {
             owner = default_owner.unwrap_or_default().to_string();
         }
+        let head = repo.head()?.shorthand()?.to_string();
         let commit_list = Self::handle_commits(&repo)?;
-        Ok(Self::new(name, description, owner, commit_list))
+        Ok(Self::new(name, description, owner, head, commit_list))
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>, WitError> {
