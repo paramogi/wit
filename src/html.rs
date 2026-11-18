@@ -124,15 +124,16 @@ fn percent_encode(s: &str) -> String {
     encoded
 }
 
-fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
-    let Some(root) = nav
-        .repo
-        .branches
+fn root_folder<'a>(repo: &'a RepoInfo, dir: &str) -> Option<&'a Folder> {
+    repo.branches
         .iter()
-        .chain(&nav.repo.tags)
-        .find(|git_ref| git_ref.dir == nav.git_ref)
+        .chain(&repo.tags)
+        .find(|git_ref| git_ref.dir == dir)
         .and_then(|git_ref| git_ref.folders.iter().find(|f| f.path.is_empty()))
-    else {
+}
+
+fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
+    let Some(root) = root_folder(nav.repo, nav.git_ref) else {
         return Vec::new();
     };
     REPO_FILES
@@ -329,6 +330,21 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
     if !repo.tags.is_empty() {
         write_summary_refs(&mut body, Tab::Tags, &repo.tags, "tag_wrapper", "tag_name");
     }
+    if let Some(root) = root_folder(repo, &repo.head_dir) {
+        body.push_str(
+            "\
+<div class=\"summary-tree\">\n\
+<header class=\"subtitle\">\n\
+<h2>tree</h2>\n\
+</header>\n\
+<div id=\"tree_content\">\n\
+",
+        );
+        let tree_dir = format!("tree/{}/", repo.head_dir);
+        let blob_dir = format!("blob/{}/", repo.head_dir);
+        write_listing(&mut body, root, &tree_dir, &blob_dir);
+        body.push_str("</div>\n</div>\n");
+    }
 
     wrap_page(&repo.name, Some(&nav), &body)
 }
@@ -384,7 +400,15 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
     };
     let blob_dir = format!("{}blob/{tree_path}/", "../".repeat(depth));
 
-    let mut body = String::from("<div class=\"box p-0\">\n");
+    let mut body = String::new();
+    write_listing(&mut body, folder, "", &blob_dir);
+
+    let title = format!("{}/{}", repo.name, git_ref.name);
+    wrap_page(&title, Some(&nav), &body)
+}
+
+fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &str) {
+    body.push_str("<div class=\"box p-0\">\n");
     for TreeEntry {
         name,
         is_dir,
@@ -393,7 +417,10 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
     } in &folder.entries
     {
         let (icon, href) = if *is_dir {
-            (FOLDER_ICON, percent_encode(&format!("{name}/index.html")))
+            (
+                FOLDER_ICON,
+                percent_encode(&format!("{tree_dir}{name}/index.html")),
+            )
         } else {
             (FILE_ICON, percent_encode(&format!("{blob_dir}{name}.html")))
         };
@@ -416,9 +443,6 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
         ));
     }
     body.push_str("</div>\n");
-
-    let title = format!("{}/{}", repo.name, git_ref.name);
-    wrap_page(&title, Some(&nav), &body)
 }
 
 fn write_briefs(body: &mut String, repo: &RepoInfo) {
