@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum WitError {
-    MissingPath,
+    Usage,
     InvalidDate,
     Git(git2::Error),
     Io(std::io::Error),
@@ -12,7 +12,7 @@ pub enum WitError {
 impl fmt::Display for WitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WitError::MissingPath => write!(f, "provide a path"),
+            WitError::Usage => write!(f, "usage: wit -o outdir repo.git..."),
             WitError::InvalidDate => write!(f, "invalid commit date"),
             WitError::Git(e) => write!(f, "{}", e.message()),
             WitError::Io(e) => write!(f, "{e}"),

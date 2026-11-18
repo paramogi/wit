@@ -13,8 +13,6 @@ Create dependencies:
 
 ---
 
-No LLM generated code was used in the making of this project.
-
 <a href="https://brainmade.org/">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://brainmade.org/88x31-dark.png">

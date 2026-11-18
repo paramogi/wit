@@ -4,9 +4,14 @@ mod repo_info;
 
 use html::gen_page;
 use repo_info::RepoInfo;
-use std::{env, process};
+use std::{env, fs, path::PathBuf, process};
 
 use crate::error::WitError;
+
+struct Args {
+    out_dir: PathBuf,
+    repos: Vec<String>,
+}
 
 fn main() {
     if let Err(e) = run() {
@@ -15,11 +20,32 @@ fn main() {
     }
 }
 
+fn parse_args() -> Result<Args, WitError> {
+    let mut out_dir = None;
+    let mut repos = Vec::new();
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-o" => out_dir = Some(PathBuf::from(args.next().ok_or(WitError::Usage)?)),
+            s if s.starts_with('-') => return Err(WitError::Usage),
+            _ => repos.push(arg),
+        }
+    }
+    let out_dir = out_dir.ok_or(WitError::Usage)?;
+    if repos.is_empty() {
+        return Err(WitError::Usage);
+    }
+    Ok(Args { out_dir, repos })
+}
+
 fn run() -> Result<(), WitError> {
-    let arg = env::args().nth(1).ok_or(WitError::MissingPath)?;
-    let repo = RepoInfo::open(&arg)?;
-    println!("{repo:#?}");
-    let page = gen_page(&repo)?;
-    println!("{page}");
+    let args = parse_args()?;
+    for path in &args.repos {
+        let repo = RepoInfo::open(path)?;
+        let page = gen_page(&repo)?;
+        let repo_dir = args.out_dir.join(&repo.name);
+        fs::create_dir_all(&repo_dir)?;
+        fs::write(repo_dir.join("index.html"), page)?;
+    }
     Ok(())
 }
