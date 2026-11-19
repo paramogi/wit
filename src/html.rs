@@ -48,9 +48,13 @@ const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 
 pub const STYLE: &str = include_str!("style.css");
 
-const FILE_ICON: &str = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"16\" width=\"16\" viewBox=\"0 0 384 512\"><path d=\"M320 464c8.8 0 16-7.2 16-16V160H256c-17.7 0-32-14.3-32-32V48H64c-8.8 0-16 7.2-16 16V448c0 8.8 7.2 16 16 16H320zM0 64C0 28.7 28.7 0 64 0H229.5c17 0 33.3 6.7 45.3 18.7l90.5 90.5c12 12 18.7 28.3 18.7 45.3V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64z\"/></svg>";
+const FILE_ICON: &str = include_str!("icons/file-16.svg");
 
-const FOLDER_ICON: &str = "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"currentColor\" height=\"16\" width=\"16\" viewBox=\"0 0 512 512\"><path d=\"M0 96C0 60.7 28.7 32 64 32H196.1c19.1 0 37.4 7.6 50.9 21.1L289.9 96H448c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM64 80c-8.8 0-16 7.2-16 16V416c0 8.8 7.2 16 16 16H448c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16H286.6c-10.6 0-20.8-4.2-28.3-11.7L213.1 87c-4.5-4.5-10.6-7-17-7H64z\"/></svg>";
+const FOLDER_ICON: &str = include_str!("icons/file-directory-16.svg");
+
+const BRANCH_ICON: &str = include_str!("icons/git-branch-16.svg");
+
+const TAG_ICON: &str = include_str!("icons/tag-16.svg");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -106,6 +110,14 @@ struct RepoNav<'a> {
     tab: Tab,
     depth: usize,
     path: &'a str,
+}
+
+fn ref_icon(git_ref: &RefInfo) -> &'static str {
+    if git_ref.dir.starts_with("tags/") {
+        TAG_ICON
+    } else {
+        BRANCH_ICON
+    }
 }
 
 fn crumb(text: &str, href: Option<String>) -> String {
@@ -437,9 +449,10 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
-<div><a href=\"{}\">{}</a></div>\n\
+<div class=\"flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
 </div>\n\
 ",
+            ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name)
         ));
@@ -938,7 +951,7 @@ fn ref_bar(git_ref: &RefInfo, path: &str, repo_root: &str, details: &str) -> Str
             crumb(text, Some(format!("{repo_root}{href}")))
         };
         match i {
-            0 => bar.push_str(&format!("<code>{link}</code>\n")),
+            0 => bar.push_str(&format!("<code>{}{link}</code>\n", ref_icon(git_ref))),
             1 => bar.push_str(&format!("{link}\n")),
             _ => bar.push_str(&format!("<span>/</span>\n{link}\n")),
         }
@@ -1020,7 +1033,8 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
             .filter(|git_ref| git_ref.id == *id)
             .map(|git_ref| {
                 format!(
-                    "<code><a href=\"{}\">{}</a></code>\n",
+                    "<code>{}<a href=\"{}\">{}</a></code>\n",
+                    ref_icon(git_ref),
                     Tab::Tree.href(&git_ref.dir),
                     escape_str(&git_ref.name)
                 )
@@ -1067,9 +1081,10 @@ fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &s
         body.push_str(&format!(
             "\
 <section class=\"{wrapper} border-b py px\">\n\
-<div class=\"{inner}\"><a href=\"{}\">{}</a></div>\n\
+<div class=\"{inner} flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
 </section>\n\
 ",
+            ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name)
         ));

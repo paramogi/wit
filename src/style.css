@@ -52,6 +52,13 @@ pre {
   overflow-x: auto;
 }
 
+code svg {
+  width: 1em;
+  height: 1em;
+  margin-right: 0.3em;
+  vertical-align: -0.125em;
+}
+
 pre > code {
   padding: 0;
   border: none;

@@ -15,7 +15,7 @@ Create dependencies:
 
 ## Credits
 
-The file and folder icons are from [Font Awesome Free 6](https://fontawesome.com) by Fonticons, Inc., licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+The icons are from [Octicons](https://github.com/primer/octicons), Copyright (c) 2026 GitHub Inc., licensed under the [MIT License](https://github.com/primer/octicons/blob/main/LICENSE).
 
 ---
 
