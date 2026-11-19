@@ -74,6 +74,10 @@ code svg {
   padding: 0.15rem 0.45rem;
 }
 
+.ref-menu summary:hover code {
+  background-color: #e4e7f0;
+}
+
 .ref-menu code svg + svg {
   margin: 0 0 0 0.3em;
 }
@@ -363,6 +367,11 @@ p {
 #ref-branches:checked ~ .ref-kinds [for="ref-branches"],
 #ref-tags:checked ~ .ref-kinds [for="ref-tags"] {
   background-color: #d6dce8;
+}
+
+#ref-branches:checked ~ .ref-kinds [for="ref-branches"]:hover,
+#ref-tags:checked ~ .ref-kinds [for="ref-tags"]:hover {
+  background-color: #c8d0e1;
 }
 
 .ref-branches,
