@@ -195,6 +195,10 @@ p {
   justify-content: space-between;
 }
 
+.justify-end {
+  justify-content: flex-end;
+}
+
 .gap {
   gap: 0.65rem;
 }

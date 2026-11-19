@@ -645,7 +645,9 @@ pub fn gen_log(
         let chips = if labels.is_empty() {
             String::new()
         } else {
-            format!("<div class=\"flex flex-wrap gap text-sm\">\n{labels}</div>\n")
+            format!(
+                "<div class=\"ml-auto flex flex-wrap justify-end gap text-sm\">\n{labels}</div>\n"
+            )
         };
         body.push_str(&format!(
             "\
@@ -660,8 +662,8 @@ pub fn gen_log(
 <div class=\"ml-auto mono\">{}</div>\n\
 </div>\n\
 <div class=\"my flex flex-wrap items-center gap\">\n\
-{chips}\
 <div class=\"flex-1 mono white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
+{chips}\
 </div>\n\
 </div>\n\
 ",
