@@ -62,11 +62,11 @@ const CHEVRON_LEFT: &str = include_str!("icons/chevron-left-16.svg");
 
 const CHEVRON_RIGHT: &str = include_str!("icons/chevron-right-16.svg");
 
-const FILE_ADDED_ICON: &str = include_str!("icons/file-added-16.svg");
+const DIFF_ADDED_ICON: &str = include_str!("icons/diff-added-16.svg");
 
-const FILE_REMOVED_ICON: &str = include_str!("icons/file-removed-16.svg");
+const DIFF_REMOVED_ICON: &str = include_str!("icons/diff-removed-16.svg");
 
-const FILE_DIFF_ICON: &str = include_str!("icons/file-diff-16.svg");
+const DIFF_MODIFIED_ICON: &str = include_str!("icons/diff-modified-16.svg");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -712,24 +712,80 @@ pub fn gen_commit(
 <div>\n\
 ",
         diff.files.len(),
-        diff.added,
-        diff.removed
+        diff.files.iter().map(|f| f.added).sum::<usize>(),
+        diff.files.iter().map(|f| f.removed).sum::<usize>()
     ));
-    for file in &diff.files {
-        let (icon, title) = match file.status {
-            'A' => (FILE_ADDED_ICON, "added"),
-            'D' => (FILE_REMOVED_ICON, "deleted"),
-            _ => (FILE_DIFF_ICON, "modified"),
-        };
+    for (n, file) in diff.files.iter().enumerate() {
         body.push_str(&format!(
-            "<div class=\"my flex items-center gap\"><span class=\"flex\" title=\"{title}\">{icon}</span>{}</div>\n",
+            "<div class=\"my flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n",
+            status_icon(file.status),
             escape_str(&file.path)
         ));
     }
     body.push_str("</div>\n</div>\n");
+    for (n, file) in diff.files.iter().enumerate() {
+        body.push_str(&format!(
+            "\
+<div>\n\
+<div id=\"diff-{n}\" class=\"box sticky border-visited flex items-center justify-between mono py\">\n\
+<div class=\"flex-1 flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n\
+<div class=\"diff-stat\"><span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span></div>\n\
+</div>\n\
+",
+            status_icon(file.status),
+            escape_str(&file.path),
+            file.added,
+            file.removed
+        ));
+        match file.binary {
+            Some((old, new)) => {
+                let sizes = match file.status {
+                    'A' => format_bytes(new),
+                    'D' => format_bytes(old),
+                    _ => format!("{} &rarr; {}", format_bytes(old), format_bytes(new)),
+                };
+                body.push_str(&format!("binary file, {sizes}\n"));
+            }
+            None if !file.lines.is_empty() => write_diff(&mut body, n, &file.lines),
+            None => {}
+        }
+        body.push_str("</div>\n");
+    }
 
     let title = format!("{}/{short}: {}", repo.name, commit.summary);
     wrap_page(&title, Some(&nav), &body)
+}
+
+fn status_icon(status: char) -> String {
+    let (icon, class, title) = match status {
+        'A' => (DIFF_ADDED_ICON, " color-green", "added"),
+        'D' => (DIFF_REMOVED_ICON, " color-red", "deleted"),
+        _ => (DIFF_MODIFIED_ICON, "", "modified"),
+    };
+    format!("<span class=\"flex{class}\" title=\"{title}\">{icon}</span>")
+}
+
+fn write_diff(body: &mut String, n: usize, lines: &[(char, String)]) {
+    let width = lines.len().to_string().len();
+    body.push_str("<pre class=\"chroma\"><code>");
+    for (i, (origin, content)) in lines.iter().enumerate() {
+        let id = format!("d{n}-{}", i + 1);
+        let (class, text) = match origin {
+            '@' => (
+                "",
+                format!("<span class=\"gu\">{}</span>", escape_str(content)),
+            ),
+            '+' => (" gi", format!("+{}", escape_str(content))),
+            '-' => (" gd", format!("-{}", escape_str(content))),
+            ' ' => ("", format!(" {}", escape_str(content))),
+            _ => ("", "\\ No newline at end of file\n".to_string()),
+        };
+        body.push_str(&format!(
+            "<span class=\"line{class}\"><span class=\"ln\" id=\"{id}\"><a class=\"lnlinks\" href=\"#{id}\">{:>width$}</a></span><span class=\"cl\">{text}</span></span>",
+            i + 1
+        ));
+    }
+    body.push_str("</code></pre>\n");
 }
 
 fn log_pager(page: usize, pages: usize) -> String {

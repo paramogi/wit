@@ -20,6 +20,7 @@ html {
     serif;
   -webkit-text-size-adjust: 100%;
   tab-size: 4;
+  scroll-padding-top: 3.5rem;
 }
 
 body {
@@ -80,7 +81,7 @@ h6 {
 }
 
 path {
-  fill: #1a2a44;
+  fill: currentColor;
 }
 
 a {
@@ -212,6 +213,12 @@ p {
   margin: 1rem 0;
   padding: 0.65rem;
   border: 1px solid #7689b3;
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  background-color: #ffffff;
 }
 
 .mt-0 {
@@ -349,6 +356,36 @@ p {
 
 .chroma .ln:target {
   background-color: #e5e5e5;
+}
+
+.chroma code {
+  display: block;
+  min-width: max-content;
+}
+
+.chroma .gd {
+  color: #000000;
+  background-color: #ffdddd;
+}
+
+.chroma .gi {
+  color: #000000;
+  background-color: #ddffdd;
+}
+
+.chroma .gd,
+.chroma .gi {
+  margin: 0 -0.65rem;
+  padding: 0 0.65rem;
+}
+
+.chroma .gu {
+  color: #aaaaaa;
+}
+
+.diff-stat {
+  width: 100px;
+  text-align: right;
 }
 
 .chroma .lnlinks {

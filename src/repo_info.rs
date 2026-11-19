@@ -1,7 +1,10 @@
 use anyhow::{Context, Result};
 
 use chrono::{DateTime, FixedOffset};
-use git2::{BranchType, Commit, Delta, ErrorCode, ObjectType, Oid, Repository, Sort, Tree};
+use git2::{
+    BranchType, Commit, Delta, DiffOptions, ErrorCode, ObjectType, Oid, Patch, Repository, Sort,
+    Tree,
+};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -24,13 +27,15 @@ pub struct CommitInfo {
 pub struct FileChange {
     pub status: char,
     pub path: String,
+    pub added: usize,
+    pub removed: usize,
+    pub binary: Option<(usize, usize)>,
+    pub lines: Vec<(char, String)>,
 }
 
 pub struct CommitDiff {
     pub parents: Vec<String>,
     pub files: Vec<FileChange>,
-    pub added: usize,
-    pub removed: usize,
 }
 
 pub struct TreeEntry {
@@ -226,30 +231,57 @@ impl RepoInfo {
     pub fn read_diff(&self, id: &str) -> Result<CommitDiff> {
         let commit = self.git.find_commit(Oid::from_str(id)?)?;
         let parent_tree = commit.parents().next().map(|p| p.tree()).transpose()?;
-        let diff = self
-            .git
-            .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit.tree()?), None)?;
-        let stats = diff.stats()?;
-        let files = diff
-            .deltas()
-            .map(|delta| {
-                let (status, file) = match delta.status() {
-                    Delta::Added => ('A', delta.new_file()),
-                    Delta::Deleted => ('D', delta.old_file()),
-                    _ => ('M', delta.new_file()),
-                };
-                let path = file.path().unwrap_or(Path::new(""));
-                FileChange {
-                    status,
-                    path: path.to_string_lossy().into_owned(),
+        let mut options = DiffOptions::new();
+        options.indent_heuristic(true);
+        let diff = self.git.diff_tree_to_tree(
+            parent_tree.as_ref(),
+            Some(&commit.tree()?),
+            Some(&mut options),
+        )?;
+        let mut files = Vec::new();
+        for (i, delta) in diff.deltas().enumerate() {
+            let (status, file) = match delta.status() {
+                Delta::Added => ('A', delta.new_file()),
+                Delta::Deleted => ('D', delta.old_file()),
+                _ => ('M', delta.new_file()),
+            };
+            let mut change = FileChange {
+                status,
+                path: file
+                    .path()
+                    .unwrap_or(Path::new(""))
+                    .to_string_lossy()
+                    .into_owned(),
+                added: 0,
+                removed: 0,
+                binary: None,
+                lines: Vec::new(),
+            };
+            match Patch::from_diff(&diff, i)? {
+                Some(patch) if !patch.delta().flags().is_binary() => {
+                    (_, change.added, change.removed) = patch.line_stats()?;
+                    for h in 0..patch.num_hunks() {
+                        let (hunk, count) = patch.hunk(h)?;
+                        let header = String::from_utf8_lossy(hunk.header());
+                        change.lines.push(('@', format!("{}\n", header.trim_end())));
+                        for l in 0..count {
+                            let line = patch.line_in_hunk(h, l)?;
+                            let content = String::from_utf8_lossy(line.content()).into_owned();
+                            change.lines.push((line.origin(), content));
+                        }
+                    }
                 }
-            })
-            .collect();
+                _ => {
+                    let size = |id| self.git.find_blob(id).map_or(0, |b| b.size());
+                    change.binary =
+                        Some((size(delta.old_file().id()), size(delta.new_file().id())));
+                }
+            }
+            files.push(change);
+        }
         Ok(CommitDiff {
             parents: commit.parent_ids().map(|id| id.to_string()).collect(),
             files,
-            added: stats.insertions(),
-            removed: stats.deletions(),
         })
     }
 
