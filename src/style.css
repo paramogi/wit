@@ -60,6 +60,33 @@ code svg {
   vertical-align: -0.125em;
 }
 
+.ref-menu {
+  position: relative;
+}
+
+.ref-menu summary,
+.ref-menu label {
+  list-style: none;
+  cursor: pointer;
+}
+
+.ref-menu summary code {
+  padding: 0.15rem 0.45rem;
+}
+
+.ref-menu code svg + svg {
+  margin: 0 0 0 0.3em;
+}
+
+.ref-menu code svg:last-child,
+.ref-menu[open] code svg:nth-last-child(2) {
+  display: none;
+}
+
+.ref-menu[open] code svg:last-child {
+  display: inline;
+}
+
 pre > code {
   padding: 0;
   border: none;
@@ -277,17 +304,20 @@ p {
   font-weight: bold;
 }
 
-.buttons a {
+.buttons a,
+.buttons label {
   padding: 0.025rem 0.5rem;
   border: 1px solid #7689b3;
-  background-color: #f1f3f7;
+  background-color: #ffffff;
 }
 
-.buttons a + a {
+.buttons a + a,
+.buttons label + label {
   border-left: 0;
 }
 
-.buttons a:hover {
+.buttons a:hover,
+.buttons label:hover {
   color: #1a2a44;
   text-decoration: none;
   background-color: #e4e7f0;
@@ -299,6 +329,68 @@ p {
 
 .buttons .btn-active:hover {
   background-color: #c8d0e1;
+}
+
+.ref-menu-list {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.3rem;
+  white-space: nowrap;
+  border: 1px solid #7689b3;
+  background-color: #ffffff;
+}
+
+.ref-menu-list a,
+.ref-menu-list label {
+  border: 0;
+}
+
+.ref-menu input,
+#ref-branches:checked ~ .ref-tags,
+#ref-tags:checked ~ .ref-branches {
+  display: none;
+}
+
+.ref-kinds {
+  border-bottom: 1px solid #7689b3;
+}
+
+.ref-kinds label {
+  flex: 1;
+  text-align: center;
+}
+
+.ref-kinds label + label {
+  border-left: 1px solid #7689b3;
+}
+
+#ref-branches:checked ~ .ref-kinds [for="ref-branches"],
+#ref-tags:checked ~ .ref-kinds [for="ref-tags"] {
+  background-color: #d6dce8;
+}
+
+.ref-branches,
+.ref-tags {
+  display: flex;
+  flex-direction: column;
+}
+
+.ref-menu-list .long {
+  max-height: 50vh;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.ref-branches a,
+.ref-tags a {
+  padding: 0.3rem 0.7rem;
+}
+
+.ref-branches a + a,
+.ref-tags a + a {
+  border-top: 1px solid #7689b3;
 }
 
 .pager {

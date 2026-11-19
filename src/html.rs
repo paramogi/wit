@@ -37,7 +37,9 @@ const IMAGE_TYPES: [(&str, &str); 6] = [
     ("svg", "image/svg+xml"),
 ];
 
-const PAGE_IDS: [&str; 8] = [
+const REF_MENU_ROWS: usize = 8;
+
+const PAGE_IDS: [&str; 10] = [
     "header",
     "got_link",
     "site_path",
@@ -46,6 +48,8 @@ const PAGE_IDS: [&str; 8] = [
     "branches_content",
     "tags_content",
     "tree_content",
+    "ref-branches",
+    "ref-tags",
 ];
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -60,9 +64,11 @@ const BRANCH_ICON: &str = include_str!("icons/git-branch-16.svg");
 
 const TAG_ICON: &str = include_str!("icons/tag-16.svg");
 
+const CHEVRON_DOWN: &str = include_str!("icons/chevron-down-16.svg");
 const CHEVRON_LEFT: &str = include_str!("icons/chevron-left-16.svg");
 
 const CHEVRON_RIGHT: &str = include_str!("icons/chevron-right-16.svg");
+const CHEVRON_UP: &str = include_str!("icons/chevron-up-16.svg");
 
 const DIFF_ADDED_ICON: &str = include_str!("icons/diff-added-16.svg");
 
@@ -491,7 +497,7 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
     let repo_root = "../".repeat(depth);
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
-    let mut body = ref_bar(git_ref, &folder.path, &repo_root, "");
+    let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, "");
     write_listing(&mut body, folder, "", &blob_dir);
     if folder.path.is_empty() {
         write_readme(&mut body, repo, git_ref, &repo_root);
@@ -540,7 +546,7 @@ pub fn gen_blob(
     details.push_str(&size_cells(entry));
     details.push_str("</div>\n");
 
-    let mut body = ref_bar(git_ref, &path, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
     let text = entry.lines.is_some();
     match image_type(&entry.name) {
         Some(mime) if !source => body.push_str(&format!(
@@ -604,13 +610,11 @@ pub fn gen_log(
         "\
 <div class=\"group-2\">\n\
 <div class=\"box sticky flex items-center gap border-visited flex-wrap m-0\">\n\
-<code>{}<a href=\"{repo_root}{}\">{}</a></code>\n\
+{}\
 <div>{count}</div>\n\
 </div>\n\
 ",
-        ref_icon(git_ref),
-        Tab::Tree.href(&git_ref.dir),
-        escape_str(&git_ref.name)
+        ref_menu(repo, git_ref, &repo_root, Tab::Log)
     );
     for commit in commits {
         let href = format!("{repo_root}commits/{}.html", commit.id);
@@ -1249,32 +1253,87 @@ fn join_path(parent: &str, child: &str) -> String {
     }
 }
 
-fn ref_bar(git_ref: &RefInfo, path: &str, repo_root: &str, details: &str) -> String {
-    let mut tree_path = git_ref.dir.clone();
-    let mut levels = vec![(git_ref.name.clone(), Tab::Tree.href(&tree_path))];
-    for part in path.split('/').filter(|p| !p.is_empty()) {
-        tree_path = format!("{tree_path}/{part}");
-        levels.push((part.to_string(), Tab::Tree.href(&tree_path)));
-    }
-
+fn ref_bar(
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    path: &str,
+    repo_root: &str,
+    details: &str,
+) -> String {
     let mut bar =
         String::from("<div class=\"box sticky flex items-center gap border-visited flex-wrap\">\n");
-    let last = levels.len() - 1;
-    for (i, (text, href)) in levels.iter().enumerate() {
-        let link = if i == last {
-            format!("<span class=\"font-bold\">{}</span>", escape_str(text))
+    bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree));
+    let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty()).collect();
+    let mut tree_path = git_ref.dir.clone();
+    for (i, part) in parts.iter().enumerate() {
+        tree_path = format!("{tree_path}/{part}");
+        if i > 0 {
+            bar.push_str("<span>/</span>\n");
+        }
+        if i == parts.len() - 1 {
+            bar.push_str(&format!(
+                "<span class=\"font-bold\">{}</span>\n",
+                escape_str(part)
+            ));
         } else {
-            crumb(text, Some(format!("{repo_root}{href}")))
-        };
-        match i {
-            0 => bar.push_str(&format!("<code>{}{link}</code>\n", ref_icon(git_ref))),
-            1 => bar.push_str(&format!("{link}\n")),
-            _ => bar.push_str(&format!("<span>/</span>\n{link}\n")),
+            let href = format!("{repo_root}{}", Tab::Tree.href(&tree_path));
+            bar.push_str(&format!("{}\n", crumb(part, Some(href))));
         }
     }
     bar.push_str(details);
     bar.push_str("</div>\n");
     bar
+}
+
+fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab) -> String {
+    let mut menu = format!(
+        "<details class=\"ref-menu\">\n<summary><code>{}{}{CHEVRON_DOWN}{CHEVRON_UP}</code></summary>\n<div class=\"ref-menu-list\">\n",
+        ref_icon(git_ref),
+        escape_str(&git_ref.name)
+    );
+    let list = |class: &str, refs: &[RefInfo]| -> String {
+        let long = if refs.len() > REF_MENU_ROWS {
+            " long"
+        } else {
+            ""
+        };
+        let entries: String = refs
+            .iter()
+            .map(|r| {
+                let active = if r.dir == git_ref.dir {
+                    " btn-active"
+                } else {
+                    ""
+                };
+                format!(
+                    "<a class=\"flex items-center gap{active}\" href=\"{repo_root}{}\">{}{}</a>\n",
+                    tab.href(&r.dir),
+                    ref_icon(r),
+                    escape_str(&r.name)
+                )
+            })
+            .collect();
+        format!("<div class=\"{class} buttons{long}\">\n{entries}</div>\n")
+    };
+    if !repo.tags.is_empty() {
+        let (branches, tags) = if git_ref.dir.starts_with("tags/") {
+            ("", " checked")
+        } else {
+            (" checked", "")
+        };
+        menu.push_str(&format!(
+            "\
+<input type=\"radio\" name=\"ref-kind\" id=\"ref-branches\"{branches}>\n\
+<input type=\"radio\" name=\"ref-kind\" id=\"ref-tags\"{tags}>\n\
+<div class=\"ref-kinds buttons flex\"><label for=\"ref-branches\">branches</label><label for=\"ref-tags\">tags</label></div>\n\
+{}\
+",
+            list("ref-tags", &repo.tags)
+        ));
+    }
+    menu.push_str(&list("ref-branches", &repo.branches));
+    menu.push_str("</div>\n</details>\n");
+    menu
 }
 
 fn size_cells(entry: &TreeEntry) -> String {
