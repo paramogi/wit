@@ -1,7 +1,7 @@
 use crate::repo_info::{Folder, RefInfo, RepoInfo, TreeEntry};
 
-use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, html::push_html};
-use std::cmp::Reverse;
+use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
+use std::{cmp::Reverse, collections::HashSet, mem};
 
 const BRAND: &str = "wit";
 
@@ -25,6 +25,17 @@ const IMAGE_TYPES: [(&str, &str); 6] = [
     ("gif", "image/gif"),
     ("webp", "image/webp"),
     ("svg", "image/svg+xml"),
+];
+
+const PAGE_IDS: [&str; 8] = [
+    "header",
+    "got_link",
+    "site_path",
+    "site_link",
+    "briefs_content",
+    "branches_content",
+    "tags_content",
+    "tree_content",
 ];
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -482,51 +493,129 @@ fn write_markdown(
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_FOOTNOTES;
-    let events = Parser::new_ext(&text, options).map(|event| match event {
-        Event::FootnoteReference(label) => Event::FootnoteReference(format!("fn-{label}").into()),
-        Event::Start(Tag::FootnoteDefinition(label)) => {
-            Event::Start(Tag::FootnoteDefinition(format!("fn-{label}").into()))
-        }
-        Event::Start(Tag::Link {
-            link_type,
-            dest_url,
-            title,
-            id,
-        }) if link_type != LinkType::Email => {
-            let dest_url =
-                link_target(git_ref, base, repo_root, &dest_url).map_or(dest_url, Into::into);
+    let events: Vec<Event> = Parser::new_ext(&text, options)
+        .map(|event| match event {
+            Event::FootnoteReference(label) => {
+                Event::FootnoteReference(format!("fn-{label}").into())
+            }
+            Event::Start(Tag::FootnoteDefinition(label)) => {
+                Event::Start(Tag::FootnoteDefinition(format!("fn-{label}").into()))
+            }
             Event::Start(Tag::Link {
                 link_type,
                 dest_url,
                 title,
                 id,
-            })
-        }
-        Event::Start(Tag::Image {
-            link_type,
-            dest_url,
-            title,
-            id,
-        }) => {
-            let dest_url = image_data(repo, git_ref, base, &dest_url).map_or(dest_url, Into::into);
+            }) if link_type != LinkType::Email => {
+                let dest_url =
+                    link_target(git_ref, base, repo_root, &dest_url).map_or(dest_url, Into::into);
+                Event::Start(Tag::Link {
+                    link_type,
+                    dest_url,
+                    title,
+                    id,
+                })
+            }
             Event::Start(Tag::Image {
                 link_type,
                 dest_url,
                 title,
                 id,
-            })
+            }) => {
+                let dest_url =
+                    image_data(repo, git_ref, base, &dest_url).map_or(dest_url, Into::into);
+                Event::Start(Tag::Image {
+                    link_type,
+                    dest_url,
+                    title,
+                    id,
+                })
+            }
+            Event::Html(html) => {
+                Event::Html(rewrite_html(&html, repo, git_ref, base, repo_root).into())
+            }
+            Event::InlineHtml(html) => {
+                Event::InlineHtml(rewrite_html(&html, repo, git_ref, base, repo_root).into())
+            }
+            _ => event,
+        })
+        .collect();
+    let mut ids = heading_ids(&events).into_iter();
+    let mut linked = false;
+    let mut html_events = Vec::with_capacity(events.len());
+    for event in events {
+        match event {
+            Event::Start(Tag::Heading {
+                level,
+                classes,
+                attrs,
+                ..
+            }) => {
+                let (id, has_link) = ids.next().unwrap_or_default();
+                linked = !id.is_empty() && !has_link;
+                let self_link = format!("<a href=\"#{id}\">");
+                html_events.push(Event::Start(Tag::Heading {
+                    level,
+                    id: (!id.is_empty()).then(|| id.into()),
+                    classes,
+                    attrs,
+                }));
+                if linked {
+                    html_events.push(Event::InlineHtml(self_link.into()));
+                }
+            }
+            Event::End(TagEnd::Heading(level)) => {
+                if mem::take(&mut linked) {
+                    html_events.push(Event::InlineHtml("</a>".into()));
+                }
+                html_events.push(Event::End(TagEnd::Heading(level)));
+            }
+            _ => html_events.push(event),
         }
-        Event::Html(html) => {
-            Event::Html(rewrite_html(&html, repo, git_ref, base, repo_root).into())
-        }
-        Event::InlineHtml(html) => {
-            Event::InlineHtml(rewrite_html(&html, repo, git_ref, base, repo_root).into())
-        }
-        _ => event,
-    });
+    }
     body.push_str("<div class=\"box markdown-body\">");
-    push_html(body, events);
+    push_html(body, html_events.into_iter());
     body.push_str("</div>\n");
+}
+
+fn heading_ids(events: &[Event]) -> Vec<(String, bool)> {
+    let mut used: HashSet<String> = PAGE_IDS.iter().map(|id| id.to_string()).collect();
+    let mut ids = Vec::new();
+    let mut heading: Option<(String, bool)> = None;
+    for event in events {
+        match event {
+            Event::Start(Tag::Heading { .. }) => heading = Some((String::new(), false)),
+            Event::Text(text) | Event::Code(text) => {
+                if let Some((heading, _)) = &mut heading {
+                    heading.push_str(text);
+                }
+            }
+            Event::Start(Tag::Link { .. }) => {
+                if let Some((_, has_link)) = &mut heading {
+                    *has_link = true;
+                }
+            }
+            Event::End(TagEnd::Heading(_)) => {
+                let (text, has_link) = heading.take().unwrap_or_default();
+                let slug: String = text
+                    .to_lowercase()
+                    .chars()
+                    .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_'))
+                    .map(|c| if c == ' ' { '-' } else { c })
+                    .collect();
+                let mut id = slug.clone();
+                let mut n = 0;
+                while !slug.is_empty() && used.contains(&id) {
+                    n += 1;
+                    id = format!("{slug}-{n}");
+                }
+                used.insert(id.clone());
+                ids.push((id, has_link));
+            }
+            _ => {}
+        }
+    }
+    ids
 }
 
 fn rewrite_html(

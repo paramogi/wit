@@ -60,7 +60,9 @@ pre > code {
 h1,
 h2,
 h3,
-h4 {
+h4,
+h5,
+h6 {
   font-style: italic;
   font-size: 1rem;
   font-weight: bold;
@@ -213,6 +215,26 @@ p {
 
 .tree-path {
   word-wrap: break-word;
+}
+
+.markdown-body h1 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.markdown-body h2 {
+  font-size: 1.3rem;
+  line-height: 1.25;
+}
+
+.markdown-body h3 {
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.markdown-body h5,
+.markdown-body h6 {
+  font-size: 0.9rem;
 }
 
 .chroma .line {
