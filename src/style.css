@@ -353,10 +353,15 @@ p {
   border: 0;
 }
 
-.ref-menu input,
+.ref-menu input {
+  display: none;
+}
+
 #ref-branches:checked ~ .ref-tags,
 #ref-tags:checked ~ .ref-branches {
-  display: none;
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
 }
 
 .ref-kinds {
