@@ -196,7 +196,13 @@ p {
 .group-2 {
   display: flex;
   flex-direction: column;
-  gap: 1.3rem;
+  gap: 0.8rem;
+}
+
+.log-stat {
+  border: 1px solid #7689b3;
+  border-bottom: 0;
+  padding: 0.65rem;
 }
 
 .px {

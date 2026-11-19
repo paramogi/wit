@@ -627,10 +627,10 @@ pub fn gen_log(
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
 <span>{}</span>\n\
 </div>\n\
-<div class=\"mono\">{}</div>\n\
 {}\
 </div>\n\
 <div>\n\
+<div class=\"log-stat mono text-sm\">{}</div>\n\
 <pre class=\"m-0 white-space-bs\"><a href=\"{href}\">{}</a>{rest}</pre>\n\
 </div>\n\
 </div>\n\
@@ -638,8 +638,8 @@ pub fn gen_log(
             &commit.id[..7],
             escape_str(&commit.author_name),
             commit.author_date.format("%Y-%m-%d"),
-            stats[&commit.id],
             ref_labels(repo, &commit.id, &repo_root),
+            stats[&commit.id],
             escape_str(&commit.summary)
         ));
     }
