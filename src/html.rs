@@ -565,7 +565,13 @@ pub fn log_page(page: usize) -> String {
     }
 }
 
-pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, all: &[CommitInfo], page: usize) -> String {
+pub fn gen_log(
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    all: &[CommitInfo],
+    stats: &HashMap<String, String>,
+    page: usize,
+) -> String {
     let depth = 1 + git_ref.dir.split('/').count();
     let nav = RepoNav {
         repo,
@@ -621,6 +627,7 @@ pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, all: &[CommitInfo], page: usi
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
 <span>{}</span>\n\
 </div>\n\
+<div class=\"mono\">{}</div>\n\
 {}\
 </div>\n\
 <div>\n\
@@ -631,6 +638,7 @@ pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, all: &[CommitInfo], page: usi
             &commit.id[..7],
             escape_str(&commit.author_name),
             commit.author_date.format("%Y-%m-%d"),
+            stats[&commit.id],
             ref_labels(repo, &commit.id, &repo_root),
             escape_str(&commit.summary)
         ));
@@ -643,6 +651,16 @@ pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, all: &[CommitInfo], page: usi
 
     let title = format!("{}/{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
+}
+
+pub fn diff_stat(diff: &CommitDiff) -> String {
+    let s = if diff.files.len() == 1 { "" } else { "s" };
+    format!(
+        "<strong>{}</strong> file{s} changed,&nbsp;<span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span>",
+        diff.files.len(),
+        diff.files.iter().map(|f| f.added).sum::<usize>(),
+        diff.files.iter().map(|f| f.removed).sum::<usize>()
+    )
 }
 
 pub fn gen_commit(
@@ -706,16 +724,9 @@ pub fn gen_commit(
         escape_str(commit.message.trim_end())
     ));
 
-    let s = if diff.files.len() == 1 { "" } else { "s" };
     body.push_str(&format!(
-        "\
-<div class=\"box mono\">\n\
-<div><strong>{}</strong> file{s} changed,&nbsp;<span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span></div>\n\
-<div>\n\
-",
-        diff.files.len(),
-        diff.files.iter().map(|f| f.added).sum::<usize>(),
-        diff.files.iter().map(|f| f.removed).sum::<usize>()
+        "<div class=\"box mono\">\n<div>{}</div>\n<div>\n",
+        diff_stat(diff)
     ));
     for (n, file) in diff.files.iter().enumerate() {
         body.push_str(&format!(

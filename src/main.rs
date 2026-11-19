@@ -3,8 +3,8 @@ mod repo_info;
 
 use anyhow::{Context, Result, bail};
 use html::{
-    LOG_COUNT, STYLE, gen_blob, gen_branches, gen_commit, gen_index, gen_log, gen_summary,
-    gen_tags, gen_tree, has_source_page, log_page,
+    LOG_COUNT, STYLE, diff_stat, gen_blob, gen_branches, gen_commit, gen_index, gen_log,
+    gen_summary, gen_tags, gen_tree, has_source_page, log_page,
 };
 use repo_info::RepoInfo;
 use std::{
@@ -94,22 +94,30 @@ fn run() -> Result<()> {
             .filter(|b| b.dir == repo.head_dir)
             .chain(repo.branches.iter().filter(|b| b.dir != repo.head_dir))
             .chain(&repo.tags);
-        let mut commit_refs = HashMap::new();
+        let mut stats = HashMap::new();
         for git_ref in head_first {
             let commits = repo
                 .read_log(&git_ref.id)
                 .with_context(|| repo.path.clone())?;
+            for commit in &commits {
+                if stats.contains_key(&commit.id) {
+                    continue;
+                }
+                let diff = repo
+                    .read_diff(&commit.id)
+                    .with_context(|| repo.path.clone())?;
+                write_file(
+                    &repo_dir.join("commits").join(format!("{}.html", commit.id)),
+                    &gen_commit(repo, git_ref, commit, &diff),
+                )?;
+                stats.insert(commit.id.clone(), diff_stat(&diff));
+            }
             let log_dir = repo_dir.join("logs").join(&git_ref.dir);
             for page in 1..=commits.len().div_ceil(LOG_COUNT) {
                 write_file(
                     &log_dir.join(log_page(page)),
-                    &gen_log(repo, git_ref, &commits, page),
+                    &gen_log(repo, git_ref, &commits, &stats, page),
                 )?;
-            }
-            for commit in commits {
-                commit_refs
-                    .entry(commit.id.clone())
-                    .or_insert((commit, git_ref));
             }
             for folder in &git_ref.folders {
                 let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
@@ -140,15 +148,6 @@ fn run() -> Result<()> {
                     }
                 }
             }
-        }
-        for (commit, git_ref) in commit_refs.values() {
-            let diff = repo
-                .read_diff(&commit.id)
-                .with_context(|| repo.path.clone())?;
-            write_file(
-                &repo_dir.join("commits").join(format!("{}.html", commit.id)),
-                &gen_commit(repo, git_ref, commit, &diff),
-            )?;
         }
     }
     Ok(())
