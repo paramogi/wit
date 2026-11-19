@@ -639,11 +639,6 @@ pub fn gen_log(
             ""
         };
         let href = format!("{repo_root}commits/{}.html", commit.id);
-        let rest = if commit.body.is_empty() {
-            String::new()
-        } else {
-            format!("\n\n{}", escape_str(&commit.body))
-        };
         let labels = ref_labels(repo, &commit.id, &repo_root);
         let chips = if labels.is_empty() {
             String::new()
@@ -664,7 +659,7 @@ pub fn gen_log(
 </div>\n\
 {chips}\
 </div>\n\
-<pre class=\"m-0 joined white-space-bs\"><a href=\"{href}\">{}</a>{rest}</pre>\n\
+<pre class=\"m-0 joined white-space-bs\"><a href=\"{href}\">{}</a></pre>\n\
 ",
             &commit.id[..7],
             escape_str(&commit.author_name),

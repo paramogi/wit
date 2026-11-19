@@ -14,7 +14,6 @@ const NO_MESSAGE: &str = "(no message)";
 pub struct CommitInfo {
     pub id: String,
     pub summary: String,
-    pub body: String,
     pub message: String,
     pub author_name: String,
     pub author_email: String,
@@ -344,7 +343,6 @@ impl RepoInfo {
                 .filter(|s| !s.is_empty())
                 .unwrap_or(NO_MESSAGE)
                 .to_string(),
-            body: commit.body()?.unwrap_or_default().to_string(),
             message: commit.message().unwrap_or_default().to_string(),
             author_name: author.name().unwrap_or_default().to_string(),
             author_email: author.email().unwrap_or_default().to_string(),
