@@ -212,6 +212,31 @@ p {
   border-bottom: 0;
 }
 
+.view-switch a {
+  padding: 0.025rem 0.5rem;
+  border: 1px solid #7689b3;
+  background-color: #f1f3f7;
+  text-decoration: none;
+}
+
+.view-switch a + a {
+  border-left: 0;
+}
+
+.view-switch a:hover {
+  color: #1a2a44;
+  text-decoration: none;
+  background-color: #e4e7f0;
+}
+
+.view-switch .btn-active {
+  background-color: #d6dce8;
+}
+
+.view-switch .btn-active:hover {
+  background-color: #c8d0e1;
+}
+
 .tree-size {
   width: 60px;
   text-align: right;

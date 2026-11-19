@@ -494,7 +494,7 @@ pub fn gen_blob(
             (Some(other), None)
         };
         details.push_str(&format!(
-            "<nav class=\"navs\">{} |\n{}</nav>\n",
+            "<div class=\"view-switch flex\">{}\n{}</div>\n",
             crumb("source", source_href),
             crumb("rendered", rendered_href)
         ));
