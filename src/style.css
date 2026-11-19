@@ -642,4 +642,8 @@ pre,
     float: none;
     width: 100%;
   }
+
+  .navs_wrapper .buttons a {
+    padding: 0.025rem 0.35rem;
+  }
 }

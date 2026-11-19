@@ -306,7 +306,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
             page.push_str(&format!(
                 "\
 <nav id=\"site_path\"><div id=\"site_link\">{}</div></nav>\n\
-<div class=\"navs_wrapper flex justify-between items-center\"><nav class=\"navs buttons flex\">\n\
+<div class=\"navs_wrapper flex flex-wrap items-center gap\"><nav class=\"navs buttons flex\">\n\
 ",
                 crumb(&nav.repo.name, Some(format!("{repo_root}index.html")))
             ));
@@ -328,7 +328,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
             let files = file_links(nav, &repo_root);
             if !files.is_empty() {
                 page.push_str(&format!(
-                    "<nav class=\"navs buttons flex\">\n{}\n</nav>\n",
+                    "<nav class=\"navs buttons flex ml-auto\">\n{}\n</nav>\n",
                     files.join("\n")
                 ));
             }
@@ -1401,12 +1401,13 @@ fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &
 }
 
 fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
-    let refs: Vec<&RefInfo> = repo
+    let mut refs: Vec<&RefInfo> = repo
         .branches
         .iter()
         .chain(&repo.tags)
         .filter(|git_ref| git_ref.id == id)
         .collect();
+    refs.sort_by(|a, b| RefInfo::newest_first(a, b));
     let mut labels: String = refs
         .iter()
         .take(REF_CHIPS)

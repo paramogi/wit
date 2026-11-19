@@ -5,7 +5,7 @@ use git2::{
     BranchType, Commit, Delta, DiffFile, DiffFindOptions, DiffOptions, ErrorCode, ObjectType, Oid,
     Patch, Repository, Sort, Tree,
 };
-use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
+use std::{cmp::Ordering, fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
 
@@ -62,7 +62,14 @@ pub struct RefInfo {
     pub name: String,
     pub dir: String,
     pub id: String,
+    pub time: i64,
     pub folders: Vec<Folder>,
+}
+
+impl RefInfo {
+    pub fn newest_first(a: &RefInfo, b: &RefInfo) -> Ordering {
+        b.time.cmp(&a.time).then_with(|| a.name.cmp(&b.name))
+    }
 }
 
 pub struct RepoInfo {
@@ -126,15 +133,16 @@ impl RepoInfo {
                 continue;
             };
             let commit = branch.get().peel_to_commit()?;
-            let info = RefInfo {
+            branches.push(RefInfo {
                 name: name.to_string(),
                 dir: format!("heads/{name}"),
                 id: commit.id().to_string(),
+                time: commit.committer().when().seconds(),
                 folders: Self::read_folders(repo, &commit)?,
-            };
-            branches.push((commit.committer().when().seconds(), info));
+            });
         }
-        Ok(Self::newest_first(branches))
+        branches.sort_by(RefInfo::newest_first);
+        Ok(branches)
     }
 
     fn handle_tags(repo: &Repository) -> Result<Vec<RefInfo>> {
@@ -152,15 +160,16 @@ impl RepoInfo {
                 .ok()
                 .and_then(|tag| tag.tagger().map(|sig| sig.when()));
             let time = tagger_time.unwrap_or(commit.committer().when());
-            let info = RefInfo {
+            tags.push(RefInfo {
                 name: name.to_string(),
                 dir: format!("tags/{name}"),
                 id: commit.id().to_string(),
+                time: time.seconds(),
                 folders: Self::read_folders(repo, &commit)?,
-            };
-            tags.push((time.seconds(), info));
+            });
         }
-        Ok(Self::newest_first(tags))
+        tags.sort_by(RefInfo::newest_first);
+        Ok(tags)
     }
 
     fn read_folders(repo: &Repository, commit: &Commit) -> Result<Vec<Folder>> {
@@ -220,11 +229,6 @@ impl RepoInfo {
         } else {
             newlines
         }
-    }
-
-    fn newest_first(mut refs: Vec<(i64, RefInfo)>) -> Vec<RefInfo> {
-        refs.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
-        refs.into_iter().map(|(_, info)| info).collect()
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>> {
