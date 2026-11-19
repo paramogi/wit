@@ -105,6 +105,7 @@ struct RepoNav<'a> {
     git_ref: &'a str,
     tab: Tab,
     depth: usize,
+    path: &'a str,
 }
 
 fn crumb(text: &str, href: Option<String>) -> String {
@@ -185,7 +186,12 @@ fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
         .filter_map(|(label, names)| {
             let entry = repo_file(root, names)?;
             let href = percent_encode(&format!("blob/{}/{}.html", nav.git_ref, entry.name));
-            Some(format!("<a href=\"{repo_root}{href}\">{label}</a>"))
+            let class = if entry.name == nav.path {
+                " class=\"btn-active\""
+            } else {
+                ""
+            };
+            Some(format!("<a{class} href=\"{repo_root}{href}\">{label}</a>"))
         })
         .collect()
 }
@@ -276,7 +282,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
             let files = file_links(nav, &repo_root);
             if !files.is_empty() {
                 page.push_str(&format!(
-                    "<nav class=\"navs flex gap-2\">\n{}\n</nav>\n",
+                    "<nav class=\"navs buttons flex\">\n{}\n</nav>\n",
                     files.join("\n")
                 ));
             }
@@ -343,6 +349,7 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
         git_ref: &repo.head_dir,
         tab: Tab::Summary,
         depth: 0,
+        path: "",
     };
     let last_change = repo
         .commit_list
@@ -422,6 +429,7 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         git_ref: &repo.head_dir,
         tab,
         depth: 0,
+        path: "",
     };
 
     let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
@@ -449,6 +457,7 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
         git_ref: &git_ref.dir,
         tab: Tab::Tree,
         depth,
+        path: "",
     };
     let repo_root = "../".repeat(depth);
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
@@ -472,14 +481,15 @@ pub fn gen_blob(
     source: bool,
 ) -> String {
     let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
+    let path = join_path(&folder.path, &entry.name);
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
         tab: Tab::Tree,
         depth,
+        path: &path,
     };
     let repo_root = "../".repeat(depth);
-    let path = join_path(&folder.path, &entry.name);
     let mut details = String::from("<div class=\"ml-auto flex items-center gap\">\n");
     if has_source_page(entry) {
         let root = if source { "blob" } else { "source" };
