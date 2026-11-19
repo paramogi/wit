@@ -15,7 +15,7 @@ const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
 const BRIEF_COUNT: usize = 12;
 
-const DATE_TIME: &str = "%Y-%m-%d %H:%M:%S %z";
+const DATE_TIME: &str = "%Y-%m-%d&nbsp;%H:%M:%S&nbsp;%z";
 
 pub const LOG_COUNT: usize = 2000;
 
@@ -645,12 +645,12 @@ pub fn gen_log(
         let chips = if labels.is_empty() {
             String::new()
         } else {
-            format!("<div class=\"my flex flex-wrap gap\">\n{labels}</div>\n")
+            format!("<div class=\"flex flex-wrap gap text-sm\">\n{labels}</div>\n")
         };
         body.push_str(&format!(
             "\
-<div class=\"box m-0{joined} text-sm\">\n\
-<div class=\"flex flex-wrap items-center gap\">\n\
+<div class=\"box m-0{joined}\">\n\
+<div class=\"flex flex-wrap items-center gap text-sm\">\n\
 <a href=\"{href}\" class=\"mono\">{}</a>\n\
 <div class=\"flex items-center gap-xs\">\n\
 <span>{}</span>\n\
@@ -659,9 +659,11 @@ pub fn gen_log(
 </div>\n\
 <div class=\"ml-auto mono\">{}</div>\n\
 </div>\n\
+<div class=\"my flex flex-wrap items-center gap\">\n\
 {chips}\
+<div class=\"flex-1 mono white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
 </div>\n\
-<pre class=\"m-0 joined white-space-bs\"><a href=\"{href}\">{}</a></pre>\n\
+</div>\n\
 ",
             &commit.id[..7],
             escape_str(&commit.author_name),
