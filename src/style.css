@@ -237,6 +237,11 @@ p {
   font-size: 0.9rem;
 }
 
+.footnotes {
+  border-top: 1px solid #7689b3;
+  font-size: 0.9rem;
+}
+
 .chroma .line {
   display: flex;
 }

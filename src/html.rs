@@ -1,7 +1,11 @@
 use crate::repo_info::{Folder, RefInfo, RepoInfo, TreeEntry};
 
 use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
-use std::{cmp::Reverse, collections::HashSet, mem};
+use std::{
+    cmp::Reverse,
+    collections::{HashMap, HashSet},
+    mem,
+};
 
 const BRAND: &str = "wit";
 
@@ -495,12 +499,6 @@ fn write_markdown(
         | Options::ENABLE_FOOTNOTES;
     let events: Vec<Event> = Parser::new_ext(&text, options)
         .map(|event| match event {
-            Event::FootnoteReference(label) => {
-                Event::FootnoteReference(format!("fn-{label}").into())
-            }
-            Event::Start(Tag::FootnoteDefinition(label)) => {
-                Event::Start(Tag::FootnoteDefinition(format!("fn-{label}").into()))
-            }
             Event::Start(Tag::Link {
                 link_type,
                 dest_url,
@@ -540,6 +538,7 @@ fn write_markdown(
             _ => event,
         })
         .collect();
+    let events = gather_footnotes(events);
     let mut ids = heading_ids(&events).into_iter();
     let mut linked = false;
     let mut html_events = Vec::with_capacity(events.len());
@@ -576,6 +575,94 @@ fn write_markdown(
     body.push_str("<div class=\"box markdown-body\">");
     push_html(body, html_events.into_iter());
     body.push_str("</div>\n");
+}
+
+fn gather_footnotes(events: Vec<Event<'_>>) -> Vec<Event<'_>> {
+    let mut main = Vec::with_capacity(events.len());
+    let mut definitions: HashMap<String, Vec<Event>> = HashMap::new();
+    let mut referenced: Vec<(String, usize)> = Vec::new();
+    let mut definition: Option<(String, Vec<Event>)> = None;
+    for event in events {
+        let event = match event {
+            Event::Start(Tag::FootnoteDefinition(label)) => {
+                definition = Some((label.to_string(), Vec::new()));
+                continue;
+            }
+            Event::End(TagEnd::FootnoteDefinition) => {
+                if let Some((label, body)) = definition.take() {
+                    definitions.entry(label).or_insert(body);
+                }
+                continue;
+            }
+            Event::FootnoteReference(label) => {
+                let number = match referenced.iter().position(|(seen, _)| *seen == *label) {
+                    Some(i) => {
+                        referenced[i].1 += 1;
+                        i + 1
+                    }
+                    None => {
+                        referenced.push((label.to_string(), 1));
+                        referenced.len()
+                    }
+                };
+                let count = referenced[number - 1].1;
+                Event::InlineHtml(
+                    format!(
+                        "<sup class=\"footnote-reference\" id=\"{}\"><a href=\"#{}\">{number}</a></sup>",
+                        escape_str(&footnote_ref_id(&label, count)),
+                        percent_encode(&format!("fn-{label}"))
+                    )
+                    .into(),
+                )
+            }
+            event => event,
+        };
+        match &mut definition {
+            Some((_, body)) => body.push(event),
+            None => main.push(event),
+        }
+    }
+    if referenced.is_empty() {
+        return main;
+    }
+    main.push(Event::Html("<section class=\"footnotes\">\n<ol>\n".into()));
+    for (label, count) in referenced {
+        let mut body = definitions.remove(&label).unwrap_or_default();
+        let arrows: String = (1..=count)
+            .map(|k| {
+                let number = if k == 1 {
+                    String::new()
+                } else {
+                    format!("<sup>{k}</sup>")
+                };
+                format!(
+                    " <a href=\"#{}\" class=\"footnote-backref\">↑{number}</a>",
+                    percent_encode(&footnote_ref_id(&label, k))
+                )
+            })
+            .collect();
+        let at = if matches!(body.last(), Some(Event::End(TagEnd::Paragraph))) {
+            body.len() - 1
+        } else {
+            body.len()
+        };
+        body.insert(at, Event::InlineHtml(arrows.into()));
+        main.push(Event::Html(
+            format!("<li id=\"{}\">\n", escape_str(&format!("fn-{label}"))).into(),
+        ));
+        main.extend(body);
+        main.push(Event::Html("</li>\n".into()));
+    }
+    main.push(Event::Html("</ol>\n</section>\n".into()));
+    main
+}
+
+fn footnote_ref_id(label: &str, k: usize) -> String {
+    if k == 1 {
+        format!("fnref-{label}")
+    } else {
+        format!("fnref-{label}-{k}")
+    }
 }
 
 fn heading_ids(events: &[Event]) -> Vec<(String, bool)> {
