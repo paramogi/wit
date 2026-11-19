@@ -126,7 +126,7 @@ header {
 }
 
 main {
-  margin-top: 1rem;
+  margin: 1rem 0;
 }
 
 p {
@@ -251,6 +251,24 @@ p {
 
 .buttons .btn-active:hover {
   background-color: #c8d0e1;
+}
+
+.pager {
+  align-self: center;
+  max-width: 50%;
+}
+
+.pager a {
+  display: flex;
+  align-items: center;
+}
+
+.pager svg {
+  margin: 0 -4px;
+}
+
+.pager svg + svg {
+  margin-left: -3px;
 }
 
 .tree-size {

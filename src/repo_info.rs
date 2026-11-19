@@ -8,8 +8,6 @@ const DEFAULT_DESCRIPTION: &str = "[no description]";
 
 const NO_MESSAGE: &str = "(no message)";
 
-const LOG_COUNT: usize = 2000;
-
 pub struct CommitInfo {
     pub id: String,
     pub summary: String,
@@ -206,30 +204,23 @@ impl RepoInfo {
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>> {
-        let head = repo.head()?.peel_to_commit()?.id();
-        let (commit_list, _) = Self::walk(repo, head, usize::MAX)?;
-        Ok(commit_list)
+        Self::walk(repo, repo.head()?.peel_to_commit()?.id())
     }
 
-    pub fn read_log(&self, id: &str) -> Result<(Vec<CommitInfo>, usize)> {
-        Self::walk(&self.git, Oid::from_str(id)?, LOG_COUNT)
+    pub fn read_log(&self, id: &str) -> Result<Vec<CommitInfo>> {
+        Self::walk(&self.git, Oid::from_str(id)?)
     }
 
-    fn walk(repo: &Repository, start: Oid, limit: usize) -> Result<(Vec<CommitInfo>, usize)> {
+    fn walk(repo: &Repository, start: Oid) -> Result<Vec<CommitInfo>> {
         let mut rev = repo.revwalk()?;
         rev.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         rev.push(start)?;
 
         let mut commit_list = Vec::new();
-        let mut total = 0;
         for oid in rev {
-            let oid = oid?;
-            total += 1;
-            if commit_list.len() < limit {
-                commit_list.push(Self::commit_info(&repo.find_commit(oid)?)?);
-            }
+            commit_list.push(Self::commit_info(&repo.find_commit(oid?)?)?);
         }
-        Ok((commit_list, total))
+        Ok(commit_list)
     }
 
     fn commit_info(commit: &Commit) -> Result<CommitInfo> {

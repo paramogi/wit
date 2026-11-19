@@ -13,6 +13,8 @@ const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
 const BRIEF_COUNT: usize = 12;
 
+pub const LOG_COUNT: usize = 2000;
+
 const SUMMARY_REF_COUNT: usize = 3;
 
 const BYTE_UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
@@ -55,6 +57,10 @@ const FOLDER_ICON: &str = include_str!("icons/file-directory-16.svg");
 const BRANCH_ICON: &str = include_str!("icons/git-branch-16.svg");
 
 const TAG_ICON: &str = include_str!("icons/tag-16.svg");
+
+const CHEVRON_LEFT: &str = include_str!("icons/chevron-left-16.svg");
+
+const CHEVRON_RIGHT: &str = include_str!("icons/chevron-right-16.svg");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -543,7 +549,15 @@ pub fn gen_blob(
     wrap_page(&title, Some(&nav), &body)
 }
 
-pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, commits: &[CommitInfo], total: usize) -> String {
+pub fn log_page(page: usize) -> String {
+    if page == 1 {
+        "index.html".to_string()
+    } else {
+        format!("{page}.html")
+    }
+}
+
+pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, all: &[CommitInfo], page: usize) -> String {
     let depth = 1 + git_ref.dir.split('/').count();
     let nav = RepoNav {
         repo,
@@ -553,9 +567,17 @@ pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, commits: &[CommitInfo], total
         path: "",
     };
     let repo_root = "../".repeat(depth);
-    let shown = commits.len();
-    let count = if shown < total {
-        format!("<span class=\"font-bold\">{shown}</span> of {total} commits")
+    let total = all.len();
+    let start = (page - 1) * LOG_COUNT;
+    let end = total.min(start + LOG_COUNT);
+    let commits = &all[start..end];
+    let count = if page > 1 {
+        format!(
+            "<span class=\"font-bold\">{}&ndash;{end}</span> of {total} commits",
+            start + 1
+        )
+    } else if end < total {
+        format!("<span class=\"font-bold\">{end}</span> of {total} commits")
     } else if total == 1 {
         "<span class=\"font-bold\">1</span> commit".to_string()
     } else {
@@ -605,10 +627,44 @@ pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, commits: &[CommitInfo], total
             escape_str(&commit.summary)
         ));
     }
+    let pages = total.div_ceil(LOG_COUNT);
+    if pages > 1 {
+        body.push_str(&log_pager(page, pages));
+    }
     body.push_str("</div>\n");
 
     let title = format!("{}/{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
+}
+
+fn log_pager(page: usize, pages: usize) -> String {
+    let first = page
+        .saturating_sub(2)
+        .clamp(1, pages.saturating_sub(4).max(1));
+    let last = pages.min(first + 4);
+    let arrow = |n: usize, title: &str, icon: &str| {
+        format!("<a href=\"{}\" title=\"{title}\">{icon}</a>", log_page(n))
+    };
+    let mut buttons = Vec::new();
+    if first > 1 {
+        buttons.push(arrow(1, "first page", &CHEVRON_LEFT.repeat(2)));
+    }
+    if page > 1 {
+        buttons.push(arrow(page - 1, "previous page", CHEVRON_LEFT));
+    }
+    for n in first..=last {
+        buttons.push(crumb(&n.to_string(), (n != page).then(|| log_page(n))));
+    }
+    if page < pages {
+        buttons.push(arrow(page + 1, "next page", CHEVRON_RIGHT));
+    }
+    if last < pages {
+        buttons.push(arrow(pages, "last page", &CHEVRON_RIGHT.repeat(2)));
+    }
+    format!(
+        "<nav class=\"navs buttons flex flex-wrap pager\">\n{}\n</nav>\n",
+        buttons.join("\n")
+    )
 }
 
 pub fn has_source_page(entry: &TreeEntry) -> bool {
