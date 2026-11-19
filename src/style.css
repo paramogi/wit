@@ -200,6 +200,10 @@ p {
   padding: 0;
 }
 
+.white-space-bs {
+  white-space: break-spaces;
+}
+
 .border-b {
   border-bottom: 1px solid #7689b3;
 }

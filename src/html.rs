@@ -17,8 +17,10 @@ const SUMMARY_REF_COUNT: usize = 3;
 
 const BYTE_UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
 
+const README_NAMES: [&str; 2] = ["README.md", "README"];
+
 const REPO_FILES: [(&str, [&str; 2]); 2] = [
-    ("README", ["README.md", "README"]),
+    ("README", README_NAMES),
     ("LICENSE", ["LICENSE", "COPYING"]),
 ];
 
@@ -157,28 +159,65 @@ fn percent_encode(s: &str) -> String {
     encoded
 }
 
-fn root_folder<'a>(repo: &'a RepoInfo, dir: &str) -> Option<&'a Folder> {
+fn find_ref<'a>(repo: &'a RepoInfo, dir: &str) -> Option<&'a RefInfo> {
     repo.branches
         .iter()
         .chain(&repo.tags)
         .find(|git_ref| git_ref.dir == dir)
-        .and_then(|git_ref| git_ref.folders.iter().find(|f| f.path.is_empty()))
+}
+
+fn root_folder(git_ref: &RefInfo) -> Option<&Folder> {
+    git_ref.folders.iter().find(|f| f.path.is_empty())
+}
+
+fn repo_file<'a>(root: &'a Folder, names: &[&str]) -> Option<&'a TreeEntry> {
+    names
+        .iter()
+        .find_map(|name| root.entries.iter().find(|e| !e.is_dir && e.name == *name))
 }
 
 fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
-    let Some(root) = root_folder(nav.repo, nav.git_ref) else {
+    let Some(root) = find_ref(nav.repo, nav.git_ref).and_then(root_folder) else {
         return Vec::new();
     };
     REPO_FILES
         .iter()
         .filter_map(|(label, names)| {
-            let name = names
-                .iter()
-                .find(|name| root.entries.iter().any(|e| !e.is_dir && e.name == **name))?;
-            let href = percent_encode(&format!("blob/{}/{name}.html", nav.git_ref));
+            let entry = repo_file(root, names)?;
+            let href = percent_encode(&format!("blob/{}/{}.html", nav.git_ref, entry.name));
             Some(format!("<a href=\"{repo_root}{href}\">{label}</a>"))
         })
         .collect()
+}
+
+fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str) {
+    let Some(entry) = root_folder(git_ref).and_then(|root| repo_file(root, &README_NAMES)) else {
+        return;
+    };
+    let Some(blob) = entry
+        .blob
+        .filter(|_| entry.lines.is_some())
+        .and_then(|id| repo.git.find_blob(id).ok())
+    else {
+        return;
+    };
+    body.push_str(
+        "\
+<div class=\"summary-readme\">\n\
+<header class=\"subtitle\">\n\
+<h2>readme</h2>\n\
+</header>\n\
+",
+    );
+    if is_markdown(&entry.name) {
+        write_markdown(body, repo, git_ref, "", repo_root, blob.content());
+    } else {
+        body.push_str(&format!(
+            "<pre class=\"white-space-bs\">{}</pre>\n",
+            escape_str(&String::from_utf8_lossy(blob.content()))
+        ));
+    }
+    body.push_str("</div>\n");
 }
 
 fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
@@ -347,7 +386,8 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
     if !repo.tags.is_empty() {
         write_summary_refs(&mut body, Tab::Tags, &repo.tags, "tag_wrapper", "tag_name");
     }
-    if let Some(root) = root_folder(repo, &repo.head_dir) {
+    let head = find_ref(repo, &repo.head_dir);
+    if let Some(root) = head.and_then(root_folder) {
         body.push_str(
             "\
 <div class=\"summary-tree\">\n\
@@ -361,6 +401,9 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
         let blob_dir = format!("blob/{}/", repo.head_dir);
         write_listing(&mut body, root, &tree_dir, &blob_dir);
         body.push_str("</div>\n</div>\n");
+    }
+    if let Some(head) = head {
+        write_readme(&mut body, repo, head, "");
     }
 
     wrap_page(&repo.name, Some(&nav), &body)
@@ -413,6 +456,9 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
 
     let mut body = ref_bar(git_ref, &folder.path, &repo_root, "");
     write_listing(&mut body, folder, "", &blob_dir);
+    if folder.path.is_empty() {
+        write_readme(&mut body, repo, git_ref, &repo_root);
+    }
 
     let title = format!("{}/{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
