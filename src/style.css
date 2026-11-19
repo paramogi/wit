@@ -521,24 +521,6 @@ p {
   color: inherit;
 }
 
-.summary-commit-box {
-  margin: 0;
-  padding: 0;
-}
-
-.summary-commit-row {
-  padding: 0.45rem 0.55rem;
-}
-
-.summary-commit-row .mb {
-  margin-bottom: 0.2rem;
-}
-
-.summary-commit-msg {
-  font-size: 0.95rem;
-  line-height: 1.25;
-}
-
 .summary-meta-box {
   margin-top: 0;
   padding: 0;

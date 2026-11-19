@@ -13,7 +13,7 @@ const BRAND: &str = "wit";
 
 const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
-const BRIEF_COUNT: usize = 12;
+const BRIEF_COUNT: usize = 5;
 
 const DATE_TIME: &str = "%Y-%m-%d&nbsp;%H:%M:%S&nbsp;%z";
 
@@ -381,7 +381,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
     wrap_page("repositories", None, &body)
 }
 
-pub fn gen_summary(repo: &RepoInfo) -> String {
+pub fn gen_summary(repo: &RepoInfo, stats: &HashMap<String, String>) -> String {
     let nav = RepoNav {
         repo,
         git_ref: &repo.head_dir,
@@ -417,7 +417,7 @@ pub fn gen_summary(repo: &RepoInfo) -> String {
         ));
     }
     body.push_str("</div>\n");
-    write_briefs(&mut body, repo);
+    write_briefs(&mut body, repo, stats);
     if repo.branches.len() > 1 {
         write_summary_refs(
             &mut body,
@@ -640,39 +640,14 @@ pub fn gen_log(
             ));
             ""
         };
-        let href = format!("{repo_root}commits/{}.html", commit.id);
-        let labels = ref_labels(repo, &commit.id, &repo_root);
-        let chips = if labels.is_empty() {
-            String::new()
-        } else {
-            format!(
-                "<div class=\"ml-auto flex flex-wrap justify-end gap text-sm\">\n{labels}</div>\n"
-            )
-        };
-        body.push_str(&format!(
-            "\
-<div class=\"box m-0{joined}\">\n\
-<div class=\"flex flex-wrap items-center gap text-sm\">\n\
-<a href=\"{href}\" class=\"mono\">{}</a>\n\
-<div class=\"flex items-center gap-xs\">\n\
-<span>{}</span>\n\
-<span>&nbsp;&centerdot;&nbsp;</span>\n\
-<span>{}</span>\n\
-</div>\n\
-<div class=\"ml-auto mono\">{}</div>\n\
-</div>\n\
-<div class=\"my flex flex-wrap items-center gap\">\n\
-<div class=\"flex-1 mono white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
-{chips}\
-</div>\n\
-</div>\n\
-",
-            &commit.id[..7],
-            escape_str(&commit.author_name),
-            commit.committer_date.format(DATE_TIME),
-            stats[&commit.id],
-            escape_str(&commit.summary)
-        ));
+        write_commit_row(
+            &mut body,
+            repo,
+            commit,
+            &stats[&commit.id],
+            &repo_root,
+            joined,
+        );
         day = date;
     }
     body.push_str("</div>\n");
@@ -1431,7 +1406,47 @@ fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
         .collect()
 }
 
-fn write_briefs(body: &mut String, repo: &RepoInfo) {
+fn write_commit_row(
+    body: &mut String,
+    repo: &RepoInfo,
+    commit: &CommitInfo,
+    stat: &str,
+    repo_root: &str,
+    joined: &str,
+) {
+    let href = format!("{repo_root}commits/{}.html", commit.id);
+    let labels = ref_labels(repo, &commit.id, repo_root);
+    let chips = if labels.is_empty() {
+        String::new()
+    } else {
+        format!("<div class=\"ml-auto flex flex-wrap justify-end gap text-sm\">\n{labels}</div>\n")
+    };
+    body.push_str(&format!(
+        "\
+<div class=\"box m-0{joined}\">\n\
+<div class=\"flex flex-wrap items-center gap text-sm\">\n\
+<a href=\"{href}\" class=\"mono\">{}</a>\n\
+<div class=\"flex items-center gap-xs\">\n\
+<span>{}</span>\n\
+<span>&nbsp;&centerdot;&nbsp;</span>\n\
+<span>{}</span>\n\
+</div>\n\
+<div class=\"ml-auto mono\">{stat}</div>\n\
+</div>\n\
+<div class=\"my flex flex-wrap items-center gap\">\n\
+<div class=\"flex-1 mono white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
+{chips}\
+</div>\n\
+</div>\n\
+",
+        &commit.id[..7],
+        escape_str(&commit.author_name),
+        commit.committer_date.format(DATE_TIME),
+        escape_str(&commit.summary)
+    ));
+}
+
+fn write_briefs(body: &mut String, repo: &RepoInfo, stats: &HashMap<String, String>) {
     body.push_str(
         "\
 <div class=\"summary-briefs\">\n\
@@ -1439,36 +1454,14 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
 <h2>commit briefs</h2>\n\
 </header>\n\
 <div id=\"briefs_content\">\n\
-<div class=\"box summary-commit-box\">\n\
 ",
     );
-    for commit in repo.commit_list.iter().take(BRIEF_COUNT) {
-        let id = &commit.id;
-        let labels = ref_labels(repo, id, "");
-        body.push_str(&format!(
-            "\
-<div class=\"summary-commit-row border-b\">\n\
-<div class=\"flex items-center gap mb text-sm\">\n\
-<a href=\"commits/{id}.html\" class=\"mono\">{}</a>\n\
-<div class=\"flex items-center gap-xs\">\n\
-<span>{}</span>\n\
-<span>&nbsp;&centerdot;&nbsp;</span>\n\
-<span>{}</span>\n\
-</div>\n\
-{labels}\
-</div>\n\
-<div class=\"summary-commit-msg\">\n\
-<a href=\"commits/{id}.html\">{}</a>\n\
-</div>\n\
-</div>\n\
-",
-            &id[..7],
-            escape_str(&commit.author_name),
-            commit.committer_date.format(DATE_TIME),
-            escape_str(&commit.summary)
-        ));
+    for (n, commit) in repo.commit_list.iter().take(BRIEF_COUNT).enumerate() {
+        let joined = if n == 0 { "" } else { " joined" };
+        let stat = stats.get(&commit.id).map_or("", String::as_str);
+        write_commit_row(body, repo, commit, stat, "", joined);
     }
-    body.push_str("</div>\n</div>\n</div>\n");
+    body.push_str("</div>\n</div>\n");
 }
 
 fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &str, inner: &str) {

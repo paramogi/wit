@@ -83,7 +83,6 @@ fn run() -> Result<()> {
     write_file(&args.out_dir.join("index.html"), &gen_index(&repos))?;
     for repo in &repos {
         let repo_dir = args.out_dir.join(&repo.name);
-        write_file(&repo_dir.join("index.html"), &gen_summary(repo))?;
         write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
         if !repo.tags.is_empty() {
             write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
@@ -149,6 +148,7 @@ fn run() -> Result<()> {
                 }
             }
         }
+        write_file(&repo_dir.join("index.html"), &gen_summary(repo, &stats))?;
     }
     Ok(())
 }
