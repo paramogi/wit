@@ -254,7 +254,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
             page.push_str(&format!(
                 "\
 <nav id=\"site_path\"><div id=\"site_link\">{}</div></nav>\n\
-<div class=\"navs_wrapper flex justify-between\"><nav class=\"navs tabs\">\n\
+<div class=\"navs_wrapper flex justify-between items-center\"><nav class=\"navs buttons flex\">\n\
 ",
                 crumb(&nav.repo.name, Some(format!("{repo_root}index.html")))
             ));
@@ -272,7 +272,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
                     )
                 })
                 .collect();
-            page.push_str(&format!("{}\n</nav>\n", links.join(" |\n")));
+            page.push_str(&format!("{}\n</nav>\n", links.join("\n")));
             let files = file_links(nav, &repo_root);
             if !files.is_empty() {
                 page.push_str(&format!(
@@ -493,7 +493,7 @@ pub fn gen_blob(
             (Some(other), None)
         };
         details.push_str(&format!(
-            "<div class=\"view-switch flex\">{}\n{}</div>\n",
+            "<div class=\"buttons flex\">{}\n{}</div>\n",
             crumb("source", source_href),
             crumb("rendered", rendered_href)
         ));
