@@ -3,7 +3,8 @@ mod repo_info;
 
 use anyhow::{Context, Result, bail};
 use html::{
-    STYLE, gen_blob, gen_branches, gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
+    STYLE, gen_blob, gen_branches, gen_index, gen_log, gen_summary, gen_tags, gen_tree,
+    has_source_page,
 };
 use repo_info::RepoInfo;
 use std::{
@@ -87,6 +88,13 @@ fn run() -> Result<()> {
             write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
         }
         for git_ref in repo.branches.iter().chain(&repo.tags) {
+            let (commits, total) = repo
+                .read_log(&git_ref.id)
+                .with_context(|| repo.path.clone())?;
+            write_file(
+                &repo_dir.join("logs").join(&git_ref.dir).join("index.html"),
+                &gen_log(repo, git_ref, &commits, total),
+            )?;
             for folder in &git_ref.folders {
                 let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
                 write_file(

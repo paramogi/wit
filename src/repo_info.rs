@@ -8,9 +8,12 @@ const DEFAULT_DESCRIPTION: &str = "[no description]";
 
 const NO_MESSAGE: &str = "(no message)";
 
+const LOG_COUNT: usize = 2000;
+
 pub struct CommitInfo {
     pub id: String,
     pub summary: String,
+    pub body: String,
     pub message: String,
     pub author_name: String,
     pub author_email: String,
@@ -203,34 +206,53 @@ impl RepoInfo {
     }
 
     fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>> {
+        let head = repo.head()?.peel_to_commit()?.id();
+        let (commit_list, _) = Self::walk(repo, head, usize::MAX)?;
+        Ok(commit_list)
+    }
+
+    pub fn read_log(&self, id: &str) -> Result<(Vec<CommitInfo>, usize)> {
+        Self::walk(&self.git, Oid::from_str(id)?, LOG_COUNT)
+    }
+
+    fn walk(repo: &Repository, start: Oid, limit: usize) -> Result<(Vec<CommitInfo>, usize)> {
         let mut rev = repo.revwalk()?;
         rev.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
-        rev.push_head()?;
+        rev.push(start)?;
 
         let mut commit_list = Vec::new();
+        let mut total = 0;
         for oid in rev {
-            let commit = repo.find_commit(oid?)?;
-            let author = commit.author();
-            let committer = commit.committer();
-            commit_list.push(CommitInfo {
-                id: commit.id().to_string(),
-                summary: commit
-                    .summary()?
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or(NO_MESSAGE)
-                    .to_string(),
-                message: commit.message().unwrap_or_default().to_string(),
-                author_name: author.name().unwrap_or_default().to_string(),
-                author_email: author.email().unwrap_or_default().to_string(),
-                author_date: Self::to_date(author.when())
-                    .with_context(|| format!("commit {}: invalid author date", commit.id()))?,
-                committer_name: committer.name().unwrap_or_default().to_string(),
-                committer_email: committer.email().unwrap_or_default().to_string(),
-                committer_date: Self::to_date(committer.when())
-                    .with_context(|| format!("commit {}: invalid committer date", commit.id()))?,
-            });
+            let oid = oid?;
+            total += 1;
+            if commit_list.len() < limit {
+                commit_list.push(Self::commit_info(&repo.find_commit(oid)?)?);
+            }
         }
-        Ok(commit_list)
+        Ok((commit_list, total))
+    }
+
+    fn commit_info(commit: &Commit) -> Result<CommitInfo> {
+        let author = commit.author();
+        let committer = commit.committer();
+        Ok(CommitInfo {
+            id: commit.id().to_string(),
+            summary: commit
+                .summary()?
+                .filter(|s| !s.is_empty())
+                .unwrap_or(NO_MESSAGE)
+                .to_string(),
+            body: commit.body()?.unwrap_or_default().to_string(),
+            message: commit.message().unwrap_or_default().to_string(),
+            author_name: author.name().unwrap_or_default().to_string(),
+            author_email: author.email().unwrap_or_default().to_string(),
+            author_date: Self::to_date(author.when())
+                .with_context(|| format!("commit {}: invalid author date", commit.id()))?,
+            committer_name: committer.name().unwrap_or_default().to_string(),
+            committer_email: committer.email().unwrap_or_default().to_string(),
+            committer_date: Self::to_date(committer.when())
+                .with_context(|| format!("commit {}: invalid committer date", commit.id()))?,
+        })
     }
 
     fn to_date(time: git2::Time) -> Option<DateTime<FixedOffset>> {

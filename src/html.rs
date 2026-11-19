@@ -1,4 +1,4 @@
-use crate::repo_info::{Folder, RefInfo, RepoInfo, TreeEntry};
+use crate::repo_info::{CommitInfo, Folder, RefInfo, RepoInfo, TreeEntry};
 
 use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
 use std::{
@@ -543,6 +543,74 @@ pub fn gen_blob(
     wrap_page(&title, Some(&nav), &body)
 }
 
+pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, commits: &[CommitInfo], total: usize) -> String {
+    let depth = 1 + git_ref.dir.split('/').count();
+    let nav = RepoNav {
+        repo,
+        git_ref: &git_ref.dir,
+        tab: Tab::Log,
+        depth,
+        path: "",
+    };
+    let repo_root = "../".repeat(depth);
+    let shown = commits.len();
+    let count = if shown < total {
+        format!("<span class=\"font-bold\">{shown}</span> of {total} commits")
+    } else if total == 1 {
+        "<span class=\"font-bold\">1</span> commit".to_string()
+    } else {
+        format!("<span class=\"font-bold\">{total}</span> commits")
+    };
+
+    let mut body = format!(
+        "\
+<div class=\"group-2\">\n\
+<div class=\"box sticky flex items-center gap border-visited flex-wrap m-0\">\n\
+<code>{}<a href=\"{repo_root}{}\">{}</a></code>\n\
+<div>{count}</div>\n\
+</div>\n\
+",
+        ref_icon(git_ref),
+        Tab::Tree.href(&git_ref.dir),
+        escape_str(&git_ref.name)
+    );
+    for commit in commits {
+        let href = format!("{repo_root}commits/{}.html", commit.id);
+        let rest = if commit.body.is_empty() {
+            String::new()
+        } else {
+            format!("\n\n{}", escape_str(&commit.body))
+        };
+        body.push_str(&format!(
+            "\
+<div>\n\
+<div class=\"flex items-center gap mb text-sm\">\n\
+<a href=\"{href}\" class=\"mono\">{}</a>\n\
+<div class=\"flex items-center gap-xs\">\n\
+<span>{}</span>\n\
+<span>&nbsp;&centerdot;&nbsp;</span>\n\
+<span>{}</span>\n\
+</div>\n\
+{}\
+</div>\n\
+<div>\n\
+<pre class=\"m-0 white-space-bs\"><a href=\"{href}\">{}</a>{rest}</pre>\n\
+</div>\n\
+</div>\n\
+",
+            &commit.id[..7],
+            escape_str(&commit.author_name),
+            commit.author_date.format("%Y-%m-%d"),
+            ref_labels(repo, &commit.id, &repo_root),
+            escape_str(&commit.summary)
+        ));
+    }
+    body.push_str("</div>\n");
+
+    let title = format!("{}/{}", repo.name, git_ref.name);
+    wrap_page(&title, Some(&nav), &body)
+}
+
 pub fn has_source_page(entry: &TreeEntry) -> bool {
     entry.lines.is_some() && (image_type(&entry.name).is_some() || is_markdown(&entry.name))
 }
@@ -1013,6 +1081,22 @@ fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &
     body.push_str("</div>\n");
 }
 
+fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
+    repo.branches
+        .iter()
+        .chain(&repo.tags)
+        .filter(|git_ref| git_ref.id == id)
+        .map(|git_ref| {
+            format!(
+                "<code>{}<a href=\"{repo_root}{}\">{}</a></code>\n",
+                ref_icon(git_ref),
+                Tab::Tree.href(&git_ref.dir),
+                escape_str(&git_ref.name)
+            )
+        })
+        .collect()
+}
+
 fn write_briefs(body: &mut String, repo: &RepoInfo) {
     body.push_str(
         "\
@@ -1026,20 +1110,7 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
     );
     for commit in repo.commit_list.iter().take(BRIEF_COUNT) {
         let id = &commit.id;
-        let labels: String = repo
-            .branches
-            .iter()
-            .chain(&repo.tags)
-            .filter(|git_ref| git_ref.id == *id)
-            .map(|git_ref| {
-                format!(
-                    "<code>{}<a href=\"{}\">{}</a></code>\n",
-                    ref_icon(git_ref),
-                    Tab::Tree.href(&git_ref.dir),
-                    escape_str(&git_ref.name)
-                )
-            })
-            .collect();
+        let labels = ref_labels(repo, id, "");
         body.push_str(&format!(
             "\
 <div class=\"summary-commit-row border-b\">\n\
