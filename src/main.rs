@@ -3,8 +3,8 @@ mod repo_info;
 
 use anyhow::{Context, Result, bail};
 use html::{
-    LOG_COUNT, STYLE, diff_stat, gen_blob, gen_branches, gen_commit, gen_index, gen_log,
-    gen_summary, gen_tags, gen_tree, has_source_page, log_page,
+    COMMITS_PER_PAGE, STYLE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit,
+    gen_commits, gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
 };
 use repo_info::RepoInfo;
 use std::{
@@ -96,7 +96,7 @@ fn run() -> Result<()> {
         let mut stats = HashMap::new();
         for git_ref in head_first {
             let commits = repo
-                .read_log(&git_ref.id)
+                .read_commits(&git_ref.id)
                 .with_context(|| repo.path.clone())?;
             for commit in &commits {
                 if stats.contains_key(&commit.id) {
@@ -111,11 +111,11 @@ fn run() -> Result<()> {
                 )?;
                 stats.insert(commit.id.clone(), diff_stat(&diff));
             }
-            let log_dir = repo_dir.join("logs").join(&git_ref.dir);
-            for page in 1..=commits.len().div_ceil(LOG_COUNT) {
+            let commits_dir = repo_dir.join("commits").join(&git_ref.dir);
+            for page in 1..=commits.len().div_ceil(COMMITS_PER_PAGE) {
                 write_file(
-                    &log_dir.join(log_page(page)),
-                    &gen_log(repo, git_ref, &commits, &stats, page),
+                    &commits_dir.join(commits_page(page)),
+                    &gen_commits(repo, git_ref, &commits, &stats, page),
                 )?;
             }
             for folder in &git_ref.folders {

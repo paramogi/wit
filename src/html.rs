@@ -17,7 +17,7 @@ const BRIEF_COUNT: usize = 5;
 
 const DATE_TIME: &str = "%Y-%m-%d&nbsp;%H:%M:%S&nbsp;%z";
 
-pub const LOG_COUNT: usize = 2000;
+pub const COMMITS_PER_PAGE: usize = 2000;
 
 const SUMMARY_REF_COUNT: usize = 3;
 
@@ -86,19 +86,25 @@ const DIFF_RENAMED_ICON: &str = include_str!("icons/diff-renamed-16.svg");
 enum Tab {
     Summary,
     Tree,
-    Log,
+    Commits,
     Branches,
     Tags,
 }
 
-const TABS: [Tab; 5] = [Tab::Summary, Tab::Tree, Tab::Log, Tab::Branches, Tab::Tags];
+const TABS: [Tab; 5] = [
+    Tab::Summary,
+    Tab::Tree,
+    Tab::Commits,
+    Tab::Branches,
+    Tab::Tags,
+];
 
 impl Tab {
     fn label(self) -> &'static str {
         match self {
             Tab::Summary => "summary",
             Tab::Tree => "tree",
-            Tab::Log => "log",
+            Tab::Commits => "commits",
             Tab::Branches => "branches",
             Tab::Tags => "tags",
         }
@@ -108,7 +114,7 @@ impl Tab {
         match self {
             Tab::Summary => "action-readme",
             Tab::Tree => "action-code",
-            Tab::Log => "action-commits",
+            Tab::Commits => "action-commits",
             Tab::Branches => "action-branches",
             Tab::Tags => "action-tags",
         }
@@ -118,7 +124,7 @@ impl Tab {
         match self {
             Tab::Summary => "index.html".to_string(),
             Tab::Tree => format!("tree/{}/index.html", percent_encode(git_ref)),
-            Tab::Log => format!("logs/{}/index.html", percent_encode(git_ref)),
+            Tab::Commits => format!("commits/{}/index.html", percent_encode(git_ref)),
             Tab::Branches => "branches.html".to_string(),
             Tab::Tags => "tags.html".to_string(),
         }
@@ -354,12 +360,11 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
         let links: Vec<String> = repo_tabs(repo)
             .filter(|&tab| tab != Tab::Summary)
             .map(|tab| {
-                let label = if tab == Tab::Log {
-                    "commits"
-                } else {
+                format!(
+                    "<a href=\"{dir}/{}\">{}</a>",
+                    tab.href(&repo.head_dir),
                     tab.label()
-                };
-                format!("<a href=\"{dir}/{}\">{label}</a>", tab.href(&repo.head_dir))
+                )
             })
             .collect();
         body.push_str(&format!(
@@ -569,7 +574,7 @@ pub fn gen_blob(
     wrap_page(&title, Some(&nav), &body)
 }
 
-pub fn log_page(page: usize) -> String {
+pub fn commits_page(page: usize) -> String {
     if page == 1 {
         "index.html".to_string()
     } else {
@@ -577,7 +582,7 @@ pub fn log_page(page: usize) -> String {
     }
 }
 
-pub fn gen_log(
+pub fn gen_commits(
     repo: &RepoInfo,
     git_ref: &RefInfo,
     all: &[CommitInfo],
@@ -588,14 +593,14 @@ pub fn gen_log(
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
-        tab: Tab::Log,
+        tab: Tab::Commits,
         depth,
         path: "",
     };
     let repo_root = "../".repeat(depth);
     let total = all.len();
-    let start = (page - 1) * LOG_COUNT;
-    let end = total.min(start + LOG_COUNT);
+    let start = (page - 1) * COMMITS_PER_PAGE;
+    let end = total.min(start + COMMITS_PER_PAGE);
     let commits = &all[start..end];
     let count = if page > 1 {
         format!(
@@ -618,7 +623,7 @@ pub fn gen_log(
 <div>{count}</div>\n\
 </div>\n\
 ",
-        ref_menu(repo, git_ref, &repo_root, Tab::Log)
+        ref_menu(repo, git_ref, &repo_root, Tab::Commits)
     );
     let mut day = String::new();
     for commit in commits {
@@ -651,9 +656,9 @@ pub fn gen_log(
         day = date;
     }
     body.push_str("</div>\n");
-    let pages = total.div_ceil(LOG_COUNT);
+    let pages = total.div_ceil(COMMITS_PER_PAGE);
     if pages > 1 {
-        body.push_str(&log_pager(page, pages));
+        body.push_str(&commits_pager(page, pages));
     }
     body.push_str("</div>\n");
 
@@ -680,7 +685,7 @@ pub fn gen_commit(
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
-        tab: Tab::Log,
+        tab: Tab::Commits,
         depth: 1,
         path: "",
     };
@@ -835,13 +840,16 @@ fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
     body.push_str("</code></pre>\n");
 }
 
-fn log_pager(page: usize, pages: usize) -> String {
+fn commits_pager(page: usize, pages: usize) -> String {
     let first = page
         .saturating_sub(2)
         .clamp(1, pages.saturating_sub(4).max(1));
     let last = pages.min(first + 4);
     let arrow = |n: usize, title: &str, icon: &str| {
-        format!("<a href=\"{}\" title=\"{title}\">{icon}</a>", log_page(n))
+        format!(
+            "<a href=\"{}\" title=\"{title}\">{icon}</a>",
+            commits_page(n)
+        )
     };
     let mut buttons = Vec::new();
     if first > 1 {
@@ -851,7 +859,7 @@ fn log_pager(page: usize, pages: usize) -> String {
         buttons.push(arrow(page - 1, "previous page", CHEVRON_LEFT));
     }
     for n in first..=last {
-        buttons.push(crumb(&n.to_string(), (n != page).then(|| log_page(n))));
+        buttons.push(crumb(&n.to_string(), (n != page).then(|| commits_page(n))));
     }
     if page < pages {
         buttons.push(arrow(page + 1, "next page", CHEVRON_RIGHT));

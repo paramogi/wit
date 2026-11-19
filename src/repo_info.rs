@@ -231,7 +231,7 @@ impl RepoInfo {
         Self::walk(repo, repo.head()?.peel_to_commit()?.id())
     }
 
-    pub fn read_log(&self, id: &str) -> Result<Vec<CommitInfo>> {
+    pub fn read_commits(&self, id: &str) -> Result<Vec<CommitInfo>> {
         Self::walk(&self.git, Oid::from_str(id)?)
     }
 
