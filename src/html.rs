@@ -1,4 +1,4 @@
-use crate::repo_info::{CommitDiff, CommitInfo, Folder, RefInfo, RepoInfo, TreeEntry};
+use crate::repo_info::{CommitDiff, CommitInfo, FileChange, Folder, RefInfo, RepoInfo, TreeEntry};
 
 use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
 use std::{
@@ -67,6 +67,8 @@ const DIFF_ADDED_ICON: &str = include_str!("icons/diff-added-16.svg");
 const DIFF_REMOVED_ICON: &str = include_str!("icons/diff-removed-16.svg");
 
 const DIFF_MODIFIED_ICON: &str = include_str!("icons/diff-modified-16.svg");
+
+const DIFF_RENAMED_ICON: &str = include_str!("icons/diff-renamed-16.svg");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -719,7 +721,7 @@ pub fn gen_commit(
         body.push_str(&format!(
             "<div class=\"my flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n",
             status_icon(file.status),
-            escape_str(&file.path)
+            change_path(file)
         ));
     }
     body.push_str("</div>\n</div>\n");
@@ -733,7 +735,7 @@ pub fn gen_commit(
 </div>\n\
 ",
             status_icon(file.status),
-            escape_str(&file.path),
+            change_path(file),
             file.added,
             file.removed
         ));
@@ -747,6 +749,7 @@ pub fn gen_commit(
                 body.push_str(&format!("binary file, {sizes}\n"));
             }
             None if !file.lines.is_empty() => write_diff(&mut body, n, &file.lines),
+            None if file.status == 'R' => body.push_str("renamed without changes\n"),
             None => {}
         }
         body.push_str("</div>\n");
@@ -760,9 +763,17 @@ fn status_icon(status: char) -> String {
     let (icon, class, title) = match status {
         'A' => (DIFF_ADDED_ICON, " color-green", "added"),
         'D' => (DIFF_REMOVED_ICON, " color-red", "deleted"),
+        'R' => (DIFF_RENAMED_ICON, "", "renamed"),
         _ => (DIFF_MODIFIED_ICON, "", "modified"),
     };
     format!("<span class=\"flex{class}\" title=\"{title}\">{icon}</span>")
+}
+
+fn change_path(file: &FileChange) -> String {
+    match &file.old_path {
+        Some(old) => format!("{} &rarr; {}", escape_str(old), escape_str(&file.path)),
+        None => escape_str(&file.path),
+    }
 }
 
 fn write_diff(body: &mut String, n: usize, lines: &[(char, String)]) {

@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 
 use chrono::{DateTime, FixedOffset};
 use git2::{
-    BranchType, Commit, Delta, DiffOptions, ErrorCode, ObjectType, Oid, Patch, Repository, Sort,
-    Tree,
+    BranchType, Commit, Delta, DiffFile, DiffFindOptions, DiffOptions, ErrorCode, ObjectType, Oid,
+    Patch, Repository, Sort, Tree,
 };
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
@@ -27,6 +27,7 @@ pub struct CommitInfo {
 pub struct FileChange {
     pub status: char,
     pub path: String,
+    pub old_path: Option<String>,
     pub added: usize,
     pub removed: usize,
     pub binary: Option<(usize, usize)>,
@@ -233,25 +234,30 @@ impl RepoInfo {
         let parent_tree = commit.parents().next().map(|p| p.tree()).transpose()?;
         let mut options = DiffOptions::new();
         options.indent_heuristic(true);
-        let diff = self.git.diff_tree_to_tree(
+        let mut diff = self.git.diff_tree_to_tree(
             parent_tree.as_ref(),
             Some(&commit.tree()?),
             Some(&mut options),
         )?;
+        diff.find_similar(Some(
+            DiffFindOptions::new().renames(true).rename_threshold(37),
+        ))?;
         let mut files = Vec::new();
         for (i, delta) in diff.deltas().enumerate() {
+            let path = |file: DiffFile| {
+                let path = file.path().unwrap_or(Path::new(""));
+                path.to_string_lossy().into_owned()
+            };
             let (status, file) = match delta.status() {
                 Delta::Added => ('A', delta.new_file()),
                 Delta::Deleted => ('D', delta.old_file()),
+                Delta::Renamed => ('R', delta.new_file()),
                 _ => ('M', delta.new_file()),
             };
             let mut change = FileChange {
                 status,
-                path: file
-                    .path()
-                    .unwrap_or(Path::new(""))
-                    .to_string_lossy()
-                    .into_owned(),
+                path: path(file),
+                old_path: (status == 'R').then(|| path(delta.old_file())),
                 added: 0,
                 removed: 0,
                 binary: None,
