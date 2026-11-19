@@ -233,7 +233,7 @@ impl RepoInfo {
         let commit = self.git.find_commit(Oid::from_str(id)?)?;
         let parent_tree = commit.parents().next().map(|p| p.tree()).transpose()?;
         let mut options = DiffOptions::new();
-        options.indent_heuristic(true);
+        options.indent_heuristic(true).include_typechange(true);
         let mut diff = self.git.diff_tree_to_tree(
             parent_tree.as_ref(),
             Some(&commit.tree()?),
@@ -252,6 +252,7 @@ impl RepoInfo {
                 Delta::Added => ('A', delta.new_file()),
                 Delta::Deleted => ('D', delta.old_file()),
                 Delta::Renamed => ('R', delta.new_file()),
+                Delta::Typechange => ('T', delta.new_file()),
                 _ => ('M', delta.new_file()),
             };
             let mut change = FileChange {
@@ -263,9 +264,28 @@ impl RepoInfo {
                 binary: None,
                 lines: Vec::new(),
             };
-            match Patch::from_diff(&diff, i)? {
-                Some(patch) if !patch.delta().flags().is_binary() => {
-                    (_, change.added, change.removed) = patch.line_stats()?;
+            let content = |file: DiffFile| match self.git.find_blob(file.id()) {
+                Ok(blob) => blob.content().to_vec(),
+                Err(_) => format!("Subproject commit {}\n", file.id()).into_bytes(),
+            };
+            let (old, new);
+            let patches = if status == 'T' {
+                (old, new) = (content(delta.old_file()), content(delta.new_file()));
+                vec![
+                    Patch::from_buffers(&old, None, &[], None, Some(&mut options))?,
+                    Patch::from_buffers(&[], None, &new, None, Some(&mut options))?,
+                ]
+            } else {
+                Patch::from_diff(&diff, i)?.into_iter().collect()
+            };
+            if patches.is_empty() || patches.iter().any(|p| p.delta().flags().is_binary()) {
+                let size = |id| self.git.find_blob(id).map_or(0, |b| b.size());
+                change.binary = Some((size(delta.old_file().id()), size(delta.new_file().id())));
+            } else {
+                for patch in &patches {
+                    let (_, added, removed) = patch.line_stats()?;
+                    change.added += added;
+                    change.removed += removed;
                     for h in 0..patch.num_hunks() {
                         let (hunk, count) = patch.hunk(h)?;
                         let header = String::from_utf8_lossy(hunk.header());
@@ -276,11 +296,6 @@ impl RepoInfo {
                             change.lines.push((line.origin(), content));
                         }
                     }
-                }
-                _ => {
-                    let size = |id| self.git.find_blob(id).map_or(0, |b| b.size());
-                    change.binary =
-                        Some((size(delta.old_file().id()), size(delta.new_file().id())));
                 }
             }
             files.push(change);
