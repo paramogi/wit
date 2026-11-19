@@ -228,6 +228,10 @@ p {
   margin-bottom: 0;
 }
 
+.mt-sm {
+  margin-top: 0.3rem;
+}
+
 .color-green {
   color: #009926;
 }

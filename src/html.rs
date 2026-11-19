@@ -1433,8 +1433,8 @@ fn write_commit_row(
 </div>\n\
 <div class=\"ml-auto mono\">{stat}</div>\n\
 </div>\n\
-<div class=\"my flex flex-wrap items-center gap\">\n\
-<div class=\"flex-1 mono white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
+<div class=\"mt-sm flex flex-wrap items-center gap\">\n\
+<div class=\"flex-1 white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
 {chips}\
 </div>\n\
 </div>\n\
