@@ -15,6 +15,8 @@ const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
 const BRIEF_COUNT: usize = 12;
 
+const DATE_TIME: &str = "%Y-%m-%d %H:%M:%S %z";
+
 pub const LOG_COUNT: usize = 2000;
 
 const SUMMARY_REF_COUNT: usize = 3;
@@ -653,7 +655,7 @@ pub fn gen_log(
 <div class=\"flex items-center gap-xs\">\n\
 <span>{}</span>\n\
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
-<span>{date}</span>\n\
+<span>{}</span>\n\
 </div>\n\
 <div class=\"ml-auto mono\">{}</div>\n\
 </div>\n\
@@ -663,6 +665,7 @@ pub fn gen_log(
 ",
             &commit.id[..7],
             escape_str(&commit.author_name),
+            commit.committer_date.format(DATE_TIME),
             stats[&commit.id],
             escape_str(&commit.summary)
         ));
@@ -714,37 +717,37 @@ pub fn gen_commit(
         _ => format!("<div>parents {}</div>\n", parents.join(", ")),
     };
 
+    let author = format!(
+        "{} &lt;{}&gt;",
+        escape_str(&commit.author_name),
+        escape_str(&commit.author_email)
+    );
+    let committer = format!(
+        "{} &lt;{}&gt;",
+        escape_str(&commit.committer_name),
+        escape_str(&commit.committer_email)
+    );
+    let committed = commit.committer_date.format(DATE_TIME);
+    let people = if commit.author_name == commit.committer_name
+        && commit.author_email == commit.committer_email
+    {
+        format!("authored and committed by {author} on {committed}")
+    } else {
+        format!(
+            "authored by {author} on {} and committed by {committer} on {committed}",
+            commit.author_date.format(DATE_TIME)
+        )
+    };
+
     let mut body = format!(
         "\
 <h2>commit <code>{short}</code></h2>\n\
 <div class=\"flex justify-between flex-wrap\">\n\
-<div class=\"flex flex-1 items-center gap-xs\">\n\
-<span>{} &lt;{}&gt;</span>\n\
-<span>&nbsp;&centerdot;&nbsp;</span>\n\
-<span>{}</span>\n\
-</div>\n\
+<div class=\"flex-1\">{people}</div>\n\
 {parents}\
 </div>\n\
-",
-        escape_str(&commit.author_name),
-        escape_str(&commit.author_email),
-        commit.author_date.format("%Y-%m-%d %H:%M:%S %z")
+"
     );
-    if commit.committer_name != commit.author_name || commit.committer_email != commit.author_email
-    {
-        body.push_str(&format!(
-            "\
-<div class=\"flex items-center gap-xs\">\n\
-<span>committed by {} &lt;{}&gt;</span>\n\
-<span>&nbsp;&centerdot;&nbsp;</span>\n\
-<span>{}</span>\n\
-</div>\n\
-",
-            escape_str(&commit.committer_name),
-            escape_str(&commit.committer_email),
-            commit.committer_date.format("%Y-%m-%d %H:%M:%S %z")
-        ));
-    }
     body.push_str(&format!(
         "\
 <div class=\"box flex gap mono mb-0\">\n\
@@ -1457,7 +1460,7 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
 ",
             &id[..7],
             escape_str(&commit.author_name),
-            commit.author_date.format("%Y-%m-%d %H:%M:%S %z"),
+            commit.committer_date.format(DATE_TIME),
             escape_str(&commit.summary)
         ));
     }
