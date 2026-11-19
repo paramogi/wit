@@ -118,10 +118,6 @@ header {
   margin-bottom: 0.65rem;
 }
 
-.btn-active {
-  text-decoration: underline;
-}
-
 main {
   margin-top: 1rem;
 }
@@ -212,27 +208,37 @@ p {
   border-bottom: 0;
 }
 
+.font-bold {
+  font-weight: bold;
+}
+
+.tabs a {
+  padding: 0.1rem 0.3rem;
+}
+
 .view-switch a {
   padding: 0.025rem 0.5rem;
   border: 1px solid #7689b3;
   background-color: #f1f3f7;
-  text-decoration: none;
 }
 
 .view-switch a + a {
   border-left: 0;
 }
 
+.tabs a:hover,
 .view-switch a:hover {
   color: #1a2a44;
   text-decoration: none;
   background-color: #e4e7f0;
 }
 
+.tabs .btn-active,
 .view-switch .btn-active {
   background-color: #d6dce8;
 }
 
+.tabs .btn-active:hover,
 .view-switch .btn-active:hover {
   background-color: #c8d0e1;
 }

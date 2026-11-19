@@ -251,13 +251,12 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
     let main_class = match nav {
         Some(nav) => {
             let repo_root = "../".repeat(nav.depth);
-            let summary_href = (nav.tab != Tab::Summary).then(|| format!("{repo_root}index.html"));
             page.push_str(&format!(
                 "\
 <nav id=\"site_path\"><div id=\"site_link\">{}</div></nav>\n\
-<div class=\"navs_wrapper flex justify-between\"><nav class=\"navs\">\n\
+<div class=\"navs_wrapper flex justify-between\"><nav class=\"navs tabs\">\n\
 ",
-                crumb(&nav.repo.name, summary_href)
+                crumb(&nav.repo.name, Some(format!("{repo_root}index.html")))
             ));
             let links: Vec<String> = repo_tabs(nav.repo)
                 .map(|tab| {
@@ -923,7 +922,11 @@ fn ref_bar(git_ref: &RefInfo, path: &str, repo_root: &str, details: &str) -> Str
         String::from("<div class=\"box sticky flex items-center gap border-visited flex-wrap\">\n");
     let last = levels.len() - 1;
     for (i, (text, href)) in levels.iter().enumerate() {
-        let link = crumb(text, (i != last).then(|| format!("{repo_root}{href}")));
+        let link = if i == last {
+            format!("<span class=\"font-bold\">{}</span>", escape_str(text))
+        } else {
+            crumb(text, Some(format!("{repo_root}{href}")))
+        };
         match i {
             0 => bar.push_str(&format!("<code>{link}</code>\n")),
             1 => bar.push_str(&format!("{link}\n")),
