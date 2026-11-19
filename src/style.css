@@ -221,6 +221,18 @@ p {
   word-wrap: break-word;
 }
 
+.markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  font-style: normal;
+}
+
+.markdown-body a {
+  text-decoration: underline;
+}
+
+.markdown-body :is(h1, h2, h3, h4, h5, h6) > a:not(:hover) {
+  text-decoration: none;
+}
+
 .markdown-body h1 {
   font-size: 1.5rem;
   line-height: 1.25;
