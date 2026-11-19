@@ -1,4 +1,4 @@
-use crate::repo_info::{CommitInfo, Folder, RefInfo, RepoInfo, TreeEntry};
+use crate::repo_info::{CommitDiff, CommitInfo, Folder, RefInfo, RepoInfo, TreeEntry};
 
 use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
 use std::{
@@ -61,6 +61,12 @@ const TAG_ICON: &str = include_str!("icons/tag-16.svg");
 const CHEVRON_LEFT: &str = include_str!("icons/chevron-left-16.svg");
 
 const CHEVRON_RIGHT: &str = include_str!("icons/chevron-right-16.svg");
+
+const FILE_ADDED_ICON: &str = include_str!("icons/file-added-16.svg");
+
+const FILE_REMOVED_ICON: &str = include_str!("icons/file-removed-16.svg");
+
+const FILE_DIFF_ICON: &str = include_str!("icons/file-diff-16.svg");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -634,6 +640,95 @@ pub fn gen_log(repo: &RepoInfo, git_ref: &RefInfo, all: &[CommitInfo], page: usi
     body.push_str("</div>\n");
 
     let title = format!("{}/{}", repo.name, git_ref.name);
+    wrap_page(&title, Some(&nav), &body)
+}
+
+pub fn gen_commit(
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    commit: &CommitInfo,
+    diff: &CommitDiff,
+) -> String {
+    let nav = RepoNav {
+        repo,
+        git_ref: &git_ref.dir,
+        tab: Tab::Log,
+        depth: 1,
+        path: "",
+    };
+    let short = &commit.id[..7];
+    let parents: Vec<String> = diff
+        .parents
+        .iter()
+        .map(|id| format!("<a href=\"{id}.html\">{}</a>", &id[..7]))
+        .collect();
+    let parents = match parents.len() {
+        0 => String::new(),
+        1 => format!("<div>parent {}</div>\n", parents[0]),
+        _ => format!("<div>parents {}</div>\n", parents.join(", ")),
+    };
+
+    let mut body = format!(
+        "\
+<h2>commit <code>{short}</code></h2>\n\
+<div class=\"flex justify-between flex-wrap\">\n\
+<div class=\"flex flex-1 items-center gap-xs\">\n\
+<span>{} &lt;{}&gt;</span>\n\
+<span>&nbsp;&centerdot;&nbsp;</span>\n\
+<span>{}</span>\n\
+</div>\n\
+{parents}\
+</div>\n\
+",
+        escape_str(&commit.author_name),
+        escape_str(&commit.author_email),
+        commit.author_date.format("%Y-%m-%d %H:%M:%S %z")
+    );
+    if commit.committer_name != commit.author_name || commit.committer_email != commit.author_email
+    {
+        body.push_str(&format!(
+            "\
+<div class=\"flex items-center gap-xs\">\n\
+<span>committed by {} &lt;{}&gt;</span>\n\
+<span>&nbsp;&centerdot;&nbsp;</span>\n\
+<span>{}</span>\n\
+</div>\n\
+",
+            escape_str(&commit.committer_name),
+            escape_str(&commit.committer_email),
+            commit.committer_date.format("%Y-%m-%d %H:%M:%S %z")
+        ));
+    }
+    body.push_str(&format!(
+        "<pre class=\"white-space-bs\">{}</pre>\n",
+        escape_str(commit.message.trim_end())
+    ));
+
+    let s = if diff.files.len() == 1 { "" } else { "s" };
+    body.push_str(&format!(
+        "\
+<div class=\"box mono\">\n\
+<div><strong>{}</strong> file{s} changed,&nbsp;<span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span></div>\n\
+<div>\n\
+",
+        diff.files.len(),
+        diff.added,
+        diff.removed
+    ));
+    for file in &diff.files {
+        let (icon, title) = match file.status {
+            'A' => (FILE_ADDED_ICON, "added"),
+            'D' => (FILE_REMOVED_ICON, "deleted"),
+            _ => (FILE_DIFF_ICON, "modified"),
+        };
+        body.push_str(&format!(
+            "<div class=\"my flex items-center gap\"><span class=\"flex\" title=\"{title}\">{icon}</span>{}</div>\n",
+            escape_str(&file.path)
+        ));
+    }
+    body.push_str("</div>\n</div>\n");
+
+    let title = format!("{}/{short}: {}", repo.name, commit.summary);
     wrap_page(&title, Some(&nav), &body)
 }
 

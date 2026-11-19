@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 
 use chrono::{DateTime, FixedOffset};
-use git2::{BranchType, Commit, ErrorCode, ObjectType, Oid, Repository, Sort, Tree};
+use git2::{BranchType, Commit, Delta, ErrorCode, ObjectType, Oid, Repository, Sort, Tree};
 use std::{fs::read_to_string, io::ErrorKind::NotFound, path::Path};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -19,6 +19,18 @@ pub struct CommitInfo {
     pub committer_name: String,
     pub committer_email: String,
     pub committer_date: DateTime<FixedOffset>,
+}
+
+pub struct FileChange {
+    pub status: char,
+    pub path: String,
+}
+
+pub struct CommitDiff {
+    pub parents: Vec<String>,
+    pub files: Vec<FileChange>,
+    pub added: usize,
+    pub removed: usize,
 }
 
 pub struct TreeEntry {
@@ -209,6 +221,36 @@ impl RepoInfo {
 
     pub fn read_log(&self, id: &str) -> Result<Vec<CommitInfo>> {
         Self::walk(&self.git, Oid::from_str(id)?)
+    }
+
+    pub fn read_diff(&self, id: &str) -> Result<CommitDiff> {
+        let commit = self.git.find_commit(Oid::from_str(id)?)?;
+        let parent_tree = commit.parents().next().map(|p| p.tree()).transpose()?;
+        let diff = self
+            .git
+            .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit.tree()?), None)?;
+        let stats = diff.stats()?;
+        let files = diff
+            .deltas()
+            .map(|delta| {
+                let (status, file) = match delta.status() {
+                    Delta::Added => ('A', delta.new_file()),
+                    Delta::Deleted => ('D', delta.old_file()),
+                    _ => ('M', delta.new_file()),
+                };
+                let path = file.path().unwrap_or(Path::new(""));
+                FileChange {
+                    status,
+                    path: path.to_string_lossy().into_owned(),
+                }
+            })
+            .collect();
+        Ok(CommitDiff {
+            parents: commit.parent_ids().map(|id| id.to_string()).collect(),
+            files,
+            added: stats.insertions(),
+            removed: stats.deletions(),
+        })
     }
 
     fn walk(repo: &Repository, start: Oid) -> Result<Vec<CommitInfo>> {

@@ -179,6 +179,19 @@ p {
   margin-left: auto;
 }
 
+.my {
+  margin-top: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.color-green {
+  color: #009926;
+}
+
+.color-red {
+  color: #aa0000;
+}
+
 .group-2 {
   display: flex;
   flex-direction: column;

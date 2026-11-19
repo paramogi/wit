@@ -3,11 +3,12 @@ mod repo_info;
 
 use anyhow::{Context, Result, bail};
 use html::{
-    LOG_COUNT, STYLE, gen_blob, gen_branches, gen_index, gen_log, gen_summary, gen_tags, gen_tree,
-    has_source_page, log_page,
+    LOG_COUNT, STYLE, gen_blob, gen_branches, gen_commit, gen_index, gen_log, gen_summary,
+    gen_tags, gen_tree, has_source_page, log_page,
 };
 use repo_info::RepoInfo;
 use std::{
+    collections::HashMap,
     env, fs,
     path::{Path, PathBuf},
     process,
@@ -87,7 +88,14 @@ fn run() -> Result<()> {
         if !repo.tags.is_empty() {
             write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
         }
-        for git_ref in repo.branches.iter().chain(&repo.tags) {
+        let head_first = repo
+            .branches
+            .iter()
+            .filter(|b| b.dir == repo.head_dir)
+            .chain(repo.branches.iter().filter(|b| b.dir != repo.head_dir))
+            .chain(&repo.tags);
+        let mut commit_refs = HashMap::new();
+        for git_ref in head_first {
             let commits = repo
                 .read_log(&git_ref.id)
                 .with_context(|| repo.path.clone())?;
@@ -97,6 +105,11 @@ fn run() -> Result<()> {
                     &log_dir.join(log_page(page)),
                     &gen_log(repo, git_ref, &commits, page),
                 )?;
+            }
+            for commit in commits {
+                commit_refs
+                    .entry(commit.id.clone())
+                    .or_insert((commit, git_ref));
             }
             for folder in &git_ref.folders {
                 let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
@@ -127,6 +140,15 @@ fn run() -> Result<()> {
                     }
                 }
             }
+        }
+        for (commit, git_ref) in commit_refs.values() {
+            let diff = repo
+                .read_diff(&commit.id)
+                .with_context(|| repo.path.clone())?;
+            write_file(
+                &repo_dir.join("commits").join(format!("{}.html", commit.id)),
+                &gen_commit(repo, git_ref, commit, &diff),
+            )?;
         }
     }
     Ok(())
