@@ -516,11 +516,65 @@ fn write_markdown(
                 id,
             })
         }
+        Event::Html(html) => {
+            Event::Html(rewrite_html(&html, repo, git_ref, base, repo_root).into())
+        }
+        Event::InlineHtml(html) => {
+            Event::InlineHtml(rewrite_html(&html, repo, git_ref, base, repo_root).into())
+        }
         _ => event,
     });
     body.push_str("<div class=\"box markdown-body\">");
     push_html(body, events);
     body.push_str("</div>\n");
+}
+
+fn rewrite_html(
+    html: &str,
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    base: &str,
+    repo_root: &str,
+) -> String {
+    let bytes = html.as_bytes();
+    let mut rewritten = String::with_capacity(html.len());
+    let mut copied = 0;
+    for i in 1..bytes.len() {
+        if i < copied || !bytes[i - 1].is_ascii_whitespace() {
+            continue;
+        }
+        let starts = |attr: &str| {
+            bytes[i..]
+                .get(..attr.len())
+                .is_some_and(|b| b.eq_ignore_ascii_case(attr.as_bytes()))
+        };
+        let (is_src, start) = if starts("src=") {
+            (true, i + 4)
+        } else if starts("href=") {
+            (false, i + 5)
+        } else {
+            continue;
+        };
+        let Some(&quote) = bytes.get(start).filter(|&&q| q == b'"' || q == b'\'') else {
+            continue;
+        };
+        let Some(len) = html[start + 1..].find(quote as char) else {
+            continue;
+        };
+        let value = &html[start + 1..start + 1 + len];
+        let target = if is_src {
+            image_data(repo, git_ref, base, value)
+        } else {
+            link_target(git_ref, base, repo_root, value)
+        };
+        if let Some(target) = target {
+            rewritten.push_str(&html[copied..start + 1]);
+            rewritten.push_str(&target);
+            copied = start + 1 + len;
+        }
+    }
+    rewritten.push_str(&html[copied..]);
+    rewritten
 }
 
 fn link_target(git_ref: &RefInfo, base: &str, repo_root: &str, url: &str) -> Option<String> {
