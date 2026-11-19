@@ -41,6 +41,8 @@ const IMAGE_TYPES: [(&str, &str); 6] = [
 
 const REF_MENU_ROWS: usize = 8;
 
+const REF_CHIPS: usize = 2;
+
 const PAGE_IDS: [&str; 10] = [
     "header",
     "got_link",
@@ -1399,10 +1401,15 @@ fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &
 }
 
 fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
-    repo.branches
+    let refs: Vec<&RefInfo> = repo
+        .branches
         .iter()
         .chain(&repo.tags)
         .filter(|git_ref| git_ref.id == id)
+        .collect();
+    let mut labels: String = refs
+        .iter()
+        .take(REF_CHIPS)
         .map(|git_ref| {
             format!(
                 "<code>{}<a href=\"{repo_root}{}\">{}</a></code>\n",
@@ -1411,7 +1418,24 @@ fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
                 escape_str(&git_ref.name)
             )
         })
-        .collect()
+        .collect();
+    if refs.len() > REF_CHIPS {
+        let rest: String = refs[REF_CHIPS..]
+            .iter()
+            .map(|git_ref| {
+                format!(
+                    "<a class=\"flex items-center gap\" href=\"{repo_root}{}\">{}{}</a>\n",
+                    Tab::Tree.href(&git_ref.dir),
+                    ref_icon(git_ref),
+                    escape_str(&git_ref.name)
+                )
+            })
+            .collect();
+        labels.push_str(&format!(
+            "<details class=\"ref-menu ref-more\">\n<summary><code>more{CHEVRON_DOWN}{CHEVRON_UP}</code></summary>\n<div class=\"ref-menu-list buttons\">\n{rest}</div>\n</details>\n"
+        ));
+    }
+    labels
 }
 
 fn write_commit_row(

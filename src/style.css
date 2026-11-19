@@ -74,11 +74,16 @@ code svg {
   padding: 0.15rem 0.45rem;
 }
 
+.ref-more summary code {
+  display: block;
+  padding: 0.025rem 0.3rem;
+}
+
 .ref-menu summary:hover code {
   background-color: #e4e7f0;
 }
 
-.ref-menu code svg + svg {
+.ref-menu code svg:nth-last-child(-n + 2) {
   margin: 0 0 0 0.3em;
 }
 
@@ -348,6 +353,12 @@ p {
   background-color: #ffffff;
 }
 
+.ref-more .ref-menu-list {
+  right: 0;
+  font-size: 1rem;
+  font-style: normal;
+}
+
 .ref-menu-list a,
 .ref-menu-list label {
   border: 0;
@@ -399,13 +410,11 @@ p {
   scrollbar-gutter: stable;
 }
 
-.ref-branches a,
-.ref-tags a {
+.ref-menu-list a {
   padding: 0.3rem 0.7rem;
 }
 
-.ref-branches a + a,
-.ref-tags a + a {
+.ref-menu-list a + a {
   border-top: 1px solid #7689b3;
 }
 
