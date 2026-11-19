@@ -62,6 +62,8 @@ const FOLDER_ICON: &str = include_str!("icons/file-directory-16.svg");
 
 const BRANCH_ICON: &str = include_str!("icons/git-branch-16.svg");
 
+const COMMIT_ICON: &str = include_str!("icons/git-commit-16.svg");
+
 const TAG_ICON: &str = include_str!("icons/tag-16.svg");
 
 const CHEVRON_DOWN: &str = include_str!("icons/chevron-down-16.svg");
@@ -616,7 +618,26 @@ pub fn gen_log(
 ",
         ref_menu(repo, git_ref, &repo_root, Tab::Log)
     );
+    let mut day = String::new();
     for commit in commits {
+        let date = commit.committer_date.format("%Y-%m-%d").to_string();
+        let joined = if date == day {
+            " joined"
+        } else {
+            if !day.is_empty() {
+                body.push_str("</div>\n");
+            }
+            body.push_str(&format!(
+                "\
+<div>\n\
+<div class=\"flex items-center gap mb text-sm\">\n\
+{COMMIT_ICON}\n\
+<span>Commits on {date}</span>\n\
+</div>\n\
+"
+            ));
+            ""
+        };
         let href = format!("{repo_root}commits/{}.html", commit.id);
         let rest = if commit.body.is_empty() {
             String::new()
@@ -631,29 +652,28 @@ pub fn gen_log(
         };
         body.push_str(&format!(
             "\
-<div>\n\
-<div class=\"box m-0 text-sm\">\n\
+<div class=\"box m-0{joined} text-sm\">\n\
 <div class=\"flex flex-wrap items-center gap\">\n\
 <a href=\"{href}\" class=\"mono\">{}</a>\n\
 <div class=\"flex items-center gap-xs\">\n\
 <span>{}</span>\n\
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
-<span>{}</span>\n\
+<span>{date}</span>\n\
 </div>\n\
 <div class=\"ml-auto mono\">{}</div>\n\
 </div>\n\
 {chips}\
 </div>\n\
 <pre class=\"m-0 joined white-space-bs\"><a href=\"{href}\">{}</a>{rest}</pre>\n\
-</div>\n\
 ",
             &commit.id[..7],
             escape_str(&commit.author_name),
-            commit.author_date.format("%Y-%m-%d"),
             stats[&commit.id],
             escape_str(&commit.summary)
         ));
+        day = date;
     }
+    body.push_str("</div>\n");
     let pages = total.div_ceil(LOG_COUNT);
     if pages > 1 {
         body.push_str(&log_pager(page, pages));
