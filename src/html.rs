@@ -623,28 +623,33 @@ pub fn gen_log(
         } else {
             format!("\n\n{}", escape_str(&commit.body))
         };
+        let labels = ref_labels(repo, &commit.id, &repo_root);
+        let chips = if labels.is_empty() {
+            String::new()
+        } else {
+            format!("<div class=\"my flex flex-wrap gap\">\n{labels}</div>\n")
+        };
         body.push_str(&format!(
             "\
 <div>\n\
-<div class=\"flex items-center gap text-sm\">\n\
+<div class=\"box m-0 text-sm\">\n\
+<div class=\"flex flex-wrap items-center gap\">\n\
 <a href=\"{href}\" class=\"mono\">{}</a>\n\
 <div class=\"flex items-center gap-xs\">\n\
 <span>{}</span>\n\
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
 <span>{}</span>\n\
 </div>\n\
-{}\
+<div class=\"ml-auto mono\">{}</div>\n\
 </div>\n\
-<div>\n\
-<div class=\"log-stat mono text-sm\">{}</div>\n\
-<pre class=\"m-0 white-space-bs\"><a href=\"{href}\">{}</a>{rest}</pre>\n\
+{chips}\
 </div>\n\
+<pre class=\"m-0 joined white-space-bs\"><a href=\"{href}\">{}</a>{rest}</pre>\n\
 </div>\n\
 ",
             &commit.id[..7],
             escape_str(&commit.author_name),
             commit.author_date.format("%Y-%m-%d"),
-            ref_labels(repo, &commit.id, &repo_root),
             stats[&commit.id],
             escape_str(&commit.summary)
         ));

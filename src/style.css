@@ -234,12 +234,6 @@ p {
   gap: 0.8rem;
 }
 
-.log-stat {
-  border: 1px solid #7689b3;
-  border-bottom: 0;
-  padding: 0.65rem;
-}
-
 .px {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
