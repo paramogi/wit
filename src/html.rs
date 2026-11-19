@@ -1,4 +1,6 @@
-use crate::repo_info::{CommitDiff, CommitInfo, FileChange, Folder, RefInfo, RepoInfo, TreeEntry};
+use crate::repo_info::{
+    CommitDiff, CommitInfo, FileChange, Folder, Line, RefInfo, RepoInfo, TreeEntry,
+};
 
 use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
 use std::{
@@ -620,7 +622,7 @@ pub fn gen_log(
         body.push_str(&format!(
             "\
 <div>\n\
-<div class=\"flex items-center gap mb text-sm\">\n\
+<div class=\"flex items-center gap text-sm\">\n\
 <a href=\"{href}\" class=\"mono\">{}</a>\n\
 <div class=\"flex items-center gap-xs\">\n\
 <span>{}</span>\n\
@@ -720,27 +722,31 @@ pub fn gen_commit(
         ));
     }
     body.push_str(&format!(
-        "<pre class=\"white-space-bs\">{}</pre>\n",
-        escape_str(commit.message.trim_end())
-    ));
-
-    body.push_str(&format!(
-        "<div class=\"box mono\">\n<div>{}</div>\n<div>\n",
+        "\
+<div class=\"box flex gap mono mb-0\">\n\
+<div class=\"flex-1 white-space-bs\">{}</div>\n\
+<div>{}</div>\n\
+</div>\n\
+",
+        escape_str(commit.message.trim_end()),
         diff_stat(diff)
     ));
-    for (n, file) in diff.files.iter().enumerate() {
-        body.push_str(&format!(
-            "<div class=\"my flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n",
-            status_icon(file.status),
-            change_path(file)
-        ));
+    if !diff.files.is_empty() {
+        body.push_str("<div class=\"box mono joined\">\n");
+        for (n, file) in diff.files.iter().enumerate() {
+            body.push_str(&format!(
+                "<div class=\"my flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n",
+                status_icon(file.status),
+                change_path(file)
+            ));
+        }
+        body.push_str("</div>\n");
     }
-    body.push_str("</div>\n</div>\n");
     for (n, file) in diff.files.iter().enumerate() {
         body.push_str(&format!(
             "\
 <div>\n\
-<div id=\"diff-{n}\" class=\"box sticky border-visited flex items-center justify-between mono py\">\n\
+<div id=\"diff-{n}\" class=\"box sticky border-visited flex items-center justify-between mono py mb-0\">\n\
 <div class=\"flex-1 flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n\
 <div class=\"diff-stat\"><span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span></div>\n\
 </div>\n\
@@ -757,10 +763,14 @@ pub fn gen_commit(
                     'D' => format_bytes(old),
                     _ => format!("{} &rarr; {}", format_bytes(old), format_bytes(new)),
                 };
-                body.push_str(&format!("binary file, {sizes}\n"));
+                body.push_str(&format!(
+                    "<div class=\"box joined\">binary file, {sizes}</div>\n"
+                ));
             }
             None if !file.lines.is_empty() => write_diff(&mut body, n, &file.lines),
-            None if file.status == 'R' => body.push_str("renamed without changes\n"),
+            None if file.status == 'R' => {
+                body.push_str("<div class=\"box joined\">renamed without changes</div>\n")
+            }
             None => {}
         }
         body.push_str("</div>\n");
@@ -788,24 +798,32 @@ fn change_path(file: &FileChange) -> String {
     }
 }
 
-fn write_diff(body: &mut String, n: usize, lines: &[(char, String)]) {
-    let width = lines.len().to_string().len();
-    body.push_str("<pre class=\"chroma\"><code>");
-    for (i, (origin, content)) in lines.iter().enumerate() {
-        let id = format!("d{n}-{}", i + 1);
-        let (class, text) = match origin {
-            '@' => (
-                "",
-                format!("<span class=\"gu\">{}</span>", escape_str(content)),
-            ),
-            '+' => (" gi", format!("+{}", escape_str(content))),
-            '-' => (" gd", format!("-{}", escape_str(content))),
-            ' ' => ("", format!(" {}", escape_str(content))),
-            _ => ("", "\\ No newline at end of file\n".to_string()),
+fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
+    let max = lines.iter().filter_map(|l| l.old.max(l.new)).max();
+    let width = max.unwrap_or(0).to_string().len();
+    let number = |side: &str, num: Option<u32>| match num {
+        Some(num) => {
+            let id = format!("d{n}-{side}{num}");
+            format!(
+                "<span class=\"ln\" id=\"{id}\"><a class=\"lnlinks\" href=\"#{id}\">{num:>width$}</a></span>"
+            )
+        }
+        None => format!("<span class=\"ln\">{}</span>", " ".repeat(width)),
+    };
+    body.push_str("<pre class=\"chroma joined\"><code>");
+    for line in lines {
+        let text = escape_str(&line.text);
+        let (class, text, old, new) = match line.origin {
+            '@' => ("", format!("<span class=\"gu\">{text}</span>"), None, None),
+            '+' => (" gi", format!("+{text}"), None, line.new),
+            '-' => (" gd", format!("-{text}"), line.old, None),
+            ' ' => ("", format!(" {text}"), line.old, line.new),
+            _ => ("", "\\ No newline at end of file\n".to_string(), None, None),
         };
         body.push_str(&format!(
-            "<span class=\"line{class}\"><span class=\"ln\" id=\"{id}\"><a class=\"lnlinks\" href=\"#{id}\">{:>width$}</a></span><span class=\"cl\">{text}</span></span>",
-            i + 1
+            "<span class=\"line{class}\">{}{}<span class=\"cl\">{text}</span></span>",
+            number("L", old),
+            number("R", new)
         ));
     }
     body.push_str("</code></pre>\n");

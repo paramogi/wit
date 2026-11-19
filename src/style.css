@@ -185,6 +185,14 @@ p {
   margin-bottom: 0.65rem;
 }
 
+.my:first-child {
+  margin-top: 0;
+}
+
+.my:last-child {
+  margin-bottom: 0;
+}
+
 .color-green {
   color: #009926;
 }
@@ -229,6 +237,20 @@ p {
 
 .mt-0 {
   margin-top: 0;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.joined {
+  margin-top: 0;
+  border-top: 0;
+}
+
+.chroma.joined {
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
 }
 
 .m-0 {

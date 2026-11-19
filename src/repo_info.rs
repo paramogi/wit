@@ -31,7 +31,14 @@ pub struct FileChange {
     pub added: usize,
     pub removed: usize,
     pub binary: Option<(usize, usize)>,
-    pub lines: Vec<(char, String)>,
+    pub lines: Vec<Line>,
+}
+
+pub struct Line {
+    pub origin: char,
+    pub old: Option<u32>,
+    pub new: Option<u32>,
+    pub text: String,
 }
 
 pub struct CommitDiff {
@@ -289,11 +296,20 @@ impl RepoInfo {
                     for h in 0..patch.num_hunks() {
                         let (hunk, count) = patch.hunk(h)?;
                         let header = String::from_utf8_lossy(hunk.header());
-                        change.lines.push(('@', format!("{}\n", header.trim_end())));
+                        change.lines.push(Line {
+                            origin: '@',
+                            old: None,
+                            new: None,
+                            text: format!("{}\n", header.trim_end()),
+                        });
                         for l in 0..count {
                             let line = patch.line_in_hunk(h, l)?;
-                            let content = String::from_utf8_lossy(line.content()).into_owned();
-                            change.lines.push((line.origin(), content));
+                            change.lines.push(Line {
+                                origin: line.origin(),
+                                old: line.old_lineno(),
+                                new: line.new_lineno(),
+                                text: String::from_utf8_lossy(line.content()).into_owned(),
+                            });
                         }
                     }
                 }
