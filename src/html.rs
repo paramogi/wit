@@ -531,7 +531,7 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
 fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
     let summary = escape_str(summary);
     format!(
-        "<div class=\"flex-1 truncate tree-commit\"><a href=\"{repo_root}commits/{id}.html\" title=\"{summary}\">{summary}</a></div>\n"
+        "<div class=\"flex-2 truncate tree-commit\"><a href=\"{repo_root}commits/{id}.html\" title=\"{summary}\">{summary}</a></div>\n"
     )
 }
 
@@ -1593,7 +1593,7 @@ fn write_listing(
                 summary_cell(repo_root, &commit.id, &commit.summary),
                 date_cell(&commit.committer_date)
             ),
-            None => "<div class=\"flex-1 tree-commit\"></div>\n<div class=\"tree-date\"></div>\n"
+            None => "<div class=\"flex-2 tree-commit\"></div>\n<div class=\"tree-date\"></div>\n"
                 .to_string(),
         };
         let (icon, name) = if entry.is_dir {

@@ -192,6 +192,10 @@ p {
   flex: 1;
 }
 
+.flex-2 {
+  flex: 2;
+}
+
 .items-center {
   align-items: center;
 }
