@@ -443,16 +443,25 @@ p {
 
 .tree-date {
   width: 90px;
+  flex-shrink: 0;
   text-align: right;
 }
 
-.tree-row {
+.fits {
+  display: flex;
   flex-wrap: wrap;
-  row-gap: 0.2rem;
+  justify-content: flex-end;
+  height: 1.3rem;
+  overflow: hidden;
 }
 
-.tree-row > :last-child {
-  margin-left: auto;
+.fits::before {
+  content: "";
+  height: 100%;
+}
+
+.min-w-0 {
+  min-width: 0;
 }
 
 .tree-row:hover,
@@ -462,7 +471,7 @@ p {
 
 .tree-path {
   overflow-wrap: anywhere;
-  min-width: 10rem;
+  min-width: 8rem;
 }
 
 .tree-path svg {

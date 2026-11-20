@@ -1500,9 +1500,17 @@ fn write_listing(
 {icon}\n\
 {name}\n\
 </div>\n\
+<div class=\"flex items-center gap min-w-0\">\n\
+<div class=\"fits\">\n\
+<div class=\"flex items-center gap\">\n\
+{}\
+</div>\n\
+</div>\n\
 {date}\
 </div>\n\
-"
+</div>\n\
+",
+            size_cells(entry)
         ));
     }
     body.push_str("</div>\n");
@@ -1572,7 +1580,7 @@ fn write_commit_row(
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
 <span>{}</span>\n\
 </div>\n\
-<div class=\"ml-auto mono\">{stat}</div>\n\
+<div class=\"fits flex-1\"><div class=\"mono\">{stat}</div></div>\n\
 </div>\n\
 <div class=\"mt-sm flex flex-wrap items-center gap\">\n\
 <div class=\"flex-1 white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
