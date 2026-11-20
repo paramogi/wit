@@ -1445,31 +1445,24 @@ fn write_listing(
     for entry in &folder.entries {
         let name = &entry.name;
         let link =
-            |href: String| format!("<a href=\"{}\">{}</a>", escape_str(&href), escape_str(name));
-        let leads = || {
-            path_href(git_ref, repo_root, &join_path(&folder.path, name))
-                .map_or_else(|| escape_str(name), link)
-        };
+            |href: String, text: String| format!("<a href=\"{}\">{text}</a>", escape_str(&href));
+        let leads =
+            |text: String| match path_href(git_ref, repo_root, &join_path(&folder.path, name)) {
+                Some(href) => link(href, text),
+                None => format!("<span>{text}</span>"),
+            };
         let (icon, name) = if entry.is_dir {
-            (
-                FOLDER_ICON,
-                link(percent_encode(&format!("{tree_dir}{name}/index.html"))),
-            )
+            let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
+            (FOLDER_ICON, link(href, escape_str(name)))
         } else if let Some(target) = &entry.link {
-            (
-                SYMLINK_ICON,
-                format!("<span>{} &rarr; {}</span>", leads(), escape_str(target)),
-            )
+            let text = format!("{} &rarr; {}", escape_str(name), escape_str(target));
+            (SYMLINK_ICON, leads(text))
         } else if let Some(commit) = &entry.commit {
-            (
-                SUBMODULE_ICON,
-                format!("<span>{} @ {}</span>", leads(), &commit[..7]),
-            )
+            let text = format!("{} @ {}", escape_str(name), &commit[..7]);
+            (SUBMODULE_ICON, leads(text))
         } else {
-            (
-                FILE_ICON,
-                link(percent_encode(&format!("{blob_dir}{name}.html"))),
-            )
+            let href = percent_encode(&format!("{blob_dir}{name}.html"));
+            (FILE_ICON, link(href, escape_str(name)))
         };
         body.push_str(&format!(
             "\
