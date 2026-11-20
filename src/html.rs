@@ -374,7 +374,6 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
         let name = escape_str(&repo.name);
         let dir = percent_encode(&repo.name);
         let links: Vec<String> = repo_tabs(repo)
-            .filter(|&tab| tab != Tab::Summary)
             .map(|tab| {
                 format!(
                     "<a href=\"{dir}/{}\">{}</a>",
