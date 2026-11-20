@@ -176,7 +176,7 @@ impl RepoInfo {
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
         }
-        tags.sort_by(RefInfo::newest_first);
+        tags.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| a.name.cmp(&b.name)));
         Ok(tags)
     }
 

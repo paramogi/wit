@@ -441,6 +441,20 @@ p {
   text-align: right;
 }
 
+.tree-date {
+  width: 90px;
+  text-align: right;
+}
+
+.tree-row {
+  flex-wrap: wrap;
+  row-gap: 0.2rem;
+}
+
+.tree-row > :last-child {
+  margin-left: auto;
+}
+
 .tree-row:hover,
 :is(#branches_content, #tags_content) > :hover {
   background-color: #e4e7f0;
@@ -448,6 +462,7 @@ p {
 
 .tree-path {
   overflow-wrap: anywhere;
+  min-width: 10rem;
 }
 
 .tree-path svg {

@@ -407,7 +407,11 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
     wrap_page("repositories", None, &body)
 }
 
-pub fn gen_summary(repo: &RepoInfo, stats: &HashMap<String, String>) -> String {
+pub fn gen_summary(
+    repo: &RepoInfo,
+    stats: &HashMap<String, String>,
+    last: &HashMap<String, DateTime<FixedOffset>>,
+) -> String {
     let nav = RepoNav {
         repo,
         git_ref: &repo.head_dir,
@@ -471,7 +475,7 @@ pub fn gen_summary(repo: &RepoInfo, stats: &HashMap<String, String>) -> String {
         );
         let tree_dir = format!("tree/{}/", repo.head_dir);
         let blob_dir = format!("blob/{}/", repo.head_dir);
-        write_listing(&mut body, head, root, "", &tree_dir, &blob_dir);
+        write_listing(&mut body, head, root, "", &tree_dir, &blob_dir, last);
         body.push_str("</div>\n</div>\n");
     }
     if let Some(head) = head {
@@ -520,13 +524,18 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
 
 fn date_cell(date: &DateTime<FixedOffset>) -> String {
     format!(
-        "<div title=\"{}\">{}</div>\n",
+        "<div class=\"tree-date\" title=\"{}\">{}</div>\n",
         date.format("%Y-%m-%d %H:%M:%S %z"),
         date.format("%Y-%m-%d")
     )
 }
 
-pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
+pub fn gen_tree(
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    folder: &Folder,
+    last: &HashMap<String, DateTime<FixedOffset>>,
+) -> String {
     let tree_path = join_path(&git_ref.dir, &folder.path);
     let depth = 1 + tree_path.split('/').count();
     let nav = RepoNav {
@@ -540,7 +549,7 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
     let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, "");
-    write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir);
+    write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
     if folder.path.is_empty() {
         write_readme(&mut body, repo, git_ref, &repo_root);
     }
@@ -556,6 +565,7 @@ pub fn gen_blob(
     entry: &TreeEntry,
     content: &[u8],
     source: bool,
+    last: &HashMap<String, DateTime<FixedOffset>>,
 ) -> String {
     let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
     let path = join_path(&folder.path, &entry.name);
@@ -586,6 +596,9 @@ pub fn gen_blob(
         ));
     }
     details.push_str(&size_cells(entry));
+    if let Some(date) = last.get(&path) {
+        details.push_str(&date_cell(date));
+    }
     details.push_str("</div>\n");
 
     let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
@@ -1451,17 +1464,22 @@ fn write_listing(
     repo_root: &str,
     tree_dir: &str,
     blob_dir: &str,
+    last: &HashMap<String, DateTime<FixedOffset>>,
 ) {
     body.push_str("<div class=\"box p-0\">\n");
     for entry in &folder.entries {
         let name = &entry.name;
+        let path = join_path(&folder.path, name);
         let link =
             |href: String, text: String| format!("<a href=\"{}\">{text}</a>", escape_str(&href));
-        let leads =
-            |text: String| match path_href(git_ref, repo_root, &join_path(&folder.path, name)) {
-                Some(href) => link(href, text),
-                None => format!("<span>{text}</span>"),
-            };
+        let leads = |text: String| match path_href(git_ref, repo_root, &path) {
+            Some(href) => link(href, text),
+            None => format!("<span>{text}</span>"),
+        };
+        let date = last.get(&path).map_or_else(
+            || "<div class=\"tree-date\"></div>\n".to_string(),
+            date_cell,
+        );
         let (icon, name) = if entry.is_dir {
             let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
             (FOLDER_ICON, link(href, escape_str(name)))
@@ -1482,12 +1500,9 @@ fn write_listing(
 {icon}\n\
 {name}\n\
 </div>\n\
-<div class=\"flex items-center gap\">\n\
-{}\
+{date}\
 </div>\n\
-</div>\n\
-",
-            size_cells(entry)
+"
         ));
     }
     body.push_str("</div>\n");

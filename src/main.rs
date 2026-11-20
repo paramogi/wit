@@ -2,11 +2,12 @@ mod html;
 mod repo_info;
 
 use anyhow::{Context, Result, bail};
+use chrono::{DateTime, FixedOffset};
 use html::{
     COMMITS_PER_PAGE, STYLE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit,
     gen_commits, gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
 };
-use repo_info::RepoInfo;
+use repo_info::{CommitInfo, RepoInfo};
 use std::{
     collections::HashMap,
     env, fs,
@@ -62,6 +63,29 @@ fn write_file(path: &Path, contents: &str) -> Result<()> {
     fs::create_dir_all(dir)
         .and_then(|()| fs::write(path, contents))
         .with_context(|| path.display().to_string())
+}
+
+fn last_changes(
+    commits: &[CommitInfo],
+    changes: &HashMap<String, Vec<String>>,
+) -> HashMap<String, DateTime<FixedOffset>> {
+    let mut last = HashMap::new();
+    for commit in commits {
+        for path in changes.get(&commit.id).into_iter().flatten() {
+            let mut path = path.as_str();
+            loop {
+                let date = last
+                    .entry(path.to_string())
+                    .or_insert(commit.committer_date);
+                *date = (*date).max(commit.committer_date);
+                match path.rsplit_once('/') {
+                    Some((dir, _)) => path = dir,
+                    None => break,
+                }
+            }
+        }
+    }
+    last
 }
 
 fn run() -> Result<()> {
@@ -123,6 +147,8 @@ fn run() -> Result<()> {
             .chain(repo.branches.iter().filter(|b| b.dir != repo.head_dir))
             .chain(&repo.tags);
         let mut stats = HashMap::new();
+        let mut changes = HashMap::new();
+        let mut head_last = HashMap::new();
         for git_ref in head_first {
             let commits = repo
                 .read_commits(&git_ref.id)
@@ -139,7 +165,12 @@ fn run() -> Result<()> {
                     &gen_commit(repo, git_ref, commit, &diff),
                 )?;
                 stats.insert(commit.id.clone(), diff_stat(&diff));
+                if diff.parents.len() < 2 {
+                    let paths: Vec<String> = diff.files.iter().map(|f| f.path.clone()).collect();
+                    changes.insert(commit.id.clone(), paths);
+                }
             }
+            let last = last_changes(&commits, &changes);
             let commits_dir = repo_dir.join("commits").join(&git_ref.dir);
             for page in 1..=commits.len().div_ceil(COMMITS_PER_PAGE) {
                 write_file(
@@ -151,7 +182,7 @@ fn run() -> Result<()> {
                 let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
                 write_file(
                     &tree_dir.join("index.html"),
-                    &gen_tree(repo, git_ref, folder),
+                    &gen_tree(repo, git_ref, folder, &last),
                 )?;
                 let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&folder.path);
                 let source_dir = repo_dir
@@ -166,18 +197,24 @@ fn run() -> Result<()> {
                     let page_name = format!("{}.html", entry.name);
                     write_file(
                         &blob_dir.join(&page_name),
-                        &gen_blob(repo, git_ref, folder, entry, blob.content(), false),
+                        &gen_blob(repo, git_ref, folder, entry, blob.content(), false, &last),
                     )?;
                     if has_source_page(entry) {
                         write_file(
                             &source_dir.join(&page_name),
-                            &gen_blob(repo, git_ref, folder, entry, blob.content(), true),
+                            &gen_blob(repo, git_ref, folder, entry, blob.content(), true, &last),
                         )?;
                     }
                 }
             }
+            if git_ref.dir == repo.head_dir {
+                head_last = last;
+            }
         }
-        write_file(&repo_dir.join("index.html"), &gen_summary(repo, &stats))?;
+        write_file(
+            &repo_dir.join("index.html"),
+            &gen_summary(repo, &stats, &head_last),
+        )?;
         write_file(&state_file, &state)?;
     }
     Ok(())
