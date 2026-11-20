@@ -390,16 +390,22 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
                 )
             })
             .collect();
+        let date = &repo.commit_list[0].committer_date;
         body.push_str(&format!(
             "\
 <div class=\"box home-card\">\n\
 <div>\n\
+<div class=\"flex flex-wrap items-center gap\">\n\
 <p class=\"repo-name\"><a href=\"{dir}/index.html\">{name}</a></p>\n\
+<div class=\"ml-auto text-sm\" title=\"{}\">last commit {}</div>\n\
+</div>\n\
 <div class=\"repo-desc\">{}</div>\n\
 </div>\n\
 <nav class=\"repo-links\">{}</nav>\n\
 </div>\n\
 ",
+            format_zoned(date, DATE_TIME),
+            date.format(DATE),
             escape_str(&repo.description),
             links.join(" | ")
         ));
