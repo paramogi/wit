@@ -51,6 +51,7 @@ pub struct TreeEntry {
     pub blob: Option<Oid>,
     pub lines: Option<usize>,
     pub bytes: Option<usize>,
+    pub link: Option<String>,
 }
 
 pub struct Folder {
@@ -189,11 +190,16 @@ impl RepoInfo {
             let Ok(name) = entry.name() else {
                 continue;
             };
-            let (blob, lines, bytes) = match entry.kind() {
+            let (blob, lines, bytes, link) = match entry.kind() {
+                Some(ObjectType::Blob) if entry.filemode() == 0o120000 => {
+                    let target = repo.find_blob(entry.id())?;
+                    let target = String::from_utf8_lossy(target.content()).into_owned();
+                    (None, None, None, Some(target))
+                }
                 Some(ObjectType::Blob) => {
                     let blob = repo.find_blob(entry.id())?;
                     let lines = (!blob.is_binary()).then(|| Self::count_lines(blob.content()));
-                    (Some(entry.id()), lines, Some(blob.size()))
+                    (Some(entry.id()), lines, Some(blob.size()), None)
                 }
                 Some(ObjectType::Tree) => {
                     let sub_path = if path.is_empty() {
@@ -202,9 +208,9 @@ impl RepoInfo {
                         format!("{path}/{name}")
                     };
                     Self::read_folder(repo, &repo.find_tree(entry.id())?, &sub_path, folders)?;
-                    (None, None, None)
+                    (None, None, None, None)
                 }
-                _ => (None, None, None),
+                _ => (None, None, None, None),
             };
             entries.push(TreeEntry {
                 name: name.to_string(),
@@ -212,6 +218,7 @@ impl RepoInfo {
                 blob,
                 lines,
                 bytes,
+                link,
             });
         }
         entries.sort_by_key(|entry| !entry.is_dir);

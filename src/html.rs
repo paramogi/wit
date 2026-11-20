@@ -43,6 +43,8 @@ const REF_MENU_ROWS: usize = 8;
 
 const REF_CHIPS: usize = 2;
 
+const MAX_LINKS: usize = 40;
+
 const PAGE_IDS: [&str; 10] = [
     "header",
     "got_link",
@@ -63,6 +65,8 @@ pub const STYLE: &str = include_str!("style.css");
 const FILE_ICON: &str = include_str!("icons/file-16.svg");
 
 const FOLDER_ICON: &str = include_str!("icons/file-directory-16.svg");
+
+const SYMLINK_ICON: &str = include_str!("icons/file-symlink-file-16.svg");
 
 const BRANCH_ICON: &str = include_str!("icons/git-branch-16.svg");
 
@@ -224,26 +228,35 @@ fn repo_file<'a>(root: &'a Folder, names: &[&str]) -> Option<&'a TreeEntry> {
 }
 
 fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
-    let Some(root) = find_ref(nav.repo, nav.git_ref).and_then(root_folder) else {
+    let Some(git_ref) = find_ref(nav.repo, nav.git_ref) else {
+        return Vec::new();
+    };
+    let Some(root) = root_folder(git_ref) else {
         return Vec::new();
     };
     REPO_FILES
         .iter()
         .filter_map(|(label, names)| {
-            let entry = repo_file(root, names)?;
-            let href = percent_encode(&format!("blob/{}/{}.html", nav.git_ref, entry.name));
-            let class = if entry.name == nav.path {
+            let path = follow_links(git_ref, &repo_file(root, names)?.name)?;
+            let href = path_href(git_ref, repo_root, &path)?;
+            let class = if path == nav.path {
                 " class=\"btn-active\""
             } else {
                 ""
             };
-            Some(format!("<a{class} href=\"{repo_root}{href}\">{label}</a>"))
+            Some(format!("<a{class} href=\"{href}\">{label}</a>"))
         })
         .collect()
 }
 
 fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str) {
-    let Some(entry) = root_folder(git_ref).and_then(|root| repo_file(root, &README_NAMES)) else {
+    let Some(path) = root_folder(git_ref)
+        .and_then(|root| repo_file(root, &README_NAMES))
+        .and_then(|entry| follow_links(git_ref, &entry.name))
+    else {
+        return;
+    };
+    let Some(entry) = find_file(git_ref, &path) else {
         return;
     };
     let Some(blob) = entry
@@ -262,7 +275,8 @@ fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, repo_root
 ",
     );
     if is_markdown(&entry.name) {
-        write_markdown(body, repo, git_ref, "", repo_root, blob.content());
+        let base = path.rsplit_once('/').map_or("", |(dir, _)| dir);
+        write_markdown(body, repo, git_ref, base, repo_root, blob.content());
     } else {
         body.push_str(&format!(
             "<pre class=\"white-space-bs\">{}</pre>\n",
@@ -438,7 +452,9 @@ pub fn gen_summary(repo: &RepoInfo, stats: &HashMap<String, String>) -> String {
         write_summary_refs(&mut body, Tab::Tags, &repo.tags, "tag_wrapper", "tag_name");
     }
     let head = find_ref(repo, &repo.head_dir);
-    if let Some(root) = head.and_then(root_folder) {
+    if let Some(head) = head
+        && let Some(root) = root_folder(head)
+    {
         body.push_str(
             "\
 <div class=\"summary-tree\">\n\
@@ -450,7 +466,7 @@ pub fn gen_summary(repo: &RepoInfo, stats: &HashMap<String, String>) -> String {
         );
         let tree_dir = format!("tree/{}/", repo.head_dir);
         let blob_dir = format!("blob/{}/", repo.head_dir);
-        write_listing(&mut body, root, &tree_dir, &blob_dir);
+        write_listing(&mut body, head, root, "", &tree_dir, &blob_dir);
         body.push_str("</div>\n</div>\n");
     }
     if let Some(head) = head {
@@ -509,7 +525,7 @@ pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
     let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, "");
-    write_listing(&mut body, folder, "", &blob_dir);
+    write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir);
     if folder.path.is_empty() {
         write_readme(&mut body, repo, git_ref, &repo_root);
     }
@@ -1155,21 +1171,30 @@ fn rewrite_html(
 
 fn link_target(git_ref: &RefInfo, base: &str, repo_root: &str, url: &str) -> Option<String> {
     let path = repo_path(base, url.split(['?', '#']).next()?)?;
+    let fragment = url
+        .split_once('#')
+        .map(|(_, fragment)| format!("#{fragment}"))
+        .unwrap_or_default();
+    Some(format!(
+        "{}{fragment}",
+        path_href(git_ref, repo_root, &path)?
+    ))
+}
+
+fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
+    let path = follow_links(git_ref, path)?;
     let href = if git_ref.folders.iter().any(|folder| folder.path == path) {
         Tab::Tree.href(&join_path(&git_ref.dir, &path))
     } else {
         find_file(git_ref, &path)?;
         percent_encode(&format!("blob/{}/{path}.html", git_ref.dir))
     };
-    let fragment = url
-        .split_once('#')
-        .map(|(_, fragment)| format!("#{fragment}"))
-        .unwrap_or_default();
-    Some(format!("{repo_root}{href}{fragment}"))
+    Some(format!("{repo_root}{href}"))
 }
 
 fn image_data(repo: &RepoInfo, git_ref: &RefInfo, base: &str, url: &str) -> Option<String> {
     let path = repo_path(base, url.split(['?', '#']).next()?)?;
+    let path = follow_links(git_ref, &path)?;
     let mime = image_type(&path)?;
     let blob = repo.git.find_blob(find_file(git_ref, &path)?.blob?).ok()?;
     Some(data_uri(mime, blob.content()))
@@ -1180,12 +1205,38 @@ fn repo_path(base: &str, url: &str) -> Option<String> {
         return None;
     }
     let url = percent_decode(url)?;
-    let mut parts: Vec<&str> = if url.starts_with('/') {
-        Vec::new()
-    } else {
-        base.split('/').filter(|part| !part.is_empty()).collect()
-    };
-    for part in url.split('/') {
+    resolve_path(if url.starts_with('/') { "" } else { base }, &url)
+}
+
+fn follow_links(git_ref: &RefInfo, path: &str) -> Option<String> {
+    let mut path = path.to_string();
+    let mut folder_only = false;
+    for _ in 0..=MAX_LINKS {
+        let (dir, name) = path.rsplit_once('/').unwrap_or(("", &path));
+        let link = git_ref
+            .folders
+            .iter()
+            .find(|folder| folder.path == dir)
+            .and_then(|folder| folder.entries.iter().find(|entry| entry.name == name))
+            .and_then(|entry| entry.link.as_deref());
+        match link {
+            Some(target) if target.is_empty() || target.starts_with('/') => return None,
+            Some(target) => {
+                folder_only |= target.ends_with('/');
+                path = resolve_path(dir, target)?;
+            }
+            None => {
+                let is_folder = git_ref.folders.iter().any(|folder| folder.path == path);
+                return (is_folder || !folder_only).then_some(path);
+            }
+        }
+    }
+    None
+}
+
+fn resolve_path(base: &str, path: &str) -> Option<String> {
+    let mut parts: Vec<&str> = base.split('/').filter(|part| !part.is_empty()).collect();
+    for part in path.split('/') {
         match part {
             "" | "." => {}
             ".." => {
@@ -1369,31 +1420,48 @@ fn write_code(body: &mut String, content: &[u8]) {
     body.push_str("</code></pre>\n");
 }
 
-fn write_listing(body: &mut String, folder: &Folder, tree_dir: &str, blob_dir: &str) {
+fn write_listing(
+    body: &mut String,
+    git_ref: &RefInfo,
+    folder: &Folder,
+    repo_root: &str,
+    tree_dir: &str,
+    blob_dir: &str,
+) {
     body.push_str("<div class=\"box p-0\">\n");
     for entry in &folder.entries {
         let name = &entry.name;
-        let (icon, href) = if entry.is_dir {
+        let link = |href: String| format!("<a href=\"{href}\">{}</a>", escape_str(name));
+        let (icon, name) = if entry.is_dir {
             (
                 FOLDER_ICON,
-                percent_encode(&format!("{tree_dir}{name}/index.html")),
+                link(percent_encode(&format!("{tree_dir}{name}/index.html"))),
+            )
+        } else if let Some(target) = &entry.link {
+            let shown = path_href(git_ref, repo_root, &join_path(&folder.path, name))
+                .map_or_else(|| escape_str(name), link);
+            (
+                SYMLINK_ICON,
+                format!("<span>{shown} &rarr; {}</span>", escape_str(target)),
             )
         } else {
-            (FILE_ICON, percent_encode(&format!("{blob_dir}{name}.html")))
+            (
+                FILE_ICON,
+                link(percent_encode(&format!("{blob_dir}{name}.html"))),
+            )
         };
         body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
 <div class=\"flex-1 tree-path flex items-center gap\">\n\
 {icon}\n\
-<a href=\"{href}\">{}</a>\n\
+{name}\n\
 </div>\n\
 <div class=\"flex items-center gap\">\n\
 {}\
 </div>\n\
 </div>\n\
 ",
-            escape_str(name),
             size_cells(entry)
         ));
     }

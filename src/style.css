@@ -442,7 +442,11 @@ p {
 }
 
 .tree-path {
-  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.tree-path svg {
+  flex-shrink: 0;
 }
 
 .markdown-body :is(h1, h2, h3, h4, h5, h6) {
