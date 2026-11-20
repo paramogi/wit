@@ -1372,7 +1372,7 @@ fn ref_bar(
         }
         if i == parts.len() - 1 {
             bar.push_str(&format!(
-                "<span class=\"font-bold\">{}</span>\n",
+                "<span class=\"font-bold truncate flex-1\">{}</span>\n",
                 escape_str(part)
             ));
         } else {
@@ -1470,11 +1470,15 @@ fn write_listing(
     for entry in &folder.entries {
         let name = &entry.name;
         let path = join_path(&folder.path, name);
-        let link =
-            |href: String, text: String| format!("<a href=\"{}\">{text}</a>", escape_str(&href));
+        let link = |href: String, text: String| {
+            format!(
+                "<a class=\"truncate\" href=\"{}\">{text}</a>",
+                escape_str(&href)
+            )
+        };
         let leads = |text: String| match path_href(git_ref, repo_root, &path) {
             Some(href) => link(href, text),
-            None => format!("<span>{text}</span>"),
+            None => format!("<span class=\"truncate\">{text}</span>"),
         };
         let date = last.get(&path).map_or_else(
             || "<div class=\"tree-date\"></div>\n".to_string(),
@@ -1500,12 +1504,8 @@ fn write_listing(
 {icon}\n\
 {name}\n\
 </div>\n\
-<div class=\"flex items-center gap min-w-0\">\n\
-<div class=\"fits\">\n\
 <div class=\"flex items-center gap\">\n\
 {}\
-</div>\n\
-</div>\n\
 {date}\
 </div>\n\
 </div>\n\

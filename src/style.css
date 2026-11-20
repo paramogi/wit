@@ -460,8 +460,10 @@ p {
   height: 100%;
 }
 
-.min-w-0 {
-  min-width: 0;
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tree-row:hover,
@@ -470,8 +472,7 @@ p {
 }
 
 .tree-path {
-  overflow-wrap: anywhere;
-  min-width: 8rem;
+  min-width: 0;
 }
 
 .tree-path svg {
@@ -678,5 +679,11 @@ pre,
 
   .navs_wrapper .buttons a {
     padding: 0.025rem 0.35rem;
+  }
+}
+
+@media only screen and (max-width: 413px) {
+  .tree-size {
+    display: none;
   }
 }
