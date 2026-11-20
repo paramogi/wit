@@ -589,6 +589,13 @@ pub fn gen_blob(
     };
     let repo_root = "../".repeat(depth);
     let mut details = String::from("<div class=\"ml-auto flex items-center gap\">\n");
+    details.push_str(&size_cells(entry));
+    if let Some(date) = last.get(&path) {
+        details.push_str(&date_cell(date));
+    }
+    details.push_str("</div>\n");
+
+    let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
     if has_source_page(entry) {
         let root = if source { "blob" } else { "source" };
         let other = format!(
@@ -600,19 +607,12 @@ pub fn gen_blob(
         } else {
             (Some(other), None)
         };
-        details.push_str(&format!(
-            "<div class=\"buttons flex\">{}\n{}</div>\n",
+        body.push_str(&format!(
+            "<div class=\"buttons flex view-switch\">{}\n{}</div>\n",
             crumb("source", source_href),
             crumb("rendered", rendered_href)
         ));
     }
-    details.push_str(&size_cells(entry));
-    if let Some(date) = last.get(&path) {
-        details.push_str(&date_cell(date));
-    }
-    details.push_str("</div>\n");
-
-    let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
     let text = entry.lines.is_some();
     match image_type(&entry.name) {
         Some(mime) if !source => body.push_str(&format!(

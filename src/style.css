@@ -346,6 +346,14 @@ p {
   background-color: #c8d0e1;
 }
 
+.view-switch {
+  margin-bottom: -1px;
+}
+
+.view-switch + * {
+  margin-top: 0;
+}
+
 .ref-menu-list {
   position: absolute;
   z-index: 1;
