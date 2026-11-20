@@ -986,8 +986,10 @@ pub fn has_source_page(entry: &TreeEntry) -> bool {
 }
 
 fn is_markdown(name: &str) -> bool {
-    name.rsplit_once('.')
-        .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("md"))
+    name == "README"
+        || name
+            .rsplit_once('.')
+            .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("md"))
 }
 
 fn write_markdown(
