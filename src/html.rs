@@ -597,9 +597,13 @@ pub fn gen_blob(
         path: &path,
     };
     let repo_root = "../".repeat(depth);
-    let mut details = String::from("<div class=\"ml-auto flex items-center gap\">\n");
+    let commit = last.get(&path);
+    let mut details = commit.map_or_else(String::new, |commit| {
+        summary_cell(&repo_root, &commit.id, &commit.summary)
+    });
+    details.push_str("<div class=\"ml-auto flex items-center gap\">\n");
     details.push_str(&size_cells(entry));
-    if let Some(commit) = last.get(&path) {
+    if let Some(commit) = commit {
         details.push_str(&date_cell(&commit.committer_date));
     }
     details.push_str("</div>\n");
