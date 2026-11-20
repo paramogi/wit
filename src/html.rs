@@ -475,6 +475,8 @@ pub fn gen_summary(
 <div id=\"tree_content\">\n\
 ",
         );
+        let details = bar_details("", &head.id, &head.summary, &head.date, "");
+        body.push_str(&ref_bar(repo, head, "", false, false, "", &details));
         let tree_dir = format!("tree/{}/", repo.head_dir);
         let blob_dir = format!("blob/{}/", repo.head_dir);
         write_listing(&mut body, head, root, "", &tree_dir, &blob_dir, last);
@@ -533,6 +535,28 @@ fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
     )
 }
 
+fn bar_details(
+    repo_root: &str,
+    id: &str,
+    summary: &str,
+    date: &DateTime<FixedOffset>,
+    sizes: &str,
+) -> String {
+    format!(
+        "\
+{}\
+<div class=\"ml-auto flex items-center gap\">\n\
+{sizes}\
+<div class=\"tree-commit mono\"><a href=\"{repo_root}commits/{id}.html\">{}</a></div>\n\
+{}\
+</div>\n\
+",
+        summary_cell(repo_root, id, summary),
+        &id[..7],
+        date_cell(date)
+    )
+}
+
 fn date_cell(date: &DateTime<FixedOffset>) -> String {
     format!(
         "<div class=\"tree-date\" title=\"{}\">{}</div>\n",
@@ -559,16 +583,29 @@ pub fn gen_tree(
     let repo_root = "../".repeat(depth);
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
-    let date = if folder.path.is_empty() {
-        Some(&git_ref.date)
+    let details = if folder.path.is_empty() {
+        bar_details(&repo_root, &git_ref.id, &git_ref.summary, &git_ref.date, "")
     } else {
-        last.get(&folder.path).map(|commit| &commit.committer_date)
+        last.get(&folder.path).map_or_else(String::new, |commit| {
+            bar_details(
+                &repo_root,
+                &commit.id,
+                &commit.summary,
+                &commit.committer_date,
+                "",
+            )
+        })
     };
-    let details = date.map_or_else(String::new, |date| {
-        format!("<div class=\"ml-auto\">\n{}</div>\n", date_cell(date))
-    });
 
-    let mut body = ref_bar(repo, git_ref, &folder.path, false, &repo_root, &details);
+    let mut body = ref_bar(
+        repo,
+        git_ref,
+        &folder.path,
+        false,
+        false,
+        &repo_root,
+        &details,
+    );
     write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
     if folder.path.is_empty() {
         write_readme(&mut body, repo, git_ref, &repo_root);
@@ -597,18 +634,19 @@ pub fn gen_blob(
         path: &path,
     };
     let repo_root = "../".repeat(depth);
-    let commit = last.get(&path);
-    let mut details = commit.map_or_else(String::new, |commit| {
-        summary_cell(&repo_root, &commit.id, &commit.summary)
-    });
-    details.push_str("<div class=\"ml-auto flex items-center gap\">\n");
-    details.push_str(&size_cells(entry));
-    if let Some(commit) = commit {
-        details.push_str(&date_cell(&commit.committer_date));
-    }
-    details.push_str("</div>\n");
+    let sizes = size_cells(entry);
+    let details = match last.get(&path) {
+        Some(commit) => bar_details(
+            &repo_root,
+            &commit.id,
+            &commit.summary,
+            &commit.committer_date,
+            &sizes,
+        ),
+        None => format!("<div class=\"ml-auto flex items-center gap\">\n{sizes}</div>\n"),
+    };
 
-    let mut body = ref_bar(repo, git_ref, &path, source, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &path, true, source, &repo_root, &details);
     if has_source_page(entry) {
         let root = if source { "blob" } else { "source" };
         let other = format!(
@@ -1379,6 +1417,7 @@ fn ref_bar(
     repo: &RepoInfo,
     git_ref: &RefInfo,
     path: &str,
+    file: bool,
     source: bool,
     repo_root: &str,
     details: &str,
@@ -1398,8 +1437,9 @@ fn ref_bar(
                 bar.push_str("<span>/</span>\n");
             }
             if i == parts.len() - 1 {
+                let grow = if file { " flex-1" } else { "" };
                 bar.push_str(&format!(
-                    "<span class=\"font-bold truncate flex-1\">{}</span>\n",
+                    "<span class=\"font-bold truncate{grow}\">{}</span>\n",
                     escape_str(part)
                 ));
             } else {
