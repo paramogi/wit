@@ -517,7 +517,7 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
             ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name),
-            summary_cell(&git_ref.summary),
+            summary_cell("", &git_ref.id, &git_ref.summary),
             date_cell(&git_ref.date)
         ));
     }
@@ -526,10 +526,10 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
     wrap_page(&repo.name, Some(&nav), &body)
 }
 
-fn summary_cell(summary: &str) -> String {
+fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
+    let summary = escape_str(summary);
     format!(
-        "<div class=\"flex-1 truncate tree-commit\">{}</div>\n",
-        escape_str(summary)
+        "<div class=\"flex-1 truncate tree-commit\"><a href=\"{repo_root}commits/{id}.html\" title=\"{summary}\">{summary}</a></div>\n"
     )
 }
 
@@ -1544,10 +1544,11 @@ fn write_listing(
         let last_change = match last.get(&path) {
             Some(commit) => format!(
                 "{}{}",
-                summary_cell(&commit.summary),
+                summary_cell(repo_root, &commit.id, &commit.summary),
                 date_cell(&commit.committer_date)
             ),
-            None => format!("{}<div class=\"tree-date\"></div>\n", summary_cell("")),
+            None => "<div class=\"flex-1 tree-commit\"></div>\n<div class=\"tree-date\"></div>\n"
+                .to_string(),
         };
         let (icon, name) = if entry.is_dir {
             let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
@@ -1697,7 +1698,7 @@ fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &s
             ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name),
-            summary_cell(&git_ref.summary),
+            summary_cell("", &git_ref.id, &git_ref.summary),
             date_cell(&git_ref.date)
         ));
     }
