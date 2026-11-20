@@ -506,7 +506,16 @@ p {
 }
 
 .markdown-body {
-  padding: 0.65rem 2rem;
+  padding: 2rem 8rem;
+  line-height: 1.5rem;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
 }
 
 .markdown-body :is(h1, h2, h3, h4, h5, h6) {
@@ -517,8 +526,22 @@ p {
   text-decoration: underline;
 }
 
-.markdown-body :is(h1, h2, h3, h4, h5, h6) > a:not(:hover) {
-  text-decoration: none;
+.anchor {
+  float: left;
+  margin-left: -20px;
+  padding-right: 4px;
+}
+
+.anchor svg {
+  visibility: hidden;
+}
+
+:is(h1, h2, h3, h4, h5, h6):hover .anchor svg {
+  visibility: visible;
+}
+
+summary .anchor {
+  margin-left: -40px;
 }
 
 .markdown-body h1 {
@@ -539,6 +562,53 @@ p {
 .markdown-body h5,
 .markdown-body h6 {
   font-size: 0.9rem;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  display: block;
+  margin: 1.3rem 0;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.markdown-body :is(th, td) {
+  padding: 6px 13px;
+  border: 1px solid #7689b3;
+}
+
+.markdown-body tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+
+.markdown-body img {
+  display: inline;
+  margin: 0;
+}
+
+.markdown-body pre {
+  padding: 1rem;
+  border: 0;
+  background-color: #818b981f;
+}
+
+.markdown-body :not(pre) > code {
+  padding: 0.2em 0.4em;
+  border: 0;
+  background-color: #818b981f;
+}
+
+.markdown-body li + li {
+  margin-top: 0.25em;
+}
+
+.markdown-body summary {
+  cursor: pointer;
+}
+
+.markdown-body summary :is(h1, h2, h3, h4, h5, h6) {
+  display: inline-block;
 }
 
 .footnotes {

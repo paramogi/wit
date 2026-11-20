@@ -7,7 +7,6 @@ use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_h
 use std::{
     cmp::Reverse,
     collections::{HashMap, HashSet},
-    mem,
 };
 
 const BRAND: &str = "wit";
@@ -92,6 +91,8 @@ const DIFF_REMOVED_ICON: &str = include_str!("icons/diff-removed-16.svg");
 const DIFF_MODIFIED_ICON: &str = include_str!("icons/diff-modified-16.svg");
 
 const DIFF_RENAMED_ICON: &str = include_str!("icons/diff-renamed-16.svg");
+
+const LINK_ICON: &str = include_str!("icons/link-16.svg");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -1013,50 +1014,54 @@ fn write_markdown(
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_FOOTNOTES;
-    let events: Vec<Event> = Parser::new_ext(&text, options)
-        .map(|event| match event {
+    let parsed = Parser::new_ext(&text, options).map(|event| match event {
+        Event::Start(Tag::Link {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) if link_type != LinkType::Email => {
+            let dest_url =
+                link_target(git_ref, base, repo_root, &dest_url).map_or(dest_url, Into::into);
             Event::Start(Tag::Link {
                 link_type,
                 dest_url,
                 title,
                 id,
-            }) if link_type != LinkType::Email => {
-                let dest_url =
-                    link_target(git_ref, base, repo_root, &dest_url).map_or(dest_url, Into::into);
-                Event::Start(Tag::Link {
-                    link_type,
-                    dest_url,
-                    title,
-                    id,
-                })
-            }
+            })
+        }
+        Event::Start(Tag::Image {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) => {
+            let dest_url = image_data(repo, git_ref, base, &dest_url).map_or(dest_url, Into::into);
             Event::Start(Tag::Image {
                 link_type,
                 dest_url,
                 title,
                 id,
-            }) => {
-                let dest_url =
-                    image_data(repo, git_ref, base, &dest_url).map_or(dest_url, Into::into);
-                Event::Start(Tag::Image {
-                    link_type,
-                    dest_url,
-                    title,
-                    id,
-                })
-            }
-            Event::Html(html) => {
-                Event::Html(rewrite_html(&html, repo, git_ref, base, repo_root).into())
-            }
-            Event::InlineHtml(html) => {
-                Event::InlineHtml(rewrite_html(&html, repo, git_ref, base, repo_root).into())
-            }
-            _ => event,
-        })
-        .collect();
+            })
+        }
+        Event::Html(html) => {
+            Event::Html(rewrite_html(&html, repo, git_ref, base, repo_root).into())
+        }
+        Event::InlineHtml(html) => {
+            Event::InlineHtml(rewrite_html(&html, repo, git_ref, base, repo_root).into())
+        }
+        _ => event,
+    });
+    let mut events: Vec<Event> = Vec::new();
+    for event in parsed {
+        if let (Some(Event::Html(block)), Event::Html(line)) = (events.last_mut(), &event) {
+            *block = format!("{block}{line}").into();
+        } else {
+            events.push(event);
+        }
+    }
     let events = gather_footnotes(events);
     let mut ids = heading_ids(&events).into_iter();
-    let mut linked = false;
     let mut html_events = Vec::with_capacity(events.len());
     for event in events {
         match event {
@@ -1066,24 +1071,34 @@ fn write_markdown(
                 attrs,
                 ..
             }) => {
-                let (id, has_link) = ids.next().unwrap_or_default();
-                linked = !id.is_empty() && !has_link;
-                let self_link = format!("<a href=\"#{id}\">");
+                let id = ids.next().unwrap_or_default();
+                let has_id = !id.is_empty();
+                let anchor = anchor_link(&id);
                 html_events.push(Event::Start(Tag::Heading {
                     level,
-                    id: (!id.is_empty()).then(|| id.into()),
+                    id: has_id.then(|| id.into()),
                     classes,
                     attrs,
                 }));
-                if linked {
-                    html_events.push(Event::InlineHtml(self_link.into()));
+                if has_id {
+                    html_events.push(Event::InlineHtml(anchor.into()));
                 }
             }
-            Event::End(TagEnd::Heading(level)) => {
-                if mem::take(&mut linked) {
-                    html_events.push(Event::InlineHtml("</a>".into()));
+            Event::Html(html) => {
+                let mut linked = String::with_capacity(html.len());
+                let mut copied = 0;
+                for (at, _) in raw_headings(&html) {
+                    let id = ids.next().unwrap_or_default();
+                    linked.push_str(&html[copied..at]);
+                    if id.is_empty() {
+                        linked.push('>');
+                    } else {
+                        linked.push_str(&format!(" id=\"{id}\">{}", anchor_link(&id)));
+                    }
+                    copied = at + 1;
                 }
-                html_events.push(Event::End(TagEnd::Heading(level)));
+                linked.push_str(&html[copied..]);
+                html_events.push(Event::Html(linked.into()));
             }
             _ => html_events.push(event),
         }
@@ -1181,44 +1196,92 @@ fn footnote_ref_id(label: &str, k: usize) -> String {
     }
 }
 
-fn heading_ids(events: &[Event]) -> Vec<(String, bool)> {
+fn heading_ids(events: &[Event]) -> Vec<String> {
     let mut used: HashSet<String> = PAGE_IDS.iter().map(|id| id.to_string()).collect();
-    let mut ids = Vec::new();
-    let mut heading: Option<(String, bool)> = None;
+    let mut texts = Vec::new();
+    let mut heading: Option<String> = None;
     for event in events {
         match event {
-            Event::Start(Tag::Heading { .. }) => heading = Some((String::new(), false)),
+            Event::Start(Tag::Heading { .. }) => heading = Some(String::new()),
             Event::Text(text) | Event::Code(text) => {
-                if let Some((heading, _)) = &mut heading {
+                if let Some(heading) = &mut heading {
                     heading.push_str(text);
                 }
             }
-            Event::Start(Tag::Link { .. }) => {
-                if let Some((_, has_link)) = &mut heading {
-                    *has_link = true;
-                }
-            }
-            Event::End(TagEnd::Heading(_)) => {
-                let (text, has_link) = heading.take().unwrap_or_default();
-                let slug: String = text
-                    .to_lowercase()
-                    .chars()
-                    .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_'))
-                    .map(|c| if c == ' ' { '-' } else { c })
-                    .collect();
-                let mut id = slug.clone();
-                let mut n = 0;
-                while !slug.is_empty() && used.contains(&id) {
-                    n += 1;
-                    id = format!("{slug}-{n}");
-                }
-                used.insert(id.clone());
-                ids.push((id, has_link));
-            }
+            Event::End(TagEnd::Heading(_)) => texts.extend(heading.take()),
+            Event::Html(html) => texts.extend(raw_headings(html).into_iter().map(|(_, text)| text)),
             _ => {}
         }
     }
-    ids
+    texts
+        .iter()
+        .map(|text| {
+            let slug: String = text
+                .to_lowercase()
+                .chars()
+                .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_'))
+                .map(|c| if c == ' ' { '-' } else { c })
+                .collect();
+            let mut id = slug.clone();
+            let mut n = 0;
+            while !slug.is_empty() && used.contains(&id) {
+                n += 1;
+                id = format!("{slug}-{n}");
+            }
+            used.insert(id.clone());
+            id
+        })
+        .collect()
+}
+
+fn raw_headings(html: &str) -> Vec<(usize, String)> {
+    let lower = html.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut headings = Vec::new();
+    let mut from = 0;
+    while let Some(i) = lower[from..].find("<h") {
+        let start = from + i;
+        from = start + 2;
+        let Some(&level @ b'1'..=b'6') = bytes.get(from) else {
+            continue;
+        };
+        if !bytes
+            .get(from + 1)
+            .is_some_and(|b| *b == b'>' || b.is_ascii_whitespace())
+        {
+            continue;
+        }
+        let Some(open_end) = lower[from..].find('>').map(|i| from + i) else {
+            break;
+        };
+        let close_tag = format!("</h{}", level as char);
+        let Some(close) = lower[open_end..].find(&close_tag).map(|i| open_end + i) else {
+            break;
+        };
+        from = close;
+        if lower[start..open_end]
+            .split_whitespace()
+            .any(|attr| attr.starts_with("id="))
+        {
+            continue;
+        }
+        let mut text = String::new();
+        let mut in_tag = false;
+        for c in html[open_end + 1..close].chars() {
+            match c {
+                '<' => in_tag = true,
+                '>' => in_tag = false,
+                _ if !in_tag => text.push(c),
+                _ => {}
+            }
+        }
+        headings.push((open_end, text.trim().to_string()));
+    }
+    headings
+}
+
+fn anchor_link(id: &str) -> String {
+    format!("<a class=\"anchor\" href=\"#{id}\">{LINK_ICON}</a>")
 }
 
 fn rewrite_html(
