@@ -548,7 +548,16 @@ pub fn gen_tree(
     let repo_root = "../".repeat(depth);
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
-    let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, "");
+    let date = if folder.path.is_empty() {
+        Some(&git_ref.date)
+    } else {
+        last.get(&folder.path)
+    };
+    let details = date.map_or_else(String::new, |date| {
+        format!("<div class=\"ml-auto\">\n{}</div>\n", date_cell(date))
+    });
+
+    let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, &details);
     write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
     if folder.path.is_empty() {
         write_readme(&mut body, repo, git_ref, &repo_root);
