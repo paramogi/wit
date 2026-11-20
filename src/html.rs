@@ -24,7 +24,7 @@ pub const COMMITS_PER_PAGE: usize = 2000;
 
 const SUMMARY_REF_COUNT: usize = 3;
 
-const BYTE_UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
+const BYTE_UNITS: [&str; 5] = ["b", "kb", "mb", "gb", "tb"];
 
 const README_NAMES: [&str; 2] = ["README.md", "README"];
 
@@ -187,7 +187,7 @@ fn escape_str(s: &str) -> String {
 
 fn format_bytes(bytes: usize) -> String {
     if bytes < 1000 {
-        return format!("{bytes} B");
+        return format!("{bytes} b");
     }
     let mut value = bytes as f64;
     let mut unit = 0;
@@ -475,7 +475,7 @@ pub fn gen_summary(
 <div id=\"tree_content\">\n\
 ",
         );
-        let details = bar_details("", &head.id, &head.summary, &head.date, "");
+        let details = bar_details("", &head.id, &head.summary, &head.date);
         body.push_str(&ref_bar(repo, head, "", false, false, "", &details));
         let tree_dir = format!("tree/{}/", repo.head_dir);
         let blob_dir = format!("blob/{}/", repo.head_dir);
@@ -535,18 +535,11 @@ fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
     )
 }
 
-fn bar_details(
-    repo_root: &str,
-    id: &str,
-    summary: &str,
-    date: &DateTime<FixedOffset>,
-    sizes: &str,
-) -> String {
+fn bar_details(repo_root: &str, id: &str, summary: &str, date: &DateTime<FixedOffset>) -> String {
     format!(
         "\
 {}\
 <div class=\"ml-auto flex items-center gap\">\n\
-{sizes}\
 <div class=\"tree-commit mono\"><a href=\"{repo_root}commits/{id}.html\">{}</a></div>\n\
 {}\
 </div>\n\
@@ -584,7 +577,7 @@ pub fn gen_tree(
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
     let details = if folder.path.is_empty() {
-        bar_details(&repo_root, &git_ref.id, &git_ref.summary, &git_ref.date, "")
+        bar_details(&repo_root, &git_ref.id, &git_ref.summary, &git_ref.date)
     } else {
         last.get(&folder.path).map_or_else(String::new, |commit| {
             bar_details(
@@ -592,7 +585,6 @@ pub fn gen_tree(
                 &commit.id,
                 &commit.summary,
                 &commit.committer_date,
-                "",
             )
         })
     };
@@ -634,19 +626,24 @@ pub fn gen_blob(
         path: &path,
     };
     let repo_root = "../".repeat(depth);
-    let sizes = size_cells(entry);
-    let details = match last.get(&path) {
-        Some(commit) => bar_details(
+    let details = last.get(&path).map_or_else(String::new, |commit| {
+        bar_details(
             &repo_root,
             &commit.id,
             &commit.summary,
             &commit.committer_date,
-            &sizes,
-        ),
-        None => format!("<div class=\"ml-auto flex items-center gap\">\n{sizes}</div>\n"),
-    };
+        )
+    });
 
     let mut body = ref_bar(repo, git_ref, &path, true, source, &repo_root, &details);
+    let lines = entry
+        .lines
+        .map(|n| format!("<span>{n} loc</span>\n"))
+        .unwrap_or_default();
+    let bytes = entry.bytes.map(format_bytes).unwrap_or_default();
+    body.push_str(&format!(
+        "<div class=\"flex items-center file-head\">\n<div class=\"flex gap file-size\">\n{lines}<span>{bytes}</span>\n</div>\n"
+    ));
     if has_source_page(entry) {
         let root = if source { "blob" } else { "source" };
         let other = format!(
@@ -659,11 +656,12 @@ pub fn gen_blob(
             (Some(other), None)
         };
         body.push_str(&format!(
-            "<div class=\"buttons flex view-switch\">{}\n{}</div>\n",
+            "<div class=\"buttons flex ml-auto\">{}\n{}</div>\n",
             crumb("source", source_href),
             crumb("rendered", rendered_href)
         ));
     }
+    body.push_str("</div>\n");
     let text = entry.lines.is_some();
     match image_type(&entry.name) {
         Some(mime) if !source => body.push_str(&format!(
@@ -1541,12 +1539,6 @@ fn ref_menu(
     menu.push_str(&list("ref-branches", &repo.branches));
     menu.push_str("</div>\n</details>\n");
     menu
-}
-
-fn size_cells(entry: &TreeEntry) -> String {
-    let lines = entry.lines.map(|n| format!("{n} L")).unwrap_or_default();
-    let bytes = entry.bytes.map(format_bytes).unwrap_or_default();
-    format!("<div class=\"tree-size\">{lines}</div>\n<div class=\"tree-size\">{bytes}</div>\n")
 }
 
 fn write_code(body: &mut String, content: &[u8]) {
