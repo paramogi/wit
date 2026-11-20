@@ -559,7 +559,7 @@ pub fn gen_tree(
         format!("<div class=\"ml-auto\">\n{}</div>\n", date_cell(date))
     });
 
-    let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &folder.path, false, &repo_root, &details);
     write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
     if folder.path.is_empty() {
         write_readme(&mut body, repo, git_ref, &repo_root);
@@ -595,7 +595,7 @@ pub fn gen_blob(
     }
     details.push_str("</div>\n");
 
-    let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &path, source, &repo_root, &details);
     if has_source_page(entry) {
         let root = if source { "blob" } else { "source" };
         let other = format!(
@@ -680,7 +680,7 @@ pub fn gen_commits(
 <div>{count}</div>\n\
 </div>\n\
 ",
-        ref_menu(repo, git_ref, &repo_root, Tab::Commits)
+        ref_menu(repo, git_ref, &repo_root, Tab::Commits, "", false)
     );
     let mut day = String::new();
     for commit in commits {
@@ -1366,13 +1366,14 @@ fn ref_bar(
     repo: &RepoInfo,
     git_ref: &RefInfo,
     path: &str,
+    source: bool,
     repo_root: &str,
     details: &str,
 ) -> String {
     let mut bar = String::from(
         "<div class=\"box sticky flex items-center gap border-visited flex-wrap ref-bar\">\n",
     );
-    bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree));
+    bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree, path, source));
     if !path.is_empty() {
         let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
         for part in path.split('/').filter(|p| !p.is_empty()) {
@@ -1399,7 +1400,31 @@ fn ref_bar(
     bar
 }
 
-fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab) -> String {
+fn menu_target(git_ref: &RefInfo, path: &str, source: bool) -> (String, bool) {
+    if let Some(entry) = find_file(git_ref, path) {
+        let root = if source && has_source_page(entry) {
+            "source"
+        } else {
+            "blob"
+        };
+        let href = percent_encode(&format!("{root}/{}/{path}.html", git_ref.dir));
+        return (href, true);
+    }
+    let mut dir = path;
+    while !dir.is_empty() && !git_ref.folders.iter().any(|folder| folder.path == dir) {
+        dir = dir.rsplit_once('/').map_or("", |(parent, _)| parent);
+    }
+    (Tab::Tree.href(&join_path(&git_ref.dir, dir)), dir == path)
+}
+
+fn ref_menu(
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    repo_root: &str,
+    tab: Tab,
+    path: &str,
+    source: bool,
+) -> String {
     let mut menu = format!(
         "<details class=\"ref-menu\">\n<summary><code>{}{}{CHEVRON_DOWN}{CHEVRON_UP}</code></summary>\n<div class=\"ref-menu-list\">\n",
         ref_icon(git_ref),
@@ -1419,9 +1444,22 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab) -> St
                 } else {
                     ""
                 };
+                let (href, found) = match tab {
+                    Tab::Tree => menu_target(r, path, source),
+                    _ => (tab.href(&r.dir), true),
+                };
+                let kind = if r.dir.starts_with("tags/") {
+                    "tag"
+                } else {
+                    "branch"
+                };
+                let (missing, title) = if found {
+                    ("", String::new())
+                } else {
+                    (" missing", format!(" title=\"not in this {kind}\""))
+                };
                 format!(
-                    "<a class=\"flex items-center gap{active}\" href=\"{repo_root}{}\">{}{}</a>\n",
-                    tab.href(&r.dir),
+                    "<a class=\"flex items-center gap{active}{missing}\"{title} href=\"{repo_root}{href}\">{}{}</a>\n",
                     ref_icon(r),
                     escape_str(&r.name)
                 )
