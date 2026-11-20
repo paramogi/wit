@@ -66,6 +66,7 @@ pub struct RefInfo {
     pub id: String,
     pub time: i64,
     pub date: DateTime<FixedOffset>,
+    pub summary: String,
     pub folders: Vec<Folder>,
     pub submodules: Vec<(String, String)>,
 }
@@ -143,6 +144,7 @@ impl RepoInfo {
                 id: commit.id().to_string(),
                 time: commit.committer().when().seconds(),
                 date: Self::commit_date(&commit)?,
+                summary: Self::commit_summary(&commit)?,
                 folders: Self::read_folders(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
@@ -172,6 +174,7 @@ impl RepoInfo {
                 id: commit.id().to_string(),
                 time: time.seconds(),
                 date: Self::commit_date(&commit)?,
+                summary: Self::commit_summary(&commit)?,
                 folders: Self::read_folders(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
@@ -389,11 +392,7 @@ impl RepoInfo {
         let committer = commit.committer();
         Ok(CommitInfo {
             id: commit.id().to_string(),
-            summary: commit
-                .summary()?
-                .filter(|s| !s.is_empty())
-                .unwrap_or(NO_MESSAGE)
-                .to_string(),
+            summary: Self::commit_summary(commit)?,
             message: commit.message().unwrap_or_default().to_string(),
             author_name: author.name().unwrap_or_default().to_string(),
             author_email: author.email().unwrap_or_default().to_string(),
@@ -403,6 +402,14 @@ impl RepoInfo {
             committer_email: committer.email().unwrap_or_default().to_string(),
             committer_date: Self::commit_date(commit)?,
         })
+    }
+
+    fn commit_summary(commit: &Commit) -> Result<String> {
+        Ok(commit
+            .summary()?
+            .filter(|s| !s.is_empty())
+            .unwrap_or(NO_MESSAGE)
+            .to_string())
     }
 
     fn commit_date(commit: &Commit) -> Result<DateTime<FixedOffset>> {

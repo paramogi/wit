@@ -2,7 +2,6 @@ mod html;
 mod repo_info;
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, FixedOffset};
 use html::{
     COMMITS_PER_PAGE, STYLE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit,
     gen_commits, gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
@@ -65,19 +64,19 @@ fn write_file(path: &Path, contents: &str) -> Result<()> {
         .with_context(|| path.display().to_string())
 }
 
-fn last_changes(
-    commits: &[CommitInfo],
+fn last_changes<'a>(
+    commits: &'a [CommitInfo],
     changes: &HashMap<String, Vec<String>>,
-) -> HashMap<String, DateTime<FixedOffset>> {
+) -> HashMap<String, &'a CommitInfo> {
     let mut last = HashMap::new();
     for commit in commits {
         for path in changes.get(&commit.id).into_iter().flatten() {
             let mut path = path.as_str();
             loop {
-                let date = last
-                    .entry(path.to_string())
-                    .or_insert(commit.committer_date);
-                *date = (*date).max(commit.committer_date);
+                let newest = last.entry(path.to_string()).or_insert(commit);
+                if commit.committer_date > newest.committer_date {
+                    *newest = commit;
+                }
                 match path.rsplit_once('/') {
                     Some((dir, _)) => path = dir,
                     None => break,
@@ -148,7 +147,6 @@ fn run() -> Result<()> {
             .chain(&repo.tags);
         let mut stats = HashMap::new();
         let mut changes = HashMap::new();
-        let mut head_last = HashMap::new();
         for git_ref in head_first {
             let commits = repo
                 .read_commits(&git_ref.id)
@@ -207,10 +205,8 @@ fn run() -> Result<()> {
                     }
                 }
             }
-            if git_ref.dir == repo.head_dir {
-                head_last = last;
-            }
         }
+        let head_last = last_changes(&repo.commit_list, &changes);
         write_file(
             &repo_dir.join("index.html"),
             &gen_summary(repo, &stats, &head_last),

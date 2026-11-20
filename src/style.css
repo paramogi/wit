@@ -463,6 +463,11 @@ p {
   text-align: right;
 }
 
+.tree-commit,
+.tree-date {
+  color: #7689b3;
+}
+
 .fits {
   display: flex;
   flex-wrap: wrap;
@@ -695,6 +700,10 @@ pre,
 
   .navs_wrapper .buttons a {
     padding: 0.025rem 0.35rem;
+  }
+
+  .tree-commit {
+    display: none;
   }
 }
 

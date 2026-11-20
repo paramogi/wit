@@ -412,7 +412,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
 pub fn gen_summary(
     repo: &RepoInfo,
     stats: &HashMap<String, String>,
-    last: &HashMap<String, DateTime<FixedOffset>>,
+    last: &HashMap<String, &CommitInfo>,
 ) -> String {
     let nav = RepoNav {
         repo,
@@ -509,19 +509,28 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
-<div class=\"flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
+<div class=\"flex-1 flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
+{}\
 {}\
 </div>\n\
 ",
             ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name),
+            summary_cell(&git_ref.summary),
             date_cell(&git_ref.date)
         ));
     }
     body.push_str("</div>\n");
 
     wrap_page(&repo.name, Some(&nav), &body)
+}
+
+fn summary_cell(summary: &str) -> String {
+    format!(
+        "<div class=\"flex-1 truncate tree-commit\">{}</div>\n",
+        escape_str(summary)
+    )
 }
 
 fn date_cell(date: &DateTime<FixedOffset>) -> String {
@@ -536,7 +545,7 @@ pub fn gen_tree(
     repo: &RepoInfo,
     git_ref: &RefInfo,
     folder: &Folder,
-    last: &HashMap<String, DateTime<FixedOffset>>,
+    last: &HashMap<String, &CommitInfo>,
 ) -> String {
     let tree_path = join_path(&git_ref.dir, &folder.path);
     let depth = 1 + tree_path.split('/').count();
@@ -553,7 +562,7 @@ pub fn gen_tree(
     let date = if folder.path.is_empty() {
         Some(&git_ref.date)
     } else {
-        last.get(&folder.path)
+        last.get(&folder.path).map(|commit| &commit.committer_date)
     };
     let details = date.map_or_else(String::new, |date| {
         format!("<div class=\"ml-auto\">\n{}</div>\n", date_cell(date))
@@ -576,7 +585,7 @@ pub fn gen_blob(
     entry: &TreeEntry,
     content: &[u8],
     source: bool,
-    last: &HashMap<String, DateTime<FixedOffset>>,
+    last: &HashMap<String, &CommitInfo>,
 ) -> String {
     let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
     let path = join_path(&folder.path, &entry.name);
@@ -590,8 +599,8 @@ pub fn gen_blob(
     let repo_root = "../".repeat(depth);
     let mut details = String::from("<div class=\"ml-auto flex items-center gap\">\n");
     details.push_str(&size_cells(entry));
-    if let Some(date) = last.get(&path) {
-        details.push_str(&date_cell(date));
+    if let Some(commit) = last.get(&path) {
+        details.push_str(&date_cell(&commit.committer_date));
     }
     details.push_str("</div>\n");
 
@@ -1516,7 +1525,7 @@ fn write_listing(
     repo_root: &str,
     tree_dir: &str,
     blob_dir: &str,
-    last: &HashMap<String, DateTime<FixedOffset>>,
+    last: &HashMap<String, &CommitInfo>,
 ) {
     body.push_str("<div class=\"box p-0\">\n");
     for entry in &folder.entries {
@@ -1532,10 +1541,14 @@ fn write_listing(
             Some(href) => link(href, text),
             None => format!("<span class=\"truncate\">{text}</span>"),
         };
-        let date = last.get(&path).map_or_else(
-            || "<div class=\"tree-date\"></div>\n".to_string(),
-            date_cell,
-        );
+        let last_change = match last.get(&path) {
+            Some(commit) => format!(
+                "{}{}",
+                summary_cell(&commit.summary),
+                date_cell(&commit.committer_date)
+            ),
+            None => format!("{}<div class=\"tree-date\"></div>\n", summary_cell("")),
+        };
         let (icon, name) = if entry.is_dir {
             let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
             (FOLDER_ICON, link(href, escape_str(name)))
@@ -1556,13 +1569,9 @@ fn write_listing(
 {icon}\n\
 {name}\n\
 </div>\n\
-<div class=\"flex items-center gap\">\n\
-{}\
-{date}\
+{last_change}\
 </div>\n\
-</div>\n\
-",
-            size_cells(entry)
+"
         ));
     }
     body.push_str("</div>\n");
@@ -1680,13 +1689,15 @@ fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &s
         body.push_str(&format!(
             "\
 <section class=\"{wrapper} flex justify-between items-center gap-2 border-b py px\">\n\
-<div class=\"{inner} flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
+<div class=\"{inner} flex-1 flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
+{}\
 {}\
 </section>\n\
 ",
             ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name),
+            summary_cell(&git_ref.summary),
             date_cell(&git_ref.date)
         ));
     }
