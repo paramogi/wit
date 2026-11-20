@@ -587,6 +587,66 @@ summary .anchor {
   margin: 0;
 }
 
+.markdown-body blockquote {
+  margin: 0;
+  padding: 0 1em;
+  color: #59636e;
+  border-left: 0.25em solid #7689b3;
+}
+
+.markdown-body .markdown-alert {
+  margin: 1.3rem 0;
+  padding: 0.5rem 1em;
+  color: inherit;
+  border-left-color: var(--alert);
+}
+
+.markdown-alert > :first-child {
+  margin-top: 0;
+}
+
+.markdown-alert > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--alert);
+  font-weight: 500;
+}
+
+.markdown-alert-title + * {
+  margin-top: 0;
+}
+
+.markdown-alert-note {
+  --alert: #0969da;
+}
+
+.markdown-alert-tip {
+  --alert: #1a7f37;
+}
+
+.markdown-alert-important {
+  --alert: #8250df;
+}
+
+.markdown-alert-warning {
+  --alert: #9a6700;
+}
+
+.markdown-alert-caution {
+  --alert: #cf222e;
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid #7689b3;
+}
+
 .markdown-body pre {
   padding: 1rem;
   border: 0;
@@ -597,6 +657,15 @@ summary .anchor {
   padding: 0.2em 0.4em;
   border: 0;
   background-color: #818b981f;
+}
+
+.markdown-body li:has(> input[type="checkbox"]) {
+  list-style-type: none;
+}
+
+.markdown-body li > input[type="checkbox"] {
+  margin: 0 0.2em 0.25em -1.4em;
+  vertical-align: middle;
 }
 
 .markdown-body li + li {

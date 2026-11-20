@@ -3,8 +3,8 @@ mod repo_info;
 
 use anyhow::{Context, Result, bail};
 use html::{
-    COMMITS_PER_PAGE, STYLE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit,
-    gen_commits, gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
+    COMMITS_PER_PAGE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit, gen_commits,
+    gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
 };
 use repo_info::{CommitInfo, RepoInfo};
 use std::{
@@ -111,7 +111,6 @@ fn run() -> Result<()> {
         .and_then(|meta| meta.modified())
         .context("wit's own binary")?;
     let wit = wit.duration_since(UNIX_EPOCH)?.as_nanos();
-    write_file(&args.out_dir.join("style.css"), STYLE)?;
     write_file(&args.out_dir.join("index.html"), &gen_index(&repos))?;
     for repo in &repos {
         let repo_dir = args.out_dir.join(&repo.name);

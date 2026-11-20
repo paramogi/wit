@@ -3,7 +3,9 @@ use crate::repo_info::{
 };
 
 use chrono::{DateTime, FixedOffset};
-use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
+use pulldown_cmark::{
+    BlockQuoteKind, Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html,
+};
 use std::{
     cmp::Reverse,
     collections::{HashMap, HashSet},
@@ -62,8 +64,6 @@ const PAGE_IDS: [&str; 10] = [
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-pub const STYLE: &str = include_str!("style.css");
-
 const FILE_ICON: &str = include_str!("icons/file-16.svg");
 
 const FOLDER_ICON: &str = include_str!("icons/file-directory-16.svg");
@@ -93,6 +93,16 @@ const DIFF_MODIFIED_ICON: &str = include_str!("icons/diff-modified-16.svg");
 const DIFF_RENAMED_ICON: &str = include_str!("icons/diff-renamed-16.svg");
 
 const LINK_ICON: &str = include_str!("icons/link-16.svg");
+
+const INFO_ICON: &str = include_str!("icons/info-16.svg");
+
+const LIGHT_BULB_ICON: &str = include_str!("icons/light-bulb-16.svg");
+
+const REPORT_ICON: &str = include_str!("icons/report-16.svg");
+
+const ALERT_ICON: &str = include_str!("icons/alert-16.svg");
+
+const STOP_ICON: &str = include_str!("icons/stop-16.svg");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -1014,7 +1024,8 @@ fn write_markdown(
     let options = Options::ENABLE_TABLES
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
-        | Options::ENABLE_FOOTNOTES;
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_GFM;
     let parsed = Parser::new_ext(&text, options).map(|event| match event {
         Event::Start(Tag::Link {
             link_type,
@@ -1084,6 +1095,21 @@ fn write_markdown(
                 if has_id {
                     html_events.push(Event::InlineHtml(anchor.into()));
                 }
+            }
+            Event::Start(Tag::BlockQuote(Some(kind))) => {
+                let (name, label, icon) = match kind {
+                    BlockQuoteKind::Note => ("note", "Note", INFO_ICON),
+                    BlockQuoteKind::Tip => ("tip", "Tip", LIGHT_BULB_ICON),
+                    BlockQuoteKind::Important => ("important", "Important", REPORT_ICON),
+                    BlockQuoteKind::Warning => ("warning", "Warning", ALERT_ICON),
+                    BlockQuoteKind::Caution => ("caution", "Caution", STOP_ICON),
+                };
+                html_events.push(Event::Html(
+                    format!(
+                        "<blockquote class=\"markdown-alert markdown-alert-{name}\">\n<p class=\"markdown-alert-title\">{icon}{label}</p>\n"
+                    )
+                    .into(),
+                ));
             }
             Event::Html(html) => {
                 let mut linked = String::with_capacity(html.len());
