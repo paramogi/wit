@@ -2,6 +2,7 @@ use crate::repo_info::{
     CommitDiff, CommitInfo, FileChange, Folder, Line, RefInfo, RepoInfo, TreeEntry,
 };
 
+use chrono::{DateTime, FixedOffset};
 use pulldown_cmark::{Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html};
 use std::{
     cmp::Reverse,
@@ -503,16 +504,26 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
 <div class=\"flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
+{}\
 </div>\n\
 ",
             ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
-            escape_str(&git_ref.name)
+            escape_str(&git_ref.name),
+            date_cell(&git_ref.date)
         ));
     }
     body.push_str("</div>\n");
 
     wrap_page(&repo.name, Some(&nav), &body)
+}
+
+fn date_cell(date: &DateTime<FixedOffset>) -> String {
+    format!(
+        "<div title=\"{}\">{}</div>\n",
+        date.format("%Y-%m-%d %H:%M:%S %z"),
+        date.format("%Y-%m-%d")
+    )
 }
 
 pub fn gen_tree(repo: &RepoInfo, git_ref: &RefInfo, folder: &Folder) -> String {
@@ -1593,13 +1604,15 @@ fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &s
     for git_ref in refs.iter().take(SUMMARY_REF_COUNT) {
         body.push_str(&format!(
             "\
-<section class=\"{wrapper} border-b py px\">\n\
+<section class=\"{wrapper} flex justify-between items-center gap-2 border-b py px\">\n\
 <div class=\"{inner} flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
+{}\
 </section>\n\
 ",
             ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
-            escape_str(&git_ref.name)
+            escape_str(&git_ref.name),
+            date_cell(&git_ref.date)
         ));
     }
     body.push_str(&format!(

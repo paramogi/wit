@@ -65,6 +65,7 @@ pub struct RefInfo {
     pub dir: String,
     pub id: String,
     pub time: i64,
+    pub date: DateTime<FixedOffset>,
     pub folders: Vec<Folder>,
     pub submodules: Vec<(String, String)>,
 }
@@ -141,6 +142,7 @@ impl RepoInfo {
                 dir: format!("heads/{name}"),
                 id: commit.id().to_string(),
                 time: commit.committer().when().seconds(),
+                date: Self::commit_date(&commit)?,
                 folders: Self::read_folders(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
@@ -169,6 +171,7 @@ impl RepoInfo {
                 dir: format!("tags/{name}"),
                 id: commit.id().to_string(),
                 time: time.seconds(),
+                date: Self::commit_date(&commit)?,
                 folders: Self::read_folders(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
@@ -398,9 +401,13 @@ impl RepoInfo {
                 .with_context(|| format!("commit {}: invalid author date", commit.id()))?,
             committer_name: committer.name().unwrap_or_default().to_string(),
             committer_email: committer.email().unwrap_or_default().to_string(),
-            committer_date: Self::to_date(committer.when())
-                .with_context(|| format!("commit {}: invalid committer date", commit.id()))?,
+            committer_date: Self::commit_date(commit)?,
         })
+    }
+
+    fn commit_date(commit: &Commit) -> Result<DateTime<FixedOffset>> {
+        Self::to_date(commit.committer().when())
+            .with_context(|| format!("commit {}: invalid committer date", commit.id()))
     }
 
     fn to_date(time: git2::Time) -> Option<DateTime<FixedOffset>> {
