@@ -273,6 +273,10 @@ p {
   background-color: #ffffff;
 }
 
+.ref-bar {
+  padding-right: 0.5rem;
+}
+
 .mt-0 {
   margin-top: 0;
 }

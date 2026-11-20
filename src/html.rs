@@ -1367,8 +1367,9 @@ fn ref_bar(
     repo_root: &str,
     details: &str,
 ) -> String {
-    let mut bar =
-        String::from("<div class=\"box sticky flex items-center gap border-visited flex-wrap\">\n");
+    let mut bar = String::from(
+        "<div class=\"box sticky flex items-center gap border-visited flex-wrap ref-bar\">\n",
+    );
     bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree));
     if !path.is_empty() {
         let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
