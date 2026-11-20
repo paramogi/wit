@@ -589,6 +589,16 @@ p {
   text-align: right;
 }
 
+.people {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  column-gap: 0.65rem;
+}
+
+.people-id {
+  text-align: right;
+}
+
 .chroma .lnlinks {
   outline: none;
   text-decoration: none;
@@ -704,5 +714,13 @@ pre,
 
   .tree-commit {
     display: none;
+  }
+
+  .people {
+    grid-template-columns: max-content 1fr;
+  }
+
+  .people-id {
+    grid-column: 2;
   }
 }

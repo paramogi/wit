@@ -816,40 +816,31 @@ pub fn gen_commit(
         .collect();
     let parents = match parents.len() {
         0 => String::new(),
-        1 => format!("<div>parent {}</div>\n", parents[0]),
-        _ => format!("<div>parents {}</div>\n", parents.join(", ")),
+        1 => format!("<div class=\"people-id\">parent {}</div>\n", parents[0]),
+        _ => format!(
+            "<div class=\"people-id\">parents {}</div>\n",
+            parents.join(", ")
+        ),
     };
-
-    let author = format!(
-        "{} &lt;{}&gt;",
-        escape_str(&commit.author_name),
-        escape_str(&commit.author_email)
-    );
-    let committer = format!(
-        "{} &lt;{}&gt;",
-        escape_str(&commit.committer_name),
-        escape_str(&commit.committer_email)
-    );
-    let authored = format_zoned(&commit.author_date, DATE_TIME);
-    let committed = format_zoned(&commit.committer_date, DATE_TIME);
-    let same_person = commit.author_name == commit.committer_name
-        && commit.author_email == commit.committer_email;
-    let people = if !same_person {
-        format!("authored by {author} on {authored} and committed by {committer} on {committed}")
-    } else if authored == committed {
-        format!("authored and committed by {author} on {committed}")
-    } else {
-        format!("authored by {author} on {authored}, committed on {committed}")
-    };
+    let format = "%d-%m-%Y&nbsp;%H:%M";
 
     let mut body = format!(
         "\
-<h2>commit <code>{short}</code></h2>\n\
-<div class=\"flex justify-between flex-wrap\">\n\
-<div class=\"flex-1\">{people}</div>\n\
+<div class=\"people\">\n\
+<div>author:</div>\n\
+<div>{} &lt;{}&gt; on {}</div>\n\
+<div class=\"people-id\">commit {short}</div>\n\
+<div>committer:</div>\n\
+<div>{} &lt;{}&gt; on {}</div>\n\
 {parents}\
 </div>\n\
-"
+",
+        escape_str(&commit.author_name),
+        escape_str(&commit.author_email),
+        format_zoned(&commit.author_date, format),
+        escape_str(&commit.committer_name),
+        escape_str(&commit.committer_email),
+        format_zoned(&commit.committer_date, format)
     );
     body.push_str(&format!(
         "\
