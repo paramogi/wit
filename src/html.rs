@@ -906,8 +906,8 @@ fn status_icon(status: char) -> String {
         'A' => (DIFF_ADDED_ICON, " color-green", "added"),
         'D' => (DIFF_REMOVED_ICON, " color-red", "deleted"),
         'R' => (DIFF_RENAMED_ICON, "", "renamed"),
-        'T' => (DIFF_MODIFIED_ICON, "", "type changed"),
-        _ => (DIFF_MODIFIED_ICON, "", "modified"),
+        'T' => (DIFF_MODIFIED_ICON, " color-orange", "type changed"),
+        _ => (DIFF_MODIFIED_ICON, " color-orange", "modified"),
     };
     format!("<span class=\"flex{class}\" title=\"{title}\">{icon}</span>")
 }

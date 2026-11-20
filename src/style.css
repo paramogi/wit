@@ -249,6 +249,10 @@ p {
   color: #aa0000;
 }
 
+.color-orange {
+  color: #cc6600;
+}
+
 .group-2 {
   display: flex;
   flex-direction: column;
