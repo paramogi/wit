@@ -498,7 +498,7 @@ pub fn gen_summary(
 ",
         );
         let details = bar_details("", &head.id, &head.summary, &head.date);
-        body.push_str(&ref_bar(repo, head, "", false, false, "", &details));
+        body.push_str(&ref_bar(repo, head, "", false, "", &details));
         let tree_dir = format!("tree/{}/", repo.head_dir);
         let blob_dir = format!("blob/{}/", repo.head_dir);
         write_listing(&mut body, head, root, "", &tree_dir, &blob_dir, last);
@@ -621,15 +621,7 @@ pub fn gen_tree(
         })
     };
 
-    let mut body = ref_bar(
-        repo,
-        git_ref,
-        &folder.path,
-        false,
-        false,
-        &repo_root,
-        &details,
-    );
+    let mut body = ref_bar(repo, git_ref, &folder.path, false, &repo_root, &details);
     write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
     write_readme(&mut body, repo, git_ref, folder, &repo_root);
 
@@ -665,7 +657,7 @@ pub fn gen_blob(
         )
     });
 
-    let mut body = ref_bar(repo, git_ref, &path, true, source, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &path, source, &repo_root, &details);
     let lines = entry
         .lines
         .map(|n| format!("<span>{n} loc</span>\n"))
@@ -1569,7 +1561,6 @@ fn ref_bar(
     repo: &RepoInfo,
     git_ref: &RefInfo,
     path: &str,
-    file: bool,
     source: bool,
     repo_root: &str,
     details: &str,
@@ -1589,9 +1580,8 @@ fn ref_bar(
                 bar.push_str("<span>/</span>\n");
             }
             if i == parts.len() - 1 {
-                let grow = if file { " flex-1" } else { "" };
                 bar.push_str(&format!(
-                    "<span class=\"font-bold truncate{grow}\">{}</span>\n",
+                    "<span class=\"font-bold truncate\">{}</span>\n",
                     escape_str(part)
                 ));
             } else {
