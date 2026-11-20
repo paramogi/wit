@@ -427,7 +427,7 @@ pub fn gen_summary(
         depth: 0,
         path: "",
     };
-    let last_change = repo
+    let last_commit = repo
         .commit_list
         .first()
         .map(|commit| commit.committer_date.format(DATE).to_string());
@@ -437,8 +437,8 @@ pub fn gen_summary(
     if !repo.owner.is_empty() {
         rows.push(("owner", &repo.owner));
     }
-    if let Some(date) = &last_change {
-        rows.push(("last change", date));
+    if let Some(date) = &last_commit {
+        rows.push(("last commit", date));
     }
     rows.push(("clone url", &clone_url));
 
