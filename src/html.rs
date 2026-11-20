@@ -1361,23 +1361,25 @@ fn ref_bar(
     let mut bar =
         String::from("<div class=\"box sticky flex items-center gap border-visited flex-wrap\">\n");
     bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree));
-    let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
-    for part in path.split('/').filter(|p| !p.is_empty()) {
-        let tree_path = format!("{}/{part}", parts[parts.len() - 1].1);
-        parts.push((part, tree_path));
-    }
-    for (i, (part, tree_path)) in parts.iter().enumerate() {
-        if i > 0 {
-            bar.push_str("<span>/</span>\n");
+    if !path.is_empty() {
+        let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
+        for part in path.split('/').filter(|p| !p.is_empty()) {
+            let tree_path = format!("{}/{part}", parts[parts.len() - 1].1);
+            parts.push((part, tree_path));
         }
-        if i == parts.len() - 1 {
-            bar.push_str(&format!(
-                "<span class=\"font-bold truncate flex-1\">{}</span>\n",
-                escape_str(part)
-            ));
-        } else {
-            let href = format!("{repo_root}{}", Tab::Tree.href(tree_path));
-            bar.push_str(&format!("{}\n", crumb(part, Some(href))));
+        for (i, (part, tree_path)) in parts.iter().enumerate() {
+            if i > 0 {
+                bar.push_str("<span>/</span>\n");
+            }
+            if i == parts.len() - 1 {
+                bar.push_str(&format!(
+                    "<span class=\"font-bold truncate flex-1\">{}</span>\n",
+                    escape_str(part)
+                ));
+            } else {
+                let href = format!("{repo_root}{}", Tab::Tree.href(tree_path));
+                bar.push_str(&format!("{}\n", crumb(part, Some(href))));
+            }
         }
     }
     bar.push_str(details);
