@@ -505,6 +505,10 @@ p {
   flex-shrink: 0;
 }
 
+.markdown-body {
+  padding: 0.65rem 2rem;
+}
+
 .markdown-body :is(h1, h2, h3, h4, h5, h6) {
   font-style: normal;
 }
