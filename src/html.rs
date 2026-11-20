@@ -16,7 +16,9 @@ const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
 const BRIEF_COUNT: usize = 5;
 
-const DATE_TIME: &str = "%Y-%m-%d&nbsp;%H:%M:%S&nbsp;%z";
+const DATE: &str = "%d-%m-%Y";
+
+const DATE_TIME: &str = "%d-%m-%Y&nbsp;%H:%M:%S&nbsp;%z";
 
 pub const COMMITS_PER_PAGE: usize = 2000;
 
@@ -422,7 +424,7 @@ pub fn gen_summary(
     let last_change = repo
         .commit_list
         .first()
-        .map(|commit| commit.committer_date.format("%Y-%m-%d").to_string());
+        .map(|commit| commit.committer_date.format(DATE).to_string());
     let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
     let mut rows: Vec<(&str, &str)> =
         vec![("name", &repo.name), ("description", &repo.description)];
@@ -525,8 +527,8 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
 fn date_cell(date: &DateTime<FixedOffset>) -> String {
     format!(
         "<div class=\"tree-date\" title=\"{}\">{}</div>\n",
-        date.format("%Y-%m-%d %H:%M:%S %z"),
-        date.format("%Y-%m-%d")
+        date.format("%d-%m-%Y %H:%M:%S %z"),
+        date.format(DATE)
     )
 }
 
@@ -682,7 +684,7 @@ pub fn gen_commits(
     );
     let mut day = String::new();
     for commit in commits {
-        let date = commit.committer_date.format("%Y-%m-%d").to_string();
+        let date = commit.committer_date.format(DATE).to_string();
         let joined = if date == day {
             " joined"
         } else {
