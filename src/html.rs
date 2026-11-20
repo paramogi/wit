@@ -227,10 +227,10 @@ fn root_folder(git_ref: &RefInfo) -> Option<&Folder> {
     git_ref.folders.iter().find(|f| f.path.is_empty())
 }
 
-fn repo_file<'a>(root: &'a Folder, names: &[&str]) -> Option<&'a TreeEntry> {
+fn repo_file<'a>(folder: &'a Folder, names: &[&str]) -> Option<&'a TreeEntry> {
     names
         .iter()
-        .find_map(|name| root.entries.iter().find(|e| !e.is_dir && e.name == *name))
+        .find_map(|name| folder.entries.iter().find(|e| !e.is_dir && e.name == *name))
 }
 
 fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
@@ -258,10 +258,15 @@ fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
         .collect()
 }
 
-fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str) {
-    let Some(path) = root_folder(git_ref)
-        .and_then(|root| repo_file(root, &README_NAMES))
-        .and_then(|entry| follow_links(git_ref, &entry.name))
+fn write_readme(
+    body: &mut String,
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    folder: &Folder,
+    repo_root: &str,
+) {
+    let Some(path) = repo_file(folder, &README_NAMES)
+        .and_then(|entry| follow_links(git_ref, &join_path(&folder.path, &entry.name)))
     else {
         return;
     };
@@ -488,9 +493,7 @@ pub fn gen_summary(
         let blob_dir = format!("blob/{}/", repo.head_dir);
         write_listing(&mut body, head, root, "", &tree_dir, &blob_dir, last);
         body.push_str("</div>\n</div>\n");
-    }
-    if let Some(head) = head {
-        write_readme(&mut body, repo, head, "");
+        write_readme(&mut body, repo, head, root, "");
     }
 
     wrap_page(&repo.name, Some(&nav), &body)
@@ -618,9 +621,7 @@ pub fn gen_tree(
         &details,
     );
     write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
-    if folder.path.is_empty() {
-        write_readme(&mut body, repo, git_ref, &repo_root);
-    }
+    write_readme(&mut body, repo, git_ref, folder, &repo_root);
 
     let title = format!("{}/{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
