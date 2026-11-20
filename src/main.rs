@@ -10,11 +10,15 @@ use repo_info::RepoInfo;
 use std::{
     collections::HashMap,
     env, fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
     process,
+    time::UNIX_EPOCH,
 };
 
 const USAGE: &str = "usage: wit [-O owner] -o outdir repo.git...";
+
+const STATE_FILE: &str = ".wit-state";
 
 struct Args {
     owner: Option<String>,
@@ -79,10 +83,35 @@ fn run() -> Result<()> {
         }
         repos.push(repo);
     }
+    let wit = env::current_exe()
+        .and_then(fs::metadata)
+        .and_then(|meta| meta.modified())
+        .context("wit's own binary")?;
+    let wit = wit.duration_since(UNIX_EPOCH)?.as_nanos();
     write_file(&args.out_dir.join("style.css"), STYLE)?;
     write_file(&args.out_dir.join("index.html"), &gen_index(&repos))?;
     for repo in &repos {
         let repo_dir = args.out_dir.join(&repo.name);
+        let mut state = format!(
+            "{wit}\n{}\n{}\n{}\n{}\n",
+            repo.name, repo.description, repo.owner, repo.head_dir
+        );
+        for git_ref in repo.branches.iter().chain(&repo.tags) {
+            state.push_str(&format!(
+                "{} {} {}\n",
+                git_ref.id, git_ref.time, git_ref.dir
+            ));
+        }
+        let state_file = repo_dir.join(STATE_FILE);
+        if fs::read_to_string(&state_file).is_ok_and(|old| old == state) {
+            continue;
+        }
+        match fs::remove_dir_all(&repo_dir) {
+            Err(e) if e.kind() != ErrorKind::NotFound => {
+                return Err(e).with_context(|| repo_dir.display().to_string());
+            }
+            _ => {}
+        }
         write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
         if !repo.tags.is_empty() {
             write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
@@ -149,6 +178,7 @@ fn run() -> Result<()> {
             }
         }
         write_file(&repo_dir.join("index.html"), &gen_summary(repo, &stats))?;
+        write_file(&state_file, &state)?;
     }
     Ok(())
 }

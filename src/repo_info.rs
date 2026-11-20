@@ -125,7 +125,7 @@ impl RepoInfo {
         let dir = repo.workdir().unwrap_or(repo.path());
         let name = dir.file_name()?.to_str()?;
         let name = name.strip_suffix(".git").unwrap_or(name);
-        (!name.is_empty()).then(|| name.to_string())
+        (!matches!(name, "" | "." | "..")).then(|| name.to_string())
     }
 
     fn handle_branches(repo: &Repository) -> Result<Vec<RefInfo>> {

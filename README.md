@@ -13,6 +13,10 @@ Create dependencies:
 
 // TODO
 
+### Rebuilding on every push
+
+Copy `contrib/post-receive` into each bare repo's `hooks/` folder, keep it executable, and set its paths: the site folder after `-o`, then every repo the site lists. Each run rewrites the index, and only rebuilds the repos that changed since the last run (their branches, tags, description or owner), or all of them after wit itself is updated. A rebuilt repo's old pages are deleted first.
+
 ## Credits
 
 The icons are from [Octicons](https://github.com/primer/octicons), Copyright (c) 2026 GitHub Inc., licensed under the [MIT License](https://github.com/primer/octicons/blob/main/LICENSE).
