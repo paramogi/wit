@@ -685,6 +685,15 @@ summary .anchor {
   font-size: 0.9rem;
 }
 
+.footnotes ol {
+  padding-left: 0;
+  list-style-position: inside;
+}
+
+.footnotes li > p:first-child {
+  display: inline;
+}
+
 .chroma .line {
   display: flex;
 }

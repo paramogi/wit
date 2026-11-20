@@ -1166,7 +1166,7 @@ fn gather_footnotes(events: Vec<Event<'_>>) -> Vec<Event<'_>> {
                 let count = referenced[number - 1].1;
                 Event::InlineHtml(
                     format!(
-                        "<sup class=\"footnote-reference\" id=\"{}\"><a href=\"#{}\">{number}</a></sup>",
+                        "<sup class=\"footnote-reference\" id=\"{}\"><a href=\"#{}\">[{number}]</a></sup>",
                         escape_str(&footnote_ref_id(&label, count)),
                         percent_encode(&format!("fn-{label}"))
                     )
@@ -1194,7 +1194,7 @@ fn gather_footnotes(events: Vec<Event<'_>>) -> Vec<Event<'_>> {
                     format!("<sup>{k}</sup>")
                 };
                 format!(
-                    " <a href=\"#{}\" class=\"footnote-backref\">↑{number}</a>",
+                    " <a href=\"#{}\" class=\"footnote-backref\">↩\u{FE0E}{number}</a>",
                     percent_encode(&footnote_ref_id(&label, k))
                 )
             })
