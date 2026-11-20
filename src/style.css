@@ -441,6 +441,11 @@ p {
   text-align: right;
 }
 
+.tree-row:hover,
+:is(#branches_content, #tags_content) > :hover {
+  background-color: #e4e7f0;
+}
+
 .tree-path {
   overflow-wrap: anywhere;
 }
