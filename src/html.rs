@@ -1690,7 +1690,7 @@ fn write_commit_row(
 ",
         &commit.id[..7],
         escape_str(&commit.author_name),
-        commit.committer_date.format(DATE_TIME),
+        commit.committer_date.format(DATE),
         escape_str(&commit.summary)
     ));
 }
