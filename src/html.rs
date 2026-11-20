@@ -817,16 +817,16 @@ pub fn gen_commit(
         escape_str(&commit.committer_name),
         escape_str(&commit.committer_email)
     );
-    let committed = commit.committer_date.format(DATE_TIME);
-    let people = if commit.author_name == commit.committer_name
-        && commit.author_email == commit.committer_email
-    {
+    let authored = commit.author_date.format(DATE_TIME).to_string();
+    let committed = commit.committer_date.format(DATE_TIME).to_string();
+    let same_person = commit.author_name == commit.committer_name
+        && commit.author_email == commit.committer_email;
+    let people = if !same_person {
+        format!("authored by {author} on {authored} and committed by {committer} on {committed}")
+    } else if authored == committed {
         format!("authored and committed by {author} on {committed}")
     } else {
-        format!(
-            "authored by {author} on {} and committed by {committer} on {committed}",
-            commit.author_date.format(DATE_TIME)
-        )
+        format!("authored by {author} on {authored}, committed on {committed}")
     };
 
     let mut body = format!(
