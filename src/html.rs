@@ -18,7 +18,7 @@ const BRIEF_COUNT: usize = 5;
 
 const DATE: &str = "%d-%m-%Y";
 
-const DATE_TIME: &str = "%d-%m-%Y&nbsp;%H:%M:%S&nbsp;%z";
+const DATE_TIME: &str = "%d-%m-%Y&nbsp;%H:%M:%S";
 
 pub const COMMITS_PER_PAGE: usize = 2000;
 
@@ -553,9 +553,21 @@ fn bar_details(repo_root: &str, id: &str, summary: &str, date: &DateTime<FixedOf
 fn date_cell(date: &DateTime<FixedOffset>) -> String {
     format!(
         "<div class=\"tree-date\" title=\"{}\">{}</div>\n",
-        date.format("%d-%m-%Y %H:%M:%S %z"),
+        format_zoned(date, DATE_TIME),
         date.format(DATE)
     )
+}
+
+fn format_zoned(date: &DateTime<FixedOffset>, format: &str) -> String {
+    let seconds = date.offset().local_minus_utc();
+    let sign = if seconds < 0 { '-' } else { '+' };
+    let (hours, minutes) = (seconds.abs() / 3600, seconds.abs() % 3600 / 60);
+    let zone = match (hours, minutes) {
+        (0, 0) => String::new(),
+        (_, 0) => format!("{sign}{hours}"),
+        _ => format!("{sign}{hours}:{minutes:02}"),
+    };
+    format!("{}&nbsp;UTC{zone}", date.format(format))
 }
 
 pub fn gen_tree(
@@ -758,6 +770,7 @@ pub fn gen_commits(
             &stats[&commit.id],
             &repo_root,
             joined,
+            &format_zoned(&commit.committer_date, "%H:%M"),
         );
         day = date;
     }
@@ -817,8 +830,8 @@ pub fn gen_commit(
         escape_str(&commit.committer_name),
         escape_str(&commit.committer_email)
     );
-    let authored = commit.author_date.format(DATE_TIME).to_string();
-    let committed = commit.committer_date.format(DATE_TIME).to_string();
+    let authored = format_zoned(&commit.author_date, DATE_TIME);
+    let committed = format_zoned(&commit.committer_date, DATE_TIME);
     let same_person = commit.author_name == commit.committer_name
         && commit.author_email == commit.committer_email;
     let people = if !same_person {
@@ -1662,6 +1675,7 @@ fn write_commit_row(
     stat: &str,
     repo_root: &str,
     joined: &str,
+    date: &str,
 ) {
     let href = format!("{repo_root}commits/{}.html", commit.id);
     let labels = ref_labels(repo, &commit.id, repo_root);
@@ -1690,7 +1704,7 @@ fn write_commit_row(
 ",
         &commit.id[..7],
         escape_str(&commit.author_name),
-        commit.committer_date.format(DATE),
+        date,
         escape_str(&commit.summary)
     ));
 }
@@ -1708,7 +1722,8 @@ fn write_briefs(body: &mut String, repo: &RepoInfo, stats: &HashMap<String, Stri
     for (n, commit) in repo.commit_list.iter().take(BRIEF_COUNT).enumerate() {
         let joined = if n == 0 { "" } else { " joined" };
         let stat = stats.get(&commit.id).map_or("", String::as_str);
-        write_commit_row(body, repo, commit, stat, "", joined);
+        let date = commit.committer_date.format(DATE).to_string();
+        write_commit_row(body, repo, commit, stat, "", joined, &date);
     }
     body.push_str("</div>\n</div>\n");
 }
