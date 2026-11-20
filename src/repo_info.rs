@@ -52,6 +52,7 @@ pub struct TreeEntry {
     pub lines: Option<usize>,
     pub bytes: Option<usize>,
     pub link: Option<String>,
+    pub commit: Option<String>,
 }
 
 pub struct Folder {
@@ -65,6 +66,7 @@ pub struct RefInfo {
     pub id: String,
     pub time: i64,
     pub folders: Vec<Folder>,
+    pub submodules: Vec<(String, String)>,
 }
 
 impl RefInfo {
@@ -140,6 +142,7 @@ impl RepoInfo {
                 id: commit.id().to_string(),
                 time: commit.committer().when().seconds(),
                 folders: Self::read_folders(repo, &commit)?,
+                submodules: Self::read_gitmodules(repo, &commit)?,
             });
         }
         branches.sort_by(RefInfo::newest_first);
@@ -167,10 +170,43 @@ impl RepoInfo {
                 id: commit.id().to_string(),
                 time: time.seconds(),
                 folders: Self::read_folders(repo, &commit)?,
+                submodules: Self::read_gitmodules(repo, &commit)?,
             });
         }
         tags.sort_by(RefInfo::newest_first);
         Ok(tags)
+    }
+
+    fn read_gitmodules(repo: &Repository, commit: &Commit) -> Result<Vec<(String, String)>> {
+        let Some(blob) = commit
+            .tree()?
+            .get_name(".gitmodules")
+            .and_then(|entry| repo.find_blob(entry.id()).ok())
+        else {
+            return Ok(Vec::new());
+        };
+        let mut sections: Vec<(Option<String>, Option<String>)> = Vec::new();
+        for line in String::from_utf8_lossy(blob.content())
+            .lines()
+            .map(str::trim)
+        {
+            if line.starts_with('[') {
+                sections.push((None, None));
+            } else if let (Some((key, value)), Some(section)) =
+                (line.split_once('='), sections.last_mut())
+            {
+                let value = Some(value.trim().trim_matches('"').to_string());
+                match key.trim().to_ascii_lowercase().as_str() {
+                    "path" => section.0 = value,
+                    "url" => section.1 = value,
+                    _ => {}
+                }
+            }
+        }
+        Ok(sections
+            .into_iter()
+            .filter_map(|(path, url)| Some((path?, url?)))
+            .collect())
     }
 
     fn read_folders(repo: &Repository, commit: &Commit) -> Result<Vec<Folder>> {
@@ -219,6 +255,7 @@ impl RepoInfo {
                 lines,
                 bytes,
                 link,
+                commit: (entry.kind() == Some(ObjectType::Commit)).then(|| entry.id().to_string()),
             });
         }
         entries.sort_by_key(|entry| !entry.is_dir);

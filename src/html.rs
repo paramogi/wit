@@ -68,6 +68,8 @@ const FOLDER_ICON: &str = include_str!("icons/file-directory-16.svg");
 
 const SYMLINK_ICON: &str = include_str!("icons/file-symlink-file-16.svg");
 
+const SUBMODULE_ICON: &str = include_str!("icons/file-submodule-16.svg");
+
 const BRANCH_ICON: &str = include_str!("icons/git-branch-16.svg");
 
 const COMMIT_ICON: &str = include_str!("icons/git-commit-16.svg");
@@ -244,7 +246,10 @@ fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
             } else {
                 ""
             };
-            Some(format!("<a{class} href=\"{href}\">{label}</a>"))
+            Some(format!(
+                "<a{class} href=\"{}\">{label}</a>",
+                escape_str(&href)
+            ))
         })
         .collect()
 }
@@ -1160,7 +1165,7 @@ fn rewrite_html(
         };
         if let Some(target) = target {
             rewritten.push_str(&html[copied..start + 1]);
-            rewritten.push_str(&target);
+            rewritten.push_str(&escape_str(&target));
             copied = start + 1 + len;
         }
     }
@@ -1182,13 +1187,21 @@ fn link_target(git_ref: &RefInfo, base: &str, repo_root: &str, url: &str) -> Opt
 
 fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
     let path = follow_links(git_ref, path)?;
-    let href = if git_ref.folders.iter().any(|folder| folder.path == path) {
-        Tab::Tree.href(&join_path(&git_ref.dir, &path))
-    } else {
-        find_file(git_ref, &path)?;
-        percent_encode(&format!("blob/{}/{path}.html", git_ref.dir))
-    };
-    Some(format!("{repo_root}{href}"))
+    if git_ref.folders.iter().any(|folder| folder.path == path) {
+        let href = Tab::Tree.href(&join_path(&git_ref.dir, &path));
+        return Some(format!("{repo_root}{href}"));
+    }
+    let entry = find_entry(git_ref, &path)?;
+    if entry.blob.is_some() {
+        let href = percent_encode(&format!("blob/{}/{path}.html", git_ref.dir));
+        return Some(format!("{repo_root}{href}"));
+    }
+    entry.commit.as_ref()?;
+    git_ref
+        .submodules
+        .iter()
+        .find(|(module, url)| *module == path && url.starts_with("https://"))
+        .map(|(_, url)| url.clone())
 }
 
 fn image_data(repo: &RepoInfo, git_ref: &RefInfo, base: &str, url: &str) -> Option<String> {
@@ -1211,13 +1224,8 @@ fn follow_links(git_ref: &RefInfo, path: &str) -> Option<String> {
     let mut path = path.to_string();
     let mut folder_only = false;
     for _ in 0..=MAX_LINKS {
-        let (dir, name) = path.rsplit_once('/').unwrap_or(("", &path));
-        let link = git_ref
-            .folders
-            .iter()
-            .find(|folder| folder.path == dir)
-            .and_then(|folder| folder.entries.iter().find(|entry| entry.name == name))
-            .and_then(|entry| entry.link.as_deref());
+        let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
+        let link = find_entry(git_ref, &path).and_then(|entry| entry.link.as_deref());
         match link {
             Some(target) if target.is_empty() || target.starts_with('/') => return None,
             Some(target) => {
@@ -1247,7 +1255,7 @@ fn resolve_path(base: &str, path: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
-fn find_file<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
+fn find_entry<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
     let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
     git_ref
         .folders
@@ -1255,7 +1263,11 @@ fn find_file<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
         .find(|folder| folder.path == dir)?
         .entries
         .iter()
-        .find(|entry| entry.name == name && entry.blob.is_some())
+        .find(|entry| entry.name == name)
+}
+
+fn find_file<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
+    find_entry(git_ref, path).filter(|entry| entry.blob.is_some())
 }
 
 fn percent_decode(s: &str) -> Option<String> {
@@ -1325,10 +1337,12 @@ fn ref_bar(
     let mut bar =
         String::from("<div class=\"box sticky flex items-center gap border-visited flex-wrap\">\n");
     bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree));
-    let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty()).collect();
-    let mut tree_path = git_ref.dir.clone();
-    for (i, part) in parts.iter().enumerate() {
-        tree_path = format!("{tree_path}/{part}");
+    let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
+    for part in path.split('/').filter(|p| !p.is_empty()) {
+        let tree_path = format!("{}/{part}", parts[parts.len() - 1].1);
+        parts.push((part, tree_path));
+    }
+    for (i, (part, tree_path)) in parts.iter().enumerate() {
         if i > 0 {
             bar.push_str("<span>/</span>\n");
         }
@@ -1338,7 +1352,7 @@ fn ref_bar(
                 escape_str(part)
             ));
         } else {
-            let href = format!("{repo_root}{}", Tab::Tree.href(&tree_path));
+            let href = format!("{repo_root}{}", Tab::Tree.href(tree_path));
             bar.push_str(&format!("{}\n", crumb(part, Some(href))));
         }
     }
@@ -1430,18 +1444,26 @@ fn write_listing(
     body.push_str("<div class=\"box p-0\">\n");
     for entry in &folder.entries {
         let name = &entry.name;
-        let link = |href: String| format!("<a href=\"{href}\">{}</a>", escape_str(name));
+        let link =
+            |href: String| format!("<a href=\"{}\">{}</a>", escape_str(&href), escape_str(name));
+        let leads = || {
+            path_href(git_ref, repo_root, &join_path(&folder.path, name))
+                .map_or_else(|| escape_str(name), link)
+        };
         let (icon, name) = if entry.is_dir {
             (
                 FOLDER_ICON,
                 link(percent_encode(&format!("{tree_dir}{name}/index.html"))),
             )
         } else if let Some(target) = &entry.link {
-            let shown = path_href(git_ref, repo_root, &join_path(&folder.path, name))
-                .map_or_else(|| escape_str(name), link);
             (
                 SYMLINK_ICON,
-                format!("<span>{shown} &rarr; {}</span>", escape_str(target)),
+                format!("<span>{} &rarr; {}</span>", leads(), escape_str(target)),
+            )
+        } else if let Some(commit) = &entry.commit {
+            (
+                SUBMODULE_ICON,
+                format!("<span>{} @ {}</span>", leads(), &commit[..7]),
             )
         } else {
             (
