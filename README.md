@@ -8,6 +8,7 @@ Create dependencies:
 - chrono
 - pulldown-cmark
 - anyhow
+- imagesize
 
 ## Usage:
 

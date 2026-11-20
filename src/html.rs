@@ -671,8 +671,12 @@ pub fn gen_blob(
         .map(|n| format!("<span>{n} loc</span>\n"))
         .unwrap_or_default();
     let bytes = entry.bytes.map(format_bytes).unwrap_or_default();
+    let pixels = image_type(&entry.name)
+        .and_then(|mime| image_size(mime, content))
+        .map(|(width, height)| format!("<span>{width}x{height}px</span>\n"))
+        .unwrap_or_default();
     body.push_str(&format!(
-        "<div class=\"flex items-center file-head\">\n<div class=\"flex gap file-size\">\n{lines}<span>{bytes}</span>\n</div>\n"
+        "<div class=\"flex items-center file-head\">\n<div class=\"flex gap file-size\">\n{lines}<span>{bytes}</span>\n{pixels}</div>\n"
     ));
     if has_source_page(entry) {
         let root = if source { "blob" } else { "source" };
@@ -1293,13 +1297,18 @@ fn raw_headings(html: &str) -> Vec<(usize, String)> {
             continue;
         }
         let mut text = String::new();
-        let mut in_tag = false;
+        let mut until = None;
         for c in html[open_end + 1..close].chars() {
-            match c {
-                '<' => in_tag = true,
-                '>' => in_tag = false,
-                _ if !in_tag => text.push(c),
-                _ => {}
+            match until {
+                Some(end) if c == end => until = None,
+                Some(';') if !c.is_ascii_alphanumeric() && c != '#' => {
+                    until = None;
+                    text.push(c);
+                }
+                Some(_) => {}
+                None if c == '<' => until = Some('>'),
+                None if c == '&' => until = Some(';'),
+                None => text.push(c),
             }
         }
         headings.push((open_end, text.trim().to_string()));
@@ -1487,6 +1496,49 @@ fn image_type(name: &str) -> Option<&'static str> {
         .iter()
         .find(|(known, _)| ext.eq_ignore_ascii_case(known))
         .map(|(_, mime)| *mime)
+}
+
+fn image_size(mime: &str, content: &[u8]) -> Option<(usize, usize)> {
+    if mime != "image/svg+xml" {
+        let size = imagesize::blob_size(content).ok()?;
+        return Some((size.width, size.height));
+    }
+    let text = String::from_utf8_lossy(content);
+    let start = text.find("<svg")?;
+    let tag = &text[start..start + text[start..].find('>')?];
+    let number = |value: &str| value.trim().trim_end_matches("px").parse::<f64>().ok();
+    if let (Some(width), Some(height)) = (
+        attr(tag, "width").and_then(number),
+        attr(tag, "height").and_then(number),
+    ) {
+        return Some((width.round() as usize, height.round() as usize));
+    }
+    let view_box: Vec<f64> = attr(tag, "viewBox")?
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|part| !part.is_empty())
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()?;
+    match view_box[..] {
+        [_, _, width, height] => Some((width.round() as usize, height.round() as usize)),
+        _ => None,
+    }
+}
+
+fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
+    let mut from = 0;
+    while let Some(i) = tag[from..].find(name).map(|i| from + i) {
+        from = i + name.len();
+        if !tag[..i].ends_with(|c: char| c.is_ascii_whitespace()) {
+            continue;
+        }
+        let Some(value) = tag[from..].strip_prefix('=') else {
+            continue;
+        };
+        let quote = value.chars().next().filter(|c| matches!(c, '"' | '\''))?;
+        return value[1..].find(quote).map(|end| &value[1..1 + end]);
+    }
+    None
 }
 
 fn base64(bytes: &[u8]) -> String {
