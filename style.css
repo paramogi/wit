@@ -510,6 +510,10 @@ p {
   color: #7689b3;
 }
 
+.release-date {
+  width: auto;
+}
+
 .fits {
   display: flex;
   flex-wrap: wrap;

@@ -577,22 +577,28 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
 
     let mut body = String::new();
     for (release, sums) in repo.releases.iter().zip(sums) {
+        let Some(tag) = repo.tags.iter().find(|t| t.name == release.tag) else {
+            continue;
+        };
         body.push_str(&format!(
             "\
 <div class=\"box mt-0 p-0\">\n\
 <div class=\"flex items-center gap-2 py px border-b\">\n\
-<div class=\"flex-1 flex items-center gap font-bold\">{}<a href=\"{}\">{}</a></div>\n\
-{}\
+<div class=\"flex items-center gap font-bold\">{}<a href=\"{}\">{}</a></div>\n\
+<div class=\"flex items-center gap tree-commit mono\">{}<a href=\"commits/{}.html\">{}</a></div>\n\
+<div class=\"ml-auto tree-date release-date\" title=\"{}\">released {}</div>\n\
 </div>\n\
 ",
             icon("tag"),
             Tab::Tree.href(&format!("tags/{}", release.tag)),
             escape_str(&release.tag),
-            date_cell(&release.date)
+            icon("git-commit"),
+            tag.id,
+            &tag.id[..7],
+            format_zoned(&release.date, DATE_TIME),
+            release.date.format(DATE)
         ));
-        if !release.notes.is_empty()
-            && let Some(tag) = repo.tags.iter().find(|t| t.name == release.tag)
-        {
+        if !release.notes.is_empty() {
             let notes = release.notes.as_bytes();
             write_markdown(
                 &mut body,
