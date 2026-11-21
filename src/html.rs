@@ -1681,7 +1681,7 @@ fn write_code(body: &mut String, content: &[u8]) {
     for (i, line) in lines.iter().enumerate() {
         let n = i + 1;
         body.push_str(&format!(
-            "<span class=\"line\"><span class=\"ln\" id=\"{n}\"><a class=\"lnlinks\" href=\"#{n}\">{n:>width$}</a></span><span class=\"cl\">{}</span></span>",
+            "<span class=\"line\"><span class=\"ln\" id=\"L{n}\"><a class=\"lnlinks\" href=\"#L{n}\">{n:>width$}</a></span><span class=\"cl\">{}</span></span>",
             escape_str(line)
         ));
     }
