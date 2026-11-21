@@ -90,7 +90,7 @@ pub struct RepoInfo {
 }
 
 impl RepoInfo {
-    pub fn open(path: &str, default_owner: Option<&str>) -> Result<Option<Self>> {
+    pub fn open(path: &str, default_owner: Option<&str>) -> Result<Result<Self, &'static str>> {
         let repo = Repository::open(path)?;
         let (head_branch, head_id) = match repo.head() {
             Ok(head) if head.is_branch() => (
@@ -98,7 +98,9 @@ impl RepoInfo {
                 head.peel_to_commit()?.id().to_string(),
             ),
             Ok(head) => (None, head.peel_to_commit()?.id().to_string()),
-            Err(e) if e.code() == ErrorCode::UnbornBranch => return Ok(None),
+            Err(e) if e.code() == ErrorCode::UnbornBranch => {
+                return Ok(Err("HEAD's branch has no commits"));
+            }
             Err(e) => return Err(e.into()),
         };
         let repo_path = repo.path();
@@ -122,11 +124,11 @@ impl RepoInfo {
                 .or(branches.first()),
         };
         let Some(head_ref) = head_ref else {
-            return Ok(None);
+            return Ok(Err("detached HEAD isn't on any branch or tag"));
         };
         let head_dir = head_ref.dir.clone();
         let commit_list = Self::walk(&repo, Oid::from_str(&head_ref.id)?)?;
-        Ok(Some(Self {
+        Ok(Ok(Self {
             git: repo,
             path: path.to_string(),
             name,

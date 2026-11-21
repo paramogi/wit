@@ -121,9 +121,12 @@ fn run() -> Result<()> {
     let mut repos: Vec<RepoInfo> = Vec::new();
     for path in &args.repos {
         let repo = RepoInfo::open(path, args.owner.as_deref()).with_context(|| path.clone())?;
-        let Some(repo) = repo else {
-            eprintln!("{path}: HEAD's branch has no commits, skipped");
-            continue;
+        let repo = match repo {
+            Ok(repo) => repo,
+            Err(reason) => {
+                eprintln!("{path}: {reason}, skipped");
+                continue;
+            }
         };
         if let Some(clash) = page_clash(&repo) {
             eprintln!("{path}: {clash}, skipped");
