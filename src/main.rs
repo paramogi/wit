@@ -14,16 +14,14 @@ use std::{
     iter,
     path::{Path, PathBuf},
     process,
-    time::UNIX_EPOCH,
 };
 
-const USAGE: &str = "usage: wit [-O owner] -o outdir repo.git...";
-
-const STATE_FILE: &str = ".wit-state";
+const USAGE: &str = "usage: wit [-O owner] [-u repo.git] -o outdir repo.git...";
 
 struct Args {
     owner: Option<String>,
     out_dir: PathBuf,
+    update: Option<String>,
     repos: Vec<String>,
 }
 
@@ -37,12 +35,14 @@ fn main() {
 fn parse_args() -> Result<Args> {
     let mut owner = None;
     let mut out_dir = None;
+    let mut update = None;
     let mut repos = Vec::new();
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-O" => owner = Some(args.next().context(USAGE)?),
             "-o" => out_dir = Some(PathBuf::from(args.next().context(USAGE)?)),
+            "-u" => update = Some(args.next().context(USAGE)?),
             s if s.starts_with('-') => bail!(USAGE),
             _ => repos.push(arg),
         }
@@ -54,6 +54,7 @@ fn parse_args() -> Result<Args> {
     Ok(Args {
         owner,
         out_dir,
+        update,
         repos,
     })
 }
@@ -114,6 +115,17 @@ fn page_clash(repo: &RepoInfo) -> Option<String> {
 
 fn run() -> Result<()> {
     let args = parse_args()?;
+    let update = args
+        .update
+        .as_ref()
+        .map(|path| fs::canonicalize(path).with_context(|| path.clone()))
+        .transpose()?;
+    let is_update = |path: &str| fs::canonicalize(path).ok() == update;
+    if let Some(path) = &args.update
+        && !args.repos.iter().any(|repo| is_update(repo))
+    {
+        bail!("-u {path}: not one of the repos");
+    }
     let mut repos: Vec<RepoInfo> = Vec::new();
     for path in &args.repos {
         let repo = RepoInfo::open(path, args.owner.as_deref()).with_context(|| path.clone())?;
@@ -138,26 +150,10 @@ fn run() -> Result<()> {
         }
         repos.push(repo);
     }
-    let wit = env::current_exe()
-        .and_then(fs::metadata)
-        .and_then(|meta| meta.modified())
-        .context("wit's own binary")?;
-    let wit = wit.duration_since(UNIX_EPOCH)?.as_nanos();
     write_file(&args.out_dir.join("index.html"), &gen_index(&repos))?;
     for repo in &repos {
         let repo_dir = args.out_dir.join(&repo.name);
-        let mut state = format!(
-            "{wit}\n{}\n{}\n{}\n{}\n",
-            repo.name, repo.description, repo.owner, repo.head_dir
-        );
-        for git_ref in repo.branches.iter().chain(&repo.tags) {
-            state.push_str(&format!(
-                "{} {} {}\n",
-                git_ref.id, git_ref.time, git_ref.dir
-            ));
-        }
-        let state_file = repo_dir.join(STATE_FILE);
-        if fs::read_to_string(&state_file).is_ok_and(|old| old == state) {
+        if update.is_some() && !is_update(&repo.path) && repo_dir.exists() {
             continue;
         }
         match fs::remove_dir_all(&repo_dir) {
@@ -234,7 +230,6 @@ fn run() -> Result<()> {
             &repo_dir.join("index.html"),
             &gen_summary(repo, &stats, &head_last),
         )?;
-        write_file(&state_file, &state)?;
     }
     Ok(())
 }

@@ -1,2 +1,2 @@
 #!/bin/sh
-wit -o /var/www/git /srv/git/*.git
+wit -o /var/www/git -u . /srv/git/*.git

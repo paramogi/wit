@@ -20,7 +20,7 @@ wit doesn't write a stylesheet. Copy `style.css` into the site dir (the one afte
 
 ### Rebuilding on every push
 
-Copy `contrib/post-receive` into each bare repo's `hooks/` dir, keep it executable, and set its paths: the site dir after `-o`, then every repo the site lists. Each run rewrites the index, and only rebuilds the repos that changed since the last run (their branches, tags, description or owner), or all of them after wit itself is updated. A rebuilt repo's old pages are deleted first.
+Copy `contrib/post-receive` into each bare repo's `hooks/` dir, keep it executable, and set its paths: the site dir after `-o`, then every repo the site lists. git runs the hook inside the pushed repo, so `-u .` rebuilds only that repo, plus any repo that has no pages yet; the index is rewritten from all of them. Run wit without `-u` to rebuild every repo, e.g. after updating wit or changing a description or owner. A rebuilt repo's old pages are deleted first.
 
 ## Credits
 
