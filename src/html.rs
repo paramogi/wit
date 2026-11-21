@@ -1,5 +1,5 @@
 use crate::repo_info::{
-    CommitDiff, CommitInfo, FileChange, Folder, Line, RefInfo, RepoInfo, TreeEntry,
+    CommitDiff, CommitInfo, Dir, FileChange, Line, RefInfo, RepoInfo, TreeEntry,
 };
 
 use chrono::{DateTime, FixedOffset};
@@ -68,7 +68,7 @@ const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 
 const FILE_ICON: &str = include_str!("icons/file-16.svg");
 
-const FOLDER_ICON: &str = include_str!("icons/file-directory-16.svg");
+const DIR_ICON: &str = include_str!("icons/file-directory-16.svg");
 
 const SYMLINK_ICON: &str = include_str!("icons/file-symlink-file-16.svg");
 
@@ -236,21 +236,21 @@ fn find_ref<'a>(repo: &'a RepoInfo, dir: &str) -> Option<&'a RefInfo> {
         .find(|git_ref| git_ref.dir == dir)
 }
 
-fn root_folder(git_ref: &RefInfo) -> Option<&Folder> {
-    git_ref.folders.iter().find(|f| f.path.is_empty())
+fn root_dir(git_ref: &RefInfo) -> Option<&Dir> {
+    git_ref.dirs.iter().find(|d| d.path.is_empty())
 }
 
-fn repo_file<'a>(folder: &'a Folder, names: &[&str]) -> Option<&'a TreeEntry> {
+fn repo_file<'a>(dir: &'a Dir, names: &[&str]) -> Option<&'a TreeEntry> {
     names
         .iter()
-        .find_map(|name| folder.entries.iter().find(|e| !e.is_dir && e.name == *name))
+        .find_map(|name| dir.entries.iter().find(|e| !e.is_dir && e.name == *name))
 }
 
 fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
     let Some(git_ref) = find_ref(nav.repo, nav.git_ref) else {
         return Vec::new();
     };
-    let Some(root) = root_folder(git_ref) else {
+    let Some(root) = root_dir(git_ref) else {
         return Vec::new();
     };
     REPO_FILES
@@ -271,15 +271,9 @@ fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
         .collect()
 }
 
-fn write_readme(
-    body: &mut String,
-    repo: &RepoInfo,
-    git_ref: &RefInfo,
-    folder: &Folder,
-    repo_root: &str,
-) {
-    let Some(path) = repo_file(folder, &README_NAMES)
-        .and_then(|entry| follow_links(git_ref, &join_path(&folder.path, &entry.name)))
+fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, dir: &Dir, repo_root: &str) {
+    let Some(path) = repo_file(dir, &README_NAMES)
+        .and_then(|entry| follow_links(git_ref, &join_path(&dir.path, &entry.name)))
     else {
         return;
     };
@@ -305,7 +299,7 @@ fn write_readme(
     let markdown = is_markdown(&entry.name);
     write_file_head(body, entry, content, markdown);
     if markdown {
-        let base = path.rsplit_once('/').map_or("", |(dir, _)| dir);
+        let base = path.rsplit_once('/').map_or("", |(parent, _)| parent);
         write_markdown(body, repo, git_ref, base, repo_root, content);
         write_code(body, content);
     } else {
@@ -493,7 +487,7 @@ pub fn gen_summary(
     }
     let head = find_ref(repo, &repo.head_dir);
     if let Some(head) = head
-        && let Some(root) = root_folder(head)
+        && let Some(root) = root_dir(head)
     {
         body.push_str(
             "\
@@ -600,10 +594,10 @@ fn format_zoned(date: &DateTime<FixedOffset>, format: &str) -> String {
 pub fn gen_tree(
     repo: &RepoInfo,
     git_ref: &RefInfo,
-    folder: &Folder,
+    dir: &Dir,
     last: &HashMap<String, &CommitInfo>,
 ) -> String {
-    let tree_path = join_path(&git_ref.dir, &folder.path);
+    let tree_path = join_path(&git_ref.dir, &dir.path);
     let depth = 1 + tree_path.split('/').count();
     let nav = RepoNav {
         repo,
@@ -615,10 +609,10 @@ pub fn gen_tree(
     let repo_root = "../".repeat(depth);
     let blob_dir = format!("{repo_root}blob/{tree_path}/");
 
-    let details = if folder.path.is_empty() {
+    let details = if dir.path.is_empty() {
         bar_details(&repo_root, &git_ref.id, &git_ref.summary, &git_ref.date)
     } else {
-        last.get(&folder.path).map_or_else(String::new, |commit| {
+        last.get(&dir.path).map_or_else(String::new, |commit| {
             bar_details(
                 &repo_root,
                 &commit.id,
@@ -628,9 +622,9 @@ pub fn gen_tree(
         })
     };
 
-    let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, &details);
-    write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
-    write_readme(&mut body, repo, git_ref, folder, &repo_root);
+    let mut body = ref_bar(repo, git_ref, &dir.path, &repo_root, &details);
+    write_listing(&mut body, git_ref, dir, &repo_root, "", &blob_dir, last);
+    write_readme(&mut body, repo, git_ref, dir, &repo_root);
 
     let title = format!("{}/{}", repo.name, git_ref.name);
     wrap_page(&title, Some(&nav), &body)
@@ -639,13 +633,13 @@ pub fn gen_tree(
 pub fn gen_blob(
     repo: &RepoInfo,
     git_ref: &RefInfo,
-    folder: &Folder,
+    dir: &Dir,
     entry: &TreeEntry,
     content: &[u8],
     last: &HashMap<String, &CommitInfo>,
 ) -> String {
-    let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
-    let path = join_path(&folder.path, &entry.name);
+    let depth = 1 + join_path(&git_ref.dir, &dir.path).split('/').count();
+    let path = join_path(&dir.path, &entry.name);
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
@@ -674,7 +668,7 @@ pub fn gen_blob(
             escape_str(&entry.name)
         )),
         None if text && is_markdown(&entry.name) => {
-            write_markdown(&mut body, repo, git_ref, &folder.path, &repo_root, content)
+            write_markdown(&mut body, repo, git_ref, &dir.path, &repo_root, content)
         }
         _ if text => write_code(&mut body, content),
         _ => body.push_str("binary file, cannot display\n"),
@@ -1387,7 +1381,7 @@ fn link_target(git_ref: &RefInfo, base: &str, repo_root: &str, url: &str) -> Opt
 
 fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
     let path = follow_links(git_ref, path)?;
-    if git_ref.folders.iter().any(|folder| folder.path == path) {
+    if git_ref.dirs.iter().any(|d| d.path == path) {
         let href = Tab::Tree.href(&join_path(&git_ref.dir, &path));
         return Some(format!("{repo_root}{href}"));
     }
@@ -1422,19 +1416,19 @@ fn repo_path(base: &str, url: &str) -> Option<String> {
 
 fn follow_links(git_ref: &RefInfo, path: &str) -> Option<String> {
     let mut path = path.to_string();
-    let mut folder_only = false;
+    let mut dir_only = false;
     for _ in 0..=MAX_LINKS {
         let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
         let link = find_entry(git_ref, &path).and_then(|entry| entry.link.as_deref());
         match link {
             Some(target) if target.is_empty() || target.starts_with('/') => return None,
             Some(target) => {
-                folder_only |= target.ends_with('/');
+                dir_only |= target.ends_with('/');
                 path = resolve_path(dir, target)?;
             }
             None => {
-                let is_folder = git_ref.folders.iter().any(|folder| folder.path == path);
-                return (is_folder || !folder_only).then_some(path);
+                let is_dir = git_ref.dirs.iter().any(|d| d.path == path);
+                return (is_dir || !dir_only).then_some(path);
             }
         }
     }
@@ -1458,9 +1452,9 @@ fn resolve_path(base: &str, path: &str) -> Option<String> {
 fn find_entry<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
     let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
     git_ref
-        .folders
+        .dirs
         .iter()
-        .find(|folder| folder.path == dir)?
+        .find(|d| d.path == dir)?
         .entries
         .iter()
         .find(|entry| entry.name == name)
@@ -1613,7 +1607,7 @@ fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
         return (href, true);
     }
     let mut dir = path;
-    while !dir.is_empty() && !git_ref.folders.iter().any(|folder| folder.path == dir) {
+    while !dir.is_empty() && !git_ref.dirs.iter().any(|d| d.path == dir) {
         dir = dir.rsplit_once('/').map_or("", |(parent, _)| parent);
     }
     (Tab::Tree.href(&join_path(&git_ref.dir, dir)), dir == path)
@@ -1701,16 +1695,16 @@ fn write_code(body: &mut String, content: &[u8]) {
 fn write_listing(
     body: &mut String,
     git_ref: &RefInfo,
-    folder: &Folder,
+    dir: &Dir,
     repo_root: &str,
     tree_dir: &str,
     blob_dir: &str,
     last: &HashMap<String, &CommitInfo>,
 ) {
     body.push_str("<div class=\"box p-0\">\n");
-    for entry in &folder.entries {
+    for entry in &dir.entries {
         let name = &entry.name;
-        let path = join_path(&folder.path, name);
+        let path = join_path(&dir.path, name);
         let link = |href: String, text: String| {
             format!(
                 "<a class=\"truncate\" href=\"{}\">{text}</a>",
@@ -1732,7 +1726,7 @@ fn write_listing(
         };
         let (icon, name) = if entry.is_dir {
             let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
-            (FOLDER_ICON, link(href, escape_str(name)))
+            (DIR_ICON, link(href, escape_str(name)))
         } else if let Some(target) = &entry.link {
             let text = format!("{} &rarr; {}", escape_str(name), escape_str(target));
             (SYMLINK_ICON, leads(text))

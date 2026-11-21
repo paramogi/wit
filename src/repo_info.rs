@@ -55,7 +55,7 @@ pub struct TreeEntry {
     pub commit: Option<String>,
 }
 
-pub struct Folder {
+pub struct Dir {
     pub path: String,
     pub entries: Vec<TreeEntry>,
 }
@@ -67,7 +67,7 @@ pub struct RefInfo {
     pub time: i64,
     pub date: DateTime<FixedOffset>,
     pub summary: String,
-    pub folders: Vec<Folder>,
+    pub dirs: Vec<Dir>,
     pub submodules: Vec<(String, String)>,
 }
 
@@ -151,7 +151,7 @@ impl RepoInfo {
                 time: commit.committer().when().seconds(),
                 date: Self::commit_date(&commit)?,
                 summary: Self::commit_summary(&commit),
-                folders: Self::read_folders(repo, &commit)?,
+                dirs: Self::read_dirs(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
         }
@@ -181,7 +181,7 @@ impl RepoInfo {
                 time: time.seconds(),
                 date: Self::commit_date(&commit)?,
                 summary: Self::commit_summary(&commit),
-                folders: Self::read_folders(repo, &commit)?,
+                dirs: Self::read_dirs(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
         }
@@ -221,18 +221,13 @@ impl RepoInfo {
             .collect())
     }
 
-    fn read_folders(repo: &Repository, commit: &Commit) -> Result<Vec<Folder>> {
-        let mut folders = Vec::new();
-        Self::read_folder(repo, &commit.tree()?, "", &mut folders)?;
-        Ok(folders)
+    fn read_dirs(repo: &Repository, commit: &Commit) -> Result<Vec<Dir>> {
+        let mut dirs = Vec::new();
+        Self::read_dir(repo, &commit.tree()?, "", &mut dirs)?;
+        Ok(dirs)
     }
 
-    fn read_folder(
-        repo: &Repository,
-        tree: &Tree,
-        path: &str,
-        folders: &mut Vec<Folder>,
-    ) -> Result<()> {
+    fn read_dir(repo: &Repository, tree: &Tree, path: &str, dirs: &mut Vec<Dir>) -> Result<()> {
         let mut entries = Vec::new();
         for entry in tree.iter() {
             let Ok(name) = entry.name() else {
@@ -255,7 +250,7 @@ impl RepoInfo {
                     } else {
                         format!("{path}/{name}")
                     };
-                    Self::read_folder(repo, &repo.find_tree(entry.id())?, &sub_path, folders)?;
+                    Self::read_dir(repo, &repo.find_tree(entry.id())?, &sub_path, dirs)?;
                     (None, None, None, None)
                 }
                 _ => (None, None, None, None),
@@ -271,7 +266,7 @@ impl RepoInfo {
             });
         }
         entries.sort_by_key(|entry| !entry.is_dir);
-        folders.push(Folder {
+        dirs.push(Dir {
             path: path.to_string(),
             entries,
         });

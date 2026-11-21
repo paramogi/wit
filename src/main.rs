@@ -90,25 +90,21 @@ fn last_changes<'a>(
 
 fn page_clash(repo: &RepoInfo) -> Option<String> {
     for git_ref in repo.branches.iter().chain(&repo.tags) {
-        for folder in &git_ref.folders {
-            for entry in folder.entries.iter().filter(|e| e.is_dir) {
+        for dir in &git_ref.dirs {
+            for entry in dir.entries.iter().filter(|e| e.is_dir) {
                 let clashes = entry.name == "index.html"
                     || entry.name.strip_suffix(".html").is_some_and(|file| {
-                        folder
-                            .entries
+                        dir.entries
                             .iter()
                             .any(|e| e.blob.is_some() && e.name == file)
                     });
                 if clashes {
-                    let dir = if folder.path.is_empty() {
+                    let path = if dir.path.is_empty() {
                         entry.name.clone()
                     } else {
-                        format!("{}/{}", folder.path, entry.name)
+                        format!("{}/{}", dir.path, entry.name)
                     };
-                    return Some(format!(
-                        "folder {dir} in {} clashes with a page",
-                        git_ref.name
-                    ));
+                    return Some(format!("dir {path} in {} clashes with a page", git_ref.dir));
                 }
             }
         }
@@ -214,21 +210,21 @@ fn run() -> Result<()> {
                     &gen_commits(repo, git_ref, &commits, &stats, page),
                 )?;
             }
-            for folder in &git_ref.folders {
-                let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&folder.path);
+            for dir in &git_ref.dirs {
+                let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&dir.path);
                 write_file(
                     &tree_dir.join("index.html"),
-                    &gen_tree(repo, git_ref, folder, &last),
+                    &gen_tree(repo, git_ref, dir, &last),
                 )?;
-                let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&folder.path);
-                for entry in &folder.entries {
+                let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&dir.path);
+                for entry in &dir.entries {
                     let Some(id) = entry.blob else {
                         continue;
                     };
                     let blob = repo.git.find_blob(id).with_context(|| repo.path.clone())?;
                     write_file(
                         &blob_dir.join(format!("{}.html", entry.name)),
-                        &gen_blob(repo, git_ref, folder, entry, blob.content(), &last),
+                        &gen_blob(repo, git_ref, dir, entry, blob.content(), &last),
                     )?;
                 }
             }
