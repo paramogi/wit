@@ -524,8 +524,7 @@ pub fn gen_summary(
         let details = bar_details("", &head.id, &head.summary, &head.date);
         body.push_str(&ref_bar(repo, head, "", "", &details));
         let tree_dir = format!("tree/{}/", repo.head_dir);
-        let blob_dir = format!("blob/{}/", repo.head_dir);
-        write_listing(&mut body, head, root, "", &tree_dir, &blob_dir, last);
+        write_listing(&mut body, head, root, "", &tree_dir, last);
         body.push_str("</div>\n</div>\n");
         write_readme(&mut body, repo, head, root, "");
     }
@@ -653,7 +652,6 @@ pub fn gen_tree(
         path: "",
     };
     let repo_root = "../".repeat(depth);
-    let blob_dir = format!("{repo_root}blob/{}/", join_path(&git_ref.dir, &dir.path));
 
     let details = if dir.path.is_empty() {
         bar_details(&repo_root, &git_ref.id, &git_ref.summary, &git_ref.date)
@@ -662,7 +660,7 @@ pub fn gen_tree(
     };
 
     let mut body = ref_bar(repo, git_ref, &dir.path, &repo_root, &details);
-    write_listing(&mut body, git_ref, dir, &repo_root, "", &blob_dir, last);
+    write_listing(&mut body, git_ref, dir, &repo_root, "", last);
     write_readme(&mut body, repo, git_ref, dir, &repo_root);
 
     let title = format!("{}/{}", repo.name, git_ref.name);
@@ -1729,7 +1727,6 @@ fn write_listing(
     dir: &Dir,
     repo_root: &str,
     tree_dir: &str,
-    blob_dir: &str,
     last: &HashMap<String, &CommitInfo>,
 ) {
     body.push_str("<div class=\"box p-0\">\n");
@@ -1765,8 +1762,7 @@ fn write_listing(
             let text = format!("{} @ {}", escape_str(name), &commit[..7]);
             ("file-submodule", leads(text))
         } else {
-            let href = percent_encode(&format!("{blob_dir}{name}.html"));
-            ("file", link(href, escape_str(name)))
+            ("file", leads(escape_str(name)))
         };
         body.push_str(&format!(
             "\
