@@ -4,7 +4,7 @@ mod repo_info;
 use anyhow::{Context, Result, bail};
 use html::{
     COMMITS_PER_PAGE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit, gen_commits,
-    gen_index, gen_summary, gen_tags, gen_tree, has_source_page,
+    gen_index, gen_summary, gen_tags, gen_tree,
 };
 use repo_info::{CommitInfo, RepoInfo};
 use std::{
@@ -182,26 +182,15 @@ fn run() -> Result<()> {
                     &gen_tree(repo, git_ref, folder, &last),
                 )?;
                 let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&folder.path);
-                let source_dir = repo_dir
-                    .join("source")
-                    .join(&git_ref.dir)
-                    .join(&folder.path);
                 for entry in &folder.entries {
                     let Some(id) = entry.blob else {
                         continue;
                     };
                     let blob = repo.git.find_blob(id).with_context(|| repo.path.clone())?;
-                    let page_name = format!("{}.html", entry.name);
                     write_file(
-                        &blob_dir.join(&page_name),
-                        &gen_blob(repo, git_ref, folder, entry, blob.content(), false, &last),
+                        &blob_dir.join(format!("{}.html", entry.name)),
+                        &gen_blob(repo, git_ref, folder, entry, blob.content(), &last),
                     )?;
-                    if has_source_page(entry) {
-                        write_file(
-                            &source_dir.join(&page_name),
-                            &gen_blob(repo, git_ref, folder, entry, blob.content(), true, &last),
-                        )?;
-                    }
                 }
             }
         }

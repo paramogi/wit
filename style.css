@@ -65,7 +65,8 @@ code svg {
 }
 
 .ref-menu summary,
-.ref-menu label {
+.ref-menu label,
+.view-switch label {
   list-style: none;
   cursor: pointer;
 }
@@ -282,7 +283,12 @@ p {
 }
 
 .ref-bar {
+  z-index: 1;
   padding-right: 0.5rem;
+}
+
+.summary-tree .ref-bar {
+  position: static;
 }
 
 .mt-0 {
@@ -359,8 +365,24 @@ p {
   margin-bottom: -1px;
 }
 
-.file-head + * {
+.file-head ~ * {
   margin-top: 0;
+}
+
+.view-switch {
+  float: right;
+  position: sticky;
+  top: 0;
+  margin-bottom: -1px;
+}
+
+.action-code .view-switch {
+  top: 2.65rem;
+}
+
+#view-source:checked ~ .box,
+#view-rendered:checked ~ .chroma {
+  display: none;
 }
 
 .ref-menu-list {
@@ -410,12 +432,16 @@ p {
 }
 
 #ref-branches:checked ~ .ref-kinds [for="ref-branches"],
-#ref-tags:checked ~ .ref-kinds [for="ref-tags"] {
+#ref-tags:checked ~ .ref-kinds [for="ref-tags"],
+#view-source:checked ~ .view-switch [for="view-source"],
+#view-rendered:checked ~ .view-switch [for="view-rendered"] {
   background-color: #d6dce8;
 }
 
 #ref-branches:checked ~ .ref-kinds [for="ref-branches"]:hover,
-#ref-tags:checked ~ .ref-kinds [for="ref-tags"]:hover {
+#ref-tags:checked ~ .ref-kinds [for="ref-tags"]:hover,
+#view-source:checked ~ .view-switch [for="view-source"]:hover,
+#view-rendered:checked ~ .view-switch [for="view-rendered"]:hover {
   background-color: #c8d0e1;
 }
 

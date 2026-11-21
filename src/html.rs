@@ -298,13 +298,17 @@ fn write_readme(
 </header>\n\
 ",
     );
-    if is_markdown(&entry.name) {
+    let content = blob.content();
+    let markdown = is_markdown(&entry.name);
+    write_file_head(body, entry, content, markdown);
+    if markdown {
         let base = path.rsplit_once('/').map_or("", |(dir, _)| dir);
-        write_markdown(body, repo, git_ref, base, repo_root, blob.content());
+        write_markdown(body, repo, git_ref, base, repo_root, content);
+        write_code(body, content);
     } else {
         body.push_str(&format!(
             "<pre class=\"white-space-bs\">{}</pre>\n",
-            escape_str(&String::from_utf8_lossy(blob.content()))
+            escape_str(&String::from_utf8_lossy(content))
         ));
     }
     body.push_str("</div>\n");
@@ -498,7 +502,7 @@ pub fn gen_summary(
 ",
         );
         let details = bar_details("", &head.id, &head.summary, &head.date);
-        body.push_str(&ref_bar(repo, head, "", false, "", &details));
+        body.push_str(&ref_bar(repo, head, "", "", &details));
         let tree_dir = format!("tree/{}/", repo.head_dir);
         let blob_dir = format!("blob/{}/", repo.head_dir);
         write_listing(&mut body, head, root, "", &tree_dir, &blob_dir, last);
@@ -621,7 +625,7 @@ pub fn gen_tree(
         })
     };
 
-    let mut body = ref_bar(repo, git_ref, &folder.path, false, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &folder.path, &repo_root, &details);
     write_listing(&mut body, git_ref, folder, &repo_root, "", &blob_dir, last);
     write_readme(&mut body, repo, git_ref, folder, &repo_root);
 
@@ -635,7 +639,6 @@ pub fn gen_blob(
     folder: &Folder,
     entry: &TreeEntry,
     content: &[u8],
-    source: bool,
     last: &HashMap<String, &CommitInfo>,
 ) -> String {
     let depth = 1 + join_path(&git_ref.dir, &folder.path).split('/').count();
@@ -657,7 +660,41 @@ pub fn gen_blob(
         )
     });
 
-    let mut body = ref_bar(repo, git_ref, &path, source, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
+    let views = has_source_view(entry);
+    write_file_head(&mut body, entry, content, views);
+    let text = entry.lines.is_some();
+    match image_type(&entry.name) {
+        Some(mime) => body.push_str(&format!(
+            "<div class=\"box\"><img src=\"{}\" alt=\"{}\"></div>\n",
+            data_uri(mime, content),
+            escape_str(&entry.name)
+        )),
+        None if text && is_markdown(&entry.name) => {
+            write_markdown(&mut body, repo, git_ref, &folder.path, &repo_root, content)
+        }
+        _ if text => write_code(&mut body, content),
+        _ => body.push_str("binary file, cannot display\n"),
+    }
+    if views {
+        write_code(&mut body, content);
+    }
+
+    let title = format!("{}/{}/{path}", repo.name, git_ref.name);
+    wrap_page(&title, Some(&nav), &body)
+}
+
+fn write_file_head(body: &mut String, entry: &TreeEntry, content: &[u8], views: bool) {
+    if views {
+        body.push_str(
+            "\
+<input type=\"radio\" name=\"view\" id=\"view-source\" hidden>\n\
+<input type=\"radio\" name=\"view\" id=\"view-rendered\" hidden checked>\n\
+<div class=\"buttons flex view-switch\"><label for=\"view-source\">source</label>\n\
+<label for=\"view-rendered\">rendered</label></div>\n\
+",
+        );
+    }
     let lines = entry
         .lines
         .map(|n| format!("<span>{n} loc</span>\n"))
@@ -668,42 +705,8 @@ pub fn gen_blob(
         .map(|(width, height)| format!("<span>{width}x{height}px</span>\n"))
         .unwrap_or_default();
     body.push_str(&format!(
-        "<div class=\"flex items-center file-head\">\n<div class=\"flex gap file-size\">\n{lines}<span>{bytes}</span>\n{pixels}</div>\n"
+        "<div class=\"flex items-center file-head\">\n<div class=\"flex gap file-size\">\n{lines}<span>{bytes}</span>\n{pixels}</div>\n</div>\n"
     ));
-    if has_source_page(entry) {
-        let root = if source { "blob" } else { "source" };
-        let other = format!(
-            "{repo_root}{}",
-            percent_encode(&format!("{root}/{}/{path}.html", git_ref.dir))
-        );
-        let (source_href, rendered_href) = if source {
-            (None, Some(other))
-        } else {
-            (Some(other), None)
-        };
-        body.push_str(&format!(
-            "<div class=\"buttons flex ml-auto\">{}\n{}</div>\n",
-            crumb("source", source_href),
-            crumb("rendered", rendered_href)
-        ));
-    }
-    body.push_str("</div>\n");
-    let text = entry.lines.is_some();
-    match image_type(&entry.name) {
-        Some(mime) if !source => body.push_str(&format!(
-            "<div class=\"box\"><img src=\"{}\" alt=\"{}\"></div>\n",
-            data_uri(mime, content),
-            escape_str(&entry.name)
-        )),
-        None if !source && text && is_markdown(&entry.name) => {
-            write_markdown(&mut body, repo, git_ref, &folder.path, &repo_root, content)
-        }
-        _ if text => write_code(&mut body, content),
-        _ => body.push_str("binary file, cannot display\n"),
-    }
-
-    let title = format!("{}/{}/{path}", repo.name, git_ref.name);
-    wrap_page(&title, Some(&nav), &body)
 }
 
 pub fn commits_page(page: usize) -> String {
@@ -755,7 +758,7 @@ pub fn gen_commits(
 <div>{count}</div>\n\
 </div>\n\
 ",
-        ref_menu(repo, git_ref, &repo_root, Tab::Commits, "", false)
+        ref_menu(repo, git_ref, &repo_root, Tab::Commits, "")
     );
     let mut day = String::new();
     for commit in commits {
@@ -997,7 +1000,7 @@ fn commits_pager(page: usize, pages: usize) -> String {
     )
 }
 
-pub fn has_source_page(entry: &TreeEntry) -> bool {
+fn has_source_view(entry: &TreeEntry) -> bool {
     entry.lines.is_some() && (image_type(&entry.name).is_some() || is_markdown(&entry.name))
 }
 
@@ -1561,14 +1564,13 @@ fn ref_bar(
     repo: &RepoInfo,
     git_ref: &RefInfo,
     path: &str,
-    source: bool,
     repo_root: &str,
     details: &str,
 ) -> String {
     let mut bar = String::from(
         "<div class=\"box sticky flex items-center gap border-visited flex-wrap ref-bar\">\n",
     );
-    bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree, path, source));
+    bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree, path));
     if !path.is_empty() {
         let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
         for part in path.split('/').filter(|p| !p.is_empty()) {
@@ -1595,14 +1597,9 @@ fn ref_bar(
     bar
 }
 
-fn menu_target(git_ref: &RefInfo, path: &str, source: bool) -> (String, bool) {
-    if let Some(entry) = find_file(git_ref, path) {
-        let root = if source && has_source_page(entry) {
-            "source"
-        } else {
-            "blob"
-        };
-        let href = percent_encode(&format!("{root}/{}/{path}.html", git_ref.dir));
+fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
+    if find_file(git_ref, path).is_some() {
+        let href = percent_encode(&format!("blob/{}/{path}.html", git_ref.dir));
         return (href, true);
     }
     let mut dir = path;
@@ -1612,14 +1609,7 @@ fn menu_target(git_ref: &RefInfo, path: &str, source: bool) -> (String, bool) {
     (Tab::Tree.href(&join_path(&git_ref.dir, dir)), dir == path)
 }
 
-fn ref_menu(
-    repo: &RepoInfo,
-    git_ref: &RefInfo,
-    repo_root: &str,
-    tab: Tab,
-    path: &str,
-    source: bool,
-) -> String {
+fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path: &str) -> String {
     let mut menu = format!(
         "<details class=\"ref-menu\">\n<summary><code>{}{}{CHEVRON_DOWN}{CHEVRON_UP}</code></summary>\n<div class=\"ref-menu-list\">\n",
         ref_icon(git_ref),
@@ -1640,7 +1630,7 @@ fn ref_menu(
                     ""
                 };
                 let (href, found) = match tab {
-                    Tab::Tree => menu_target(r, path, source),
+                    Tab::Tree => menu_target(r, path),
                     _ => (tab.href(&r.dir), true),
                 };
                 let kind = if r.dir.starts_with("tags/") {
