@@ -1611,7 +1611,7 @@ fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
 
 fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path: &str) -> String {
     let mut menu = format!(
-        "<details class=\"ref-menu\">\n<summary><code>{}{}{CHEVRON_DOWN}{CHEVRON_UP}</code></summary>\n<div class=\"ref-menu-list\">\n",
+        "<div class=\"ref-menu\">\n<code>{}{}{CHEVRON_DOWN}{CHEVRON_UP}</code>\n<div class=\"ref-menu-list\">\n",
         ref_icon(git_ref),
         escape_str(&git_ref.name)
     );
@@ -1669,7 +1669,7 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path:
         ));
     }
     menu.push_str(&list("ref-branches", &repo.branches));
-    menu.push_str("</div>\n</details>\n");
+    menu.push_str("</div>\n</div>\n");
     menu
 }
 
@@ -1761,9 +1761,9 @@ fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
         .take(REF_CHIPS)
         .map(|git_ref| {
             format!(
-                "<code>{}<a href=\"{repo_root}{}\">{}</a></code>\n",
-                ref_icon(git_ref),
+                "<a class=\"chip flex\" href=\"{repo_root}{}\"><code>{}{}</code></a>\n",
                 Tab::Tree.href(&git_ref.dir),
+                ref_icon(git_ref),
                 escape_str(&git_ref.name)
             )
         })
@@ -1781,7 +1781,7 @@ fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
             })
             .collect();
         labels.push_str(&format!(
-            "<details class=\"ref-menu ref-more\">\n<summary><code>more{CHEVRON_DOWN}{CHEVRON_UP}</code></summary>\n<div class=\"ref-menu-list buttons\">\n{rest}</div>\n</details>\n"
+            "<div class=\"ref-menu ref-more\">\n<code>more{CHEVRON_DOWN}{CHEVRON_UP}</code>\n<div class=\"ref-menu-list buttons\">\n{rest}</div>\n</div>\n"
         ));
     }
     labels
@@ -1805,7 +1805,7 @@ fn write_commit_row(
     };
     body.push_str(&format!(
         "\
-<div class=\"box m-0{joined}\">\n\
+<div class=\"box m-0 commit-row{joined}\">\n\
 <div class=\"flex flex-wrap items-center gap text-sm\">\n\
 <a href=\"{href}\" class=\"mono\">{}</a>\n\
 <div class=\"flex items-center gap-xs\">\n\

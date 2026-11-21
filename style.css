@@ -64,23 +64,22 @@ code svg {
   position: relative;
 }
 
-.ref-menu summary,
+.ref-menu > code,
 .ref-menu label,
 .view-switch label {
-  list-style: none;
   cursor: pointer;
 }
 
-.ref-menu summary code {
+.ref-menu > code {
   padding: 0.15rem 0.45rem;
 }
 
-.ref-more summary code {
+.ref-more > code {
   display: block;
   padding: 0.025rem 0.3rem;
 }
 
-.ref-menu summary:hover code {
+.ref-menu:hover > code {
   background-color: #e4e7f0;
 }
 
@@ -89,11 +88,11 @@ code svg {
 }
 
 .ref-menu code svg:last-child,
-.ref-menu[open] code svg:nth-last-child(2) {
+.ref-menu:hover code svg:nth-last-child(2) {
   display: none;
 }
 
-.ref-menu[open] code svg:last-child {
+.ref-menu:hover code svg:last-child {
   display: inline;
 }
 
@@ -388,12 +387,24 @@ p {
 .ref-menu-list {
   position: absolute;
   z-index: 1;
-  display: flex;
+  display: none;
   flex-direction: column;
   margin-top: 0.3rem;
   white-space: nowrap;
   border: 1px solid #7689b3;
   background-color: #ffffff;
+}
+
+.ref-menu:hover .ref-menu-list {
+  display: flex;
+}
+
+.ref-menu-list::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  width: 100%;
+  height: 0.4rem;
 }
 
 .ref-more .ref-menu-list {
@@ -519,8 +530,22 @@ p {
 }
 
 .tree-row:hover,
+.commit-row:hover,
 :is(#branches_content, #tags_content) > :hover {
   background-color: #e4e7f0;
+}
+
+.commit-row code {
+  background-color: #ffffff;
+}
+
+.commit-row code:hover {
+  background-color: #e4e7f0;
+}
+
+.commit-row .chip:hover {
+  color: #1a2a44;
+  text-decoration: none;
 }
 
 .tree-path {
