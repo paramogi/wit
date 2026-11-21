@@ -139,12 +139,10 @@ fn run() -> Result<()> {
         if !repo.tags.is_empty() {
             write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
         }
-        let head_first = repo
-            .branches
-            .iter()
-            .filter(|b| b.dir == repo.head_dir)
-            .chain(repo.branches.iter().filter(|b| b.dir != repo.head_dir))
-            .chain(&repo.tags);
+        let refs = || repo.branches.iter().chain(&repo.tags);
+        let head_first = refs()
+            .filter(|r| r.dir == repo.head_dir)
+            .chain(refs().filter(|r| r.dir != repo.head_dir));
         let mut stats = HashMap::new();
         let mut changes = HashMap::new();
         for git_ref in head_first {

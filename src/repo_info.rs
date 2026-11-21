@@ -92,8 +92,12 @@ pub struct RepoInfo {
 impl RepoInfo {
     pub fn open(path: &str, default_owner: Option<&str>) -> Result<Option<Self>> {
         let repo = Repository::open(path)?;
-        let head_dir = match repo.head() {
-            Ok(head) => format!("heads/{}", head.shorthand()?),
+        let (head_branch, head_id) = match repo.head() {
+            Ok(head) if head.is_branch() => (
+                Some(format!("heads/{}", head.shorthand()?)),
+                head.peel_to_commit()?.id().to_string(),
+            ),
+            Ok(head) => (None, head.peel_to_commit()?.id().to_string()),
             Err(e) if e.code() == ErrorCode::UnbornBranch => return Ok(None),
             Err(e) => return Err(e.into()),
         };
@@ -109,7 +113,19 @@ impl RepoInfo {
         }
         let branches = Self::handle_branches(&repo)?;
         let tags = Self::handle_tags(&repo)?;
-        let commit_list = Self::handle_commits(&repo)?;
+        let head_ref = match &head_branch {
+            Some(dir) => branches.iter().find(|b| b.dir == *dir),
+            None => branches
+                .iter()
+                .chain(&tags)
+                .find(|r| r.id == head_id)
+                .or(branches.first()),
+        };
+        let Some(head_ref) = head_ref else {
+            return Ok(None);
+        };
+        let head_dir = head_ref.dir.clone();
+        let commit_list = Self::walk(&repo, Oid::from_str(&head_ref.id)?)?;
         Ok(Some(Self {
             git: repo,
             path: path.to_string(),
@@ -279,10 +295,6 @@ impl RepoInfo {
         } else {
             newlines
         }
-    }
-
-    fn handle_commits(repo: &Repository) -> Result<Vec<CommitInfo>> {
-        Self::walk(repo, repo.head()?.peel_to_commit()?.id())
     }
 
     pub fn read_commits(&self, id: &str) -> Result<Vec<CommitInfo>> {
