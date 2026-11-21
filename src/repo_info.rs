@@ -144,7 +144,7 @@ impl RepoInfo {
                 id: commit.id().to_string(),
                 time: commit.committer().when().seconds(),
                 date: Self::commit_date(&commit)?,
-                summary: Self::commit_summary(&commit)?,
+                summary: Self::commit_summary(&commit),
                 folders: Self::read_folders(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
@@ -174,7 +174,7 @@ impl RepoInfo {
                 id: commit.id().to_string(),
                 time: time.seconds(),
                 date: Self::commit_date(&commit)?,
-                summary: Self::commit_summary(&commit)?,
+                summary: Self::commit_summary(&commit),
                 folders: Self::read_folders(repo, &commit)?,
                 submodules: Self::read_gitmodules(repo, &commit)?,
             });
@@ -390,26 +390,28 @@ impl RepoInfo {
     fn commit_info(commit: &Commit) -> Result<CommitInfo> {
         let author = commit.author();
         let committer = commit.committer();
+        let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
         Ok(CommitInfo {
             id: commit.id().to_string(),
-            summary: Self::commit_summary(commit)?,
-            message: commit.message().unwrap_or_default().to_string(),
-            author_name: author.name().unwrap_or_default().to_string(),
-            author_email: author.email().unwrap_or_default().to_string(),
+            summary: Self::commit_summary(commit),
+            message: text(commit.message_bytes()),
+            author_name: text(author.name_bytes()),
+            author_email: text(author.email_bytes()),
             author_date: Self::to_date(author.when())
                 .with_context(|| format!("commit {}: invalid author date", commit.id()))?,
-            committer_name: committer.name().unwrap_or_default().to_string(),
-            committer_email: committer.email().unwrap_or_default().to_string(),
+            committer_name: text(committer.name_bytes()),
+            committer_email: text(committer.email_bytes()),
             committer_date: Self::commit_date(commit)?,
         })
     }
 
-    fn commit_summary(commit: &Commit) -> Result<String> {
-        Ok(commit
-            .summary()?
-            .filter(|s| !s.is_empty())
-            .unwrap_or(NO_MESSAGE)
-            .to_string())
+    fn commit_summary(commit: &Commit) -> String {
+        let summary = String::from_utf8_lossy(commit.summary_bytes().unwrap_or_default());
+        if summary.is_empty() {
+            NO_MESSAGE.to_string()
+        } else {
+            summary.into_owned()
+        }
     }
 
     fn commit_date(commit: &Commit) -> Result<DateTime<FixedOffset>> {
