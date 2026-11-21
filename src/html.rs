@@ -1,6 +1,7 @@
 use crate::markdown::{is_markdown, write_markdown};
 use crate::repo_info::{
-    CommitDiff, CommitInfo, Dir, FileChange, Line, RefInfo, RepoInfo, TreeEntry, join_path,
+    CommitDiff, CommitInfo, Dir, FileChange, Line, RefInfo, RepoInfo, TreeEntry, archive_name,
+    join_path,
 };
 
 use chrono::{DateTime, FixedOffset};
@@ -30,6 +31,8 @@ const README_NAMES: [&str; 2] = ["README.md", "README"];
 
 const MARKDOWN_BOX: &str = "box markdown-body";
 
+pub const ARCHIVE_FORMATS: [&str; 2] = ["zip", "tar.gz"];
+
 const REPO_FILES: [(&str, [&str; 2]); 2] = [
     ("README", README_NAMES),
     ("LICENSE", ["LICENSE", "COPYING"]),
@@ -52,8 +55,9 @@ const MAX_LINKS: usize = 40;
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-const ICONS: [(&str, &str); 21] = [
+const ICONS: [(&str, &str); 22] = [
     ("file", include_str!("icons/file-16.svg")),
+    ("file-zip", include_str!("icons/file-zip-16.svg")),
     (
         "file-directory",
         include_str!("icons/file-directory-16.svg"),
@@ -601,27 +605,46 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
             );
         }
         let dir = percent_encode(&release.tag);
-        for (name, (bytes, sha256)) in release.files.iter().zip(sums) {
-            body.push_str(&format!(
-                "\
-<div class=\"py px border-b tree-row\">\n\
-<div class=\"flex items-center gap-2\">\n\
-<div class=\"flex-1 flex items-center gap tree-path\">{}<a class=\"truncate\" download href=\"releases/{dir}/{}\">{}</a></div>\n\
-<div class=\"tree-date\">{}</div>\n\
-</div>\n\
-<div class=\"mono text-sm release-sum\">sha256 {sha256}</div>\n\
-</div>\n\
-",
-                icon("file"),
-                percent_encode(name),
-                escape_str(name),
-                format_bytes(*bytes)
-            ));
+        let (file_sums, archive_sums) = sums.split_at(release.files.len());
+        for (name, sum) in release.files.iter().zip(file_sums) {
+            let href = format!("releases/{dir}/{}", percent_encode(name));
+            body.push_str(&release_row("file", &href, name, name, sum));
+        }
+        let archive = archive_name(&repo.name, &release.tag);
+        for (format, sum) in ARCHIVE_FORMATS.iter().zip(archive_sums) {
+            let href = format!("archive/{dir}.{format}");
+            let download = format!("{archive}.{format}");
+            let label = format!("Source code ({format})");
+            body.push_str(&release_row("file-zip", &href, &download, &label, sum));
         }
         body.push_str("</div>\n");
     }
 
     wrap_page(&repo.name, Some(&nav), &body)
+}
+
+fn release_row(
+    icon_name: &str,
+    href: &str,
+    download: &str,
+    label: &str,
+    (bytes, sha256): &(usize, String),
+) -> String {
+    format!(
+        "\
+<div class=\"py px border-b tree-row\">\n\
+<div class=\"flex items-center gap-2\">\n\
+<div class=\"flex-1 flex items-center gap tree-path\">{}<a class=\"truncate\" download=\"{}\" href=\"{href}\">{}</a></div>\n\
+<div class=\"tree-date\">{}</div>\n\
+</div>\n\
+<div class=\"mono text-sm release-sum\">sha256 {sha256}</div>\n\
+</div>\n\
+",
+        icon(icon_name),
+        escape_str(download),
+        escape_str(label),
+        format_bytes(*bytes)
+    )
 }
 
 fn ref_row(git_ref: &RefInfo, element: &str, row_class: &str, name_class: &str) -> String {

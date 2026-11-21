@@ -73,6 +73,10 @@ impl Dir {
     }
 }
 
+pub fn archive_name(repo: &str, tag: &str) -> String {
+    format!("{repo}-{}", tag.replace('/', "-"))
+}
+
 pub fn join_path(parent: &str, child: &str) -> String {
     if parent.is_empty() || child.is_empty() {
         format!("{parent}{child}")

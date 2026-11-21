@@ -4,10 +4,10 @@ mod repo_info;
 
 use anyhow::{Context, Result, bail};
 use html::{
-    COMMITS_PER_PAGE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit, gen_commits,
-    gen_index, gen_releases, gen_summary, gen_tags, gen_tree,
+    ARCHIVE_FORMATS, COMMITS_PER_PAGE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit,
+    gen_commits, gen_index, gen_releases, gen_summary, gen_tags, gen_tree,
 };
-use repo_info::{CommitInfo, RepoInfo, join_path};
+use repo_info::{CommitInfo, RepoInfo, archive_name, join_path};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
@@ -74,6 +74,27 @@ fn link_file(from: &Path, to: &Path) -> Result<()> {
     fs::create_dir_all(dir)
         .and_then(|()| fs::hard_link(from, to).or_else(|_| fs::copy(from, to).map(drop)))
         .with_context(|| to.display().to_string())
+}
+
+fn write_archive(repo: &RepoInfo, tag: &str, format: &str, to: &Path) -> Result<()> {
+    let dir = to.parent().unwrap_or(Path::new(""));
+    fs::create_dir_all(dir).with_context(|| dir.display().to_string())?;
+    let output = process::Command::new("git")
+        .arg("--git-dir")
+        .arg(repo.git.path())
+        .arg("archive")
+        .arg(format!("--format={format}"))
+        .arg(format!("--prefix={}/", archive_name(&repo.name, tag)))
+        .arg("-o")
+        .arg(to)
+        .arg(format!("refs/tags/{tag}"))
+        .output()
+        .with_context(|| format!("git archive {tag}"))?;
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        bail!("git archive {tag}: {}", error.trim());
+    }
+    Ok(())
 }
 
 fn file_sum(path: &Path) -> Result<(usize, String)> {
@@ -203,6 +224,13 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
         for name in &release.files {
             let to = release_dir.join(name);
             link_file(&release.dir.join(name), &to)?;
+            release_sums.push(file_sum(&to)?);
+        }
+        for format in ARCHIVE_FORMATS {
+            let to = repo_dir
+                .join("archive")
+                .join(format!("{}.{format}", release.tag));
+            write_archive(repo, &release.tag, format, &to)?;
             release_sums.push(file_sum(&to)?);
         }
         sums.push(release_sums);
