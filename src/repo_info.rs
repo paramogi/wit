@@ -6,7 +6,11 @@ use git2::{
     Patch, Repository, Sort, Tree,
 };
 use std::{
-    cmp::Ordering, collections::BTreeMap, fs::read_to_string, io::ErrorKind::NotFound, path::Path,
+    cmp::Ordering,
+    collections::{BTreeMap, HashMap},
+    fs::read_to_string,
+    io::ErrorKind::NotFound,
+    path::Path,
 };
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -60,6 +64,13 @@ pub struct TreeEntry {
 pub struct Dir {
     pub path: String,
     pub entries: Vec<TreeEntry>,
+    by_name: HashMap<String, usize>,
+}
+
+impl Dir {
+    pub fn entry(&self, name: &str) -> Option<&TreeEntry> {
+        self.by_name.get(name).map(|&i| &self.entries[i])
+    }
 }
 
 pub struct RefInfo {
@@ -273,9 +284,15 @@ impl RepoInfo {
             });
         }
         entries.sort_by_key(|entry| !entry.is_dir);
+        let by_name = entries
+            .iter()
+            .enumerate()
+            .map(|(i, entry)| (entry.name.clone(), i))
+            .collect();
         let dir = Dir {
             path: path.to_string(),
             entries,
+            by_name,
         };
         dirs.insert(dir.path.clone(), dir);
         Ok(())

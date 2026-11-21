@@ -243,7 +243,7 @@ fn root_dir(git_ref: &RefInfo) -> Option<&Dir> {
 fn repo_file<'a>(dir: &'a Dir, names: &[&str]) -> Option<&'a TreeEntry> {
     names
         .iter()
-        .find_map(|name| dir.entries.iter().find(|e| !e.is_dir && e.name == *name))
+        .find_map(|name| dir.entry(name).filter(|e| !e.is_dir))
 }
 
 fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
@@ -1451,12 +1451,7 @@ fn resolve_path(base: &str, path: &str) -> Option<String> {
 
 fn find_entry<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
     let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
-    git_ref
-        .dirs
-        .get(dir)?
-        .entries
-        .iter()
-        .find(|entry| entry.name == name)
+    git_ref.dirs.get(dir)?.entry(name)
 }
 
 fn find_file<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {

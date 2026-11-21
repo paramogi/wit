@@ -94,11 +94,11 @@ fn page_clash(repo: &RepoInfo) -> Option<String> {
         for dir in git_ref.dirs.values() {
             for entry in dir.entries.iter().filter(|e| e.is_dir) {
                 let clashes = entry.name == "index.html"
-                    || entry.name.strip_suffix(".html").is_some_and(|file| {
-                        dir.entries
-                            .iter()
-                            .any(|e| e.blob.is_some() && e.name == file)
-                    });
+                    || entry
+                        .name
+                        .strip_suffix(".html")
+                        .and_then(|file| dir.entry(file))
+                        .is_some_and(|e| e.blob.is_some());
                 if clashes {
                     let path = if dir.path.is_empty() {
                         entry.name.clone()
