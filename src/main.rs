@@ -88,6 +88,34 @@ fn last_changes<'a>(
     last
 }
 
+fn page_clash(repo: &RepoInfo) -> Option<String> {
+    for git_ref in repo.branches.iter().chain(&repo.tags) {
+        for folder in &git_ref.folders {
+            for entry in folder.entries.iter().filter(|e| e.is_dir) {
+                let clashes = entry.name == "index.html"
+                    || entry.name.strip_suffix(".html").is_some_and(|file| {
+                        folder
+                            .entries
+                            .iter()
+                            .any(|e| e.blob.is_some() && e.name == file)
+                    });
+                if clashes {
+                    let dir = if folder.path.is_empty() {
+                        entry.name.clone()
+                    } else {
+                        format!("{}/{}", folder.path, entry.name)
+                    };
+                    return Some(format!(
+                        "folder {dir} in {} clashes with a page",
+                        git_ref.name
+                    ));
+                }
+            }
+        }
+    }
+    None
+}
+
 fn run() -> Result<()> {
     let args = parse_args()?;
     let mut repos: Vec<RepoInfo> = Vec::new();
@@ -97,6 +125,10 @@ fn run() -> Result<()> {
             eprintln!("{path}: HEAD's branch has no commits, skipped");
             continue;
         };
+        if let Some(clash) = page_clash(&repo) {
+            eprintln!("{path}: {clash}, skipped");
+            continue;
+        }
         if let Some(first) = repos.iter().find(|r| r.name == repo.name) {
             bail!(
                 "{} and {} are both named {}",
