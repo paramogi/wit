@@ -96,6 +96,10 @@ impl RefInfo {
     pub fn newest_first(a: &RefInfo, b: &RefInfo) -> Ordering {
         b.time.cmp(&a.time).then_with(|| a.name.cmp(&b.name))
     }
+
+    pub fn is_tag(&self) -> bool {
+        self.dir.starts_with("tags/")
+    }
 }
 
 pub struct RepoInfo {

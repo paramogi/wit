@@ -167,7 +167,7 @@ fn icon(name: &str) -> String {
 }
 
 fn ref_icon(git_ref: &RefInfo) -> String {
-    if git_ref.dir.starts_with("tags/") {
+    if git_ref.is_tag() {
         icon("tag")
     } else {
         icon("git-branch")
@@ -1403,6 +1403,10 @@ fn link_target(git_ref: &RefInfo, base: &str, repo_root: &str, url: &str) -> Opt
     ))
 }
 
+fn blob_href(git_ref: &RefInfo, path: &str) -> String {
+    percent_encode(&format!("blob/{}/{path}.html", git_ref.dir))
+}
+
 fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
     let path = follow_links(git_ref, path)?;
     if git_ref.dirs.contains_key(&path) {
@@ -1411,8 +1415,7 @@ fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
     }
     let entry = find_entry(git_ref, &path)?;
     if entry.blob.is_some() {
-        let href = percent_encode(&format!("blob/{}/{path}.html", git_ref.dir));
-        return Some(format!("{repo_root}{href}"));
+        return Some(format!("{repo_root}{}", blob_href(git_ref, &path)));
     }
     entry.commit.as_ref()?;
     git_ref
@@ -1613,8 +1616,7 @@ fn ref_bar(
 
 fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
     if find_file(git_ref, path).is_some() {
-        let href = percent_encode(&format!("blob/{}/{path}.html", git_ref.dir));
-        return (href, true);
+        return (blob_href(git_ref, path), true);
     }
     let mut dir = path;
     while !dir.is_empty() && !git_ref.dirs.contains_key(dir) {
@@ -1649,7 +1651,7 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path:
                     Tab::Tree => menu_target(r, path),
                     _ => (tab.href(&r.dir), true),
                 };
-                let kind = if r.dir.starts_with("tags/") {
+                let kind = if r.is_tag() {
                     "tag"
                 } else {
                     "branch"
@@ -1669,7 +1671,7 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path:
         format!("<div class=\"{class} buttons{long}\">\n{entries}</div>\n")
     };
     if !repo.tags.is_empty() {
-        let (branches, tags) = if git_ref.dir.starts_with("tags/") {
+        let (branches, tags) = if git_ref.is_tag() {
             ("", " checked")
         } else {
             (" checked", "")
