@@ -66,45 +66,38 @@ const PAGE_IDS: [&str; 12] = [
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-const FILE_ICON: &str = include_str!("icons/file-16.svg");
-
-const DIR_ICON: &str = include_str!("icons/file-directory-16.svg");
-
-const SYMLINK_ICON: &str = include_str!("icons/file-symlink-file-16.svg");
-
-const SUBMODULE_ICON: &str = include_str!("icons/file-submodule-16.svg");
-
-const BRANCH_ICON: &str = include_str!("icons/git-branch-16.svg");
-
-const COMMIT_ICON: &str = include_str!("icons/git-commit-16.svg");
-
-const TAG_ICON: &str = include_str!("icons/tag-16.svg");
-
-const CHEVRON_DOWN: &str = include_str!("icons/chevron-down-16.svg");
-const CHEVRON_LEFT: &str = include_str!("icons/chevron-left-16.svg");
-
-const CHEVRON_RIGHT: &str = include_str!("icons/chevron-right-16.svg");
-const CHEVRON_UP: &str = include_str!("icons/chevron-up-16.svg");
-
-const DIFF_ADDED_ICON: &str = include_str!("icons/diff-added-16.svg");
-
-const DIFF_REMOVED_ICON: &str = include_str!("icons/diff-removed-16.svg");
-
-const DIFF_MODIFIED_ICON: &str = include_str!("icons/diff-modified-16.svg");
-
-const DIFF_RENAMED_ICON: &str = include_str!("icons/diff-renamed-16.svg");
-
-const LINK_ICON: &str = include_str!("icons/link-16.svg");
-
-const INFO_ICON: &str = include_str!("icons/info-16.svg");
-
-const LIGHT_BULB_ICON: &str = include_str!("icons/light-bulb-16.svg");
-
-const REPORT_ICON: &str = include_str!("icons/report-16.svg");
-
-const ALERT_ICON: &str = include_str!("icons/alert-16.svg");
-
-const STOP_ICON: &str = include_str!("icons/stop-16.svg");
+const ICONS: [(&str, &str); 21] = [
+    ("file", include_str!("icons/file-16.svg")),
+    (
+        "file-directory",
+        include_str!("icons/file-directory-16.svg"),
+    ),
+    (
+        "file-symlink-file",
+        include_str!("icons/file-symlink-file-16.svg"),
+    ),
+    (
+        "file-submodule",
+        include_str!("icons/file-submodule-16.svg"),
+    ),
+    ("git-branch", include_str!("icons/git-branch-16.svg")),
+    ("git-commit", include_str!("icons/git-commit-16.svg")),
+    ("tag", include_str!("icons/tag-16.svg")),
+    ("chevron-down", include_str!("icons/chevron-down-16.svg")),
+    ("chevron-left", include_str!("icons/chevron-left-16.svg")),
+    ("chevron-right", include_str!("icons/chevron-right-16.svg")),
+    ("chevron-up", include_str!("icons/chevron-up-16.svg")),
+    ("diff-added", include_str!("icons/diff-added-16.svg")),
+    ("diff-removed", include_str!("icons/diff-removed-16.svg")),
+    ("diff-modified", include_str!("icons/diff-modified-16.svg")),
+    ("diff-renamed", include_str!("icons/diff-renamed-16.svg")),
+    ("link", include_str!("icons/link-16.svg")),
+    ("info", include_str!("icons/info-16.svg")),
+    ("light-bulb", include_str!("icons/light-bulb-16.svg")),
+    ("report", include_str!("icons/report-16.svg")),
+    ("alert", include_str!("icons/alert-16.svg")),
+    ("stop", include_str!("icons/stop-16.svg")),
+];
 
 #[derive(Clone, Copy, PartialEq)]
 enum Tab {
@@ -168,11 +161,15 @@ struct RepoNav<'a> {
     path: &'a str,
 }
 
-fn ref_icon(git_ref: &RefInfo) -> &'static str {
+fn icon(name: &str) -> String {
+    format!("<svg width=\"16\" height=\"16\"><use href=\"#icon.{name}\"/></svg>")
+}
+
+fn ref_icon(git_ref: &RefInfo) -> String {
     if git_ref.dir.starts_with("tags/") {
-        TAG_ICON
+        icon("tag")
     } else {
-        BRANCH_ICON
+        icon("git-branch")
     }
 }
 
@@ -311,6 +308,30 @@ fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, dir: &Dir
     body.push_str("</div>\n");
 }
 
+fn icon_symbols(body: &str) -> String {
+    let used: HashSet<&str> = body
+        .match_indices("href=\"#icon.")
+        .filter_map(|(at, found)| body[at + found.len()..].split('"').next())
+        .collect();
+    let symbols: String = ICONS
+        .iter()
+        .filter(|(id, _)| used.contains(id))
+        .map(|(id, svg)| {
+            let start = svg.find('>').map_or(0, |i| i + 1);
+            let end = svg.rfind("</svg>").unwrap_or(svg.len());
+            format!(
+                "<symbol id=\"icon.{id}\" viewBox=\"0 0 16 16\">{}</symbol>",
+                &svg[start..end]
+            )
+        })
+        .collect();
+    if symbols.is_empty() {
+        String::new()
+    } else {
+        format!("<svg style=\"display: none\">{symbols}</svg>\n")
+    }
+}
+
 fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
     let (root, title) = match nav {
         Some(nav) => (
@@ -319,6 +340,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
         ),
         None => (String::new(), title.to_string()),
     };
+    let icons = icon_symbols(body);
     let mut page = format!(
         "\
 <!DOCTYPE html>\n\
@@ -330,6 +352,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
 <link rel=\"stylesheet\" href=\"{root}style.css\">\n\
 </head>\n\
 <body>\n\
+{icons}\
 <header id=\"header\">\n\
 <div class=\"root-header-shell\">\n\
 <div id=\"got_link\"><a class=\"brand\" href=\"{root}index.html\">{BRAND}</a></div>\n\
@@ -770,10 +793,11 @@ pub fn gen_commits(
                 "\
 <div>\n\
 <div class=\"flex items-center gap mb text-sm\">\n\
-{COMMIT_ICON}\n\
+{}\n\
 <span>Commits on {date}</span>\n\
 </div>\n\
-"
+",
+                icon("git-commit")
             ));
             ""
         };
@@ -916,14 +940,17 @@ pub fn gen_commit(
 }
 
 fn status_icon(status: char) -> String {
-    let (icon, class, title) = match status {
-        'A' => (DIFF_ADDED_ICON, " color-green", "added"),
-        'D' => (DIFF_REMOVED_ICON, " color-red", "deleted"),
-        'R' => (DIFF_RENAMED_ICON, "", "renamed"),
-        'T' => (DIFF_MODIFIED_ICON, " color-orange", "type changed"),
-        _ => (DIFF_MODIFIED_ICON, " color-orange", "modified"),
+    let (name, class, title) = match status {
+        'A' => ("diff-added", " color-green", "added"),
+        'D' => ("diff-removed", " color-red", "deleted"),
+        'R' => ("diff-renamed", "", "renamed"),
+        'T' => ("diff-modified", " color-orange", "type changed"),
+        _ => ("diff-modified", " color-orange", "modified"),
     };
-    format!("<span class=\"flex{class}\" title=\"{title}\">{icon}</span>")
+    format!(
+        "<span class=\"flex{class}\" title=\"{title}\">{}</span>",
+        icon(name)
+    )
 }
 
 fn change_path(file: &FileChange) -> String {
@@ -969,27 +996,28 @@ fn commits_pager(page: usize, pages: usize) -> String {
         .saturating_sub(2)
         .clamp(1, pages.saturating_sub(4).max(1));
     let last = pages.min(first + 4);
-    let arrow = |n: usize, title: &str, icon: &str| {
+    let arrow = |n: usize, title: &str, chevrons: &str| {
         format!(
-            "<a href=\"{}\" title=\"{title}\">{icon}</a>",
+            "<a href=\"{}\" title=\"{title}\">{chevrons}</a>",
             commits_page(n)
         )
     };
+    let (left, right) = (icon("chevron-left"), icon("chevron-right"));
     let mut buttons = Vec::new();
     if first > 1 {
-        buttons.push(arrow(1, "first page", &CHEVRON_LEFT.repeat(2)));
+        buttons.push(arrow(1, "first page", &left.repeat(2)));
     }
     if page > 1 {
-        buttons.push(arrow(page - 1, "previous page", CHEVRON_LEFT));
+        buttons.push(arrow(page - 1, "previous page", &left));
     }
     for n in first..=last {
         buttons.push(crumb(&n.to_string(), (n != page).then(|| commits_page(n))));
     }
     if page < pages {
-        buttons.push(arrow(page + 1, "next page", CHEVRON_RIGHT));
+        buttons.push(arrow(page + 1, "next page", &right));
     }
     if last < pages {
-        buttons.push(arrow(pages, "last page", &CHEVRON_RIGHT.repeat(2)));
+        buttons.push(arrow(pages, "last page", &right.repeat(2)));
     }
     format!(
         "<nav class=\"navs buttons flex flex-wrap pager\">\n{}\n</nav>\n",
@@ -1093,16 +1121,17 @@ fn write_markdown(
                 }
             }
             Event::Start(Tag::BlockQuote(Some(kind))) => {
-                let (name, label, icon) = match kind {
-                    BlockQuoteKind::Note => ("note", "Note", INFO_ICON),
-                    BlockQuoteKind::Tip => ("tip", "Tip", LIGHT_BULB_ICON),
-                    BlockQuoteKind::Important => ("important", "Important", REPORT_ICON),
-                    BlockQuoteKind::Warning => ("warning", "Warning", ALERT_ICON),
-                    BlockQuoteKind::Caution => ("caution", "Caution", STOP_ICON),
+                let (name, label, icon_name) = match kind {
+                    BlockQuoteKind::Note => ("note", "Note", "info"),
+                    BlockQuoteKind::Tip => ("tip", "Tip", "light-bulb"),
+                    BlockQuoteKind::Important => ("important", "Important", "report"),
+                    BlockQuoteKind::Warning => ("warning", "Warning", "alert"),
+                    BlockQuoteKind::Caution => ("caution", "Caution", "stop"),
                 };
                 html_events.push(Event::Html(
                     format!(
-                        "<blockquote class=\"markdown-alert markdown-alert-{name}\">\n<p class=\"markdown-alert-title\">{icon}{label}</p>\n"
+                        "<blockquote class=\"markdown-alert markdown-alert-{name}\">\n<p class=\"markdown-alert-title\">{}{label}</p>\n",
+                        icon(icon_name)
                     )
                     .into(),
                 ));
@@ -1316,7 +1345,7 @@ fn raw_headings(html: &str) -> Vec<(usize, String)> {
 }
 
 fn anchor_link(id: &str) -> String {
-    format!("<a class=\"anchor\" href=\"#{id}\">{LINK_ICON}</a>")
+    format!("<a class=\"anchor\" href=\"#{id}\">{}</a>", icon("link"))
 }
 
 fn rewrite_html(
@@ -1609,9 +1638,11 @@ fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
 
 fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path: &str) -> String {
     let mut menu = format!(
-        "<div class=\"ref-menu\">\n<code>{}{}{CHEVRON_DOWN}{CHEVRON_UP}</code>\n<div class=\"ref-menu-list\">\n",
+        "<div class=\"ref-menu\">\n<code>{}{}{}{}</code>\n<div class=\"ref-menu-list\">\n",
         ref_icon(git_ref),
-        escape_str(&git_ref.name)
+        escape_str(&git_ref.name),
+        icon("chevron-down"),
+        icon("chevron-up")
     );
     let list = |class: &str, refs: &[RefInfo]| -> String {
         let long = if refs.len() > REF_MENU_ROWS {
@@ -1718,29 +1749,30 @@ fn write_listing(
             None => "<div class=\"flex-2 tree-commit\"></div>\n<div class=\"tree-date\"></div>\n"
                 .to_string(),
         };
-        let (icon, name) = if entry.is_dir {
+        let (icon_name, name) = if entry.is_dir {
             let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
-            (DIR_ICON, link(href, escape_str(name)))
+            ("file-directory", link(href, escape_str(name)))
         } else if let Some(target) = &entry.link {
             let text = format!("{} &rarr; {}", escape_str(name), escape_str(target));
-            (SYMLINK_ICON, leads(text))
+            ("file-symlink-file", leads(text))
         } else if let Some(commit) = &entry.commit {
             let text = format!("{} @ {}", escape_str(name), &commit[..7]);
-            (SUBMODULE_ICON, leads(text))
+            ("file-submodule", leads(text))
         } else {
             let href = percent_encode(&format!("{blob_dir}{name}.html"));
-            (FILE_ICON, link(href, escape_str(name)))
+            ("file", link(href, escape_str(name)))
         };
         body.push_str(&format!(
             "\
 <div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
 <div class=\"flex-1 tree-path flex items-center gap\">\n\
-{icon}\n\
+{}\n\
 {name}\n\
 </div>\n\
 {last_change}\
 </div>\n\
-"
+",
+            icon(icon_name)
         ));
     }
     body.push_str("</div>\n");
@@ -1779,7 +1811,9 @@ fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
             })
             .collect();
         labels.push_str(&format!(
-            "<div class=\"ref-menu ref-more\">\n<code>more{CHEVRON_DOWN}{CHEVRON_UP}</code>\n<div class=\"ref-menu-list buttons\">\n{rest}</div>\n</div>\n"
+            "<div class=\"ref-menu ref-more\">\n<code>more{}{}</code>\n<div class=\"ref-menu-list buttons\">\n{rest}</div>\n</div>\n",
+            icon("chevron-down"),
+            icon("chevron-up")
         ));
     }
     labels
