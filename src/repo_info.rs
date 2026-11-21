@@ -129,18 +129,18 @@ impl RepoInfo {
             Err(e) => return Err(e.into()),
         };
         let repo_path = repo.path();
-        let name = Self::repo_name(&repo).context("could not work out the repo's name")?;
-        let mut description = Self::read_optional_file(repo_path, "description")?;
+        let name = repo_name(&repo).context("could not work out the repo's name")?;
+        let mut description = read_optional_file(repo_path, "description")?;
         if description.is_empty() {
             description = DEFAULT_DESCRIPTION.to_string();
         }
-        let mut owner = Self::read_optional_file(repo_path, "owner")?;
+        let mut owner = read_optional_file(repo_path, "owner")?;
         if owner.is_empty() {
             owner = default_owner.unwrap_or_default().to_string();
         }
-        let branches = Self::handle_branches(&repo)?;
-        let tags = Self::handle_tags(&repo)?;
-        let commit_list = Self::walk(&repo, &mut repo.revwalk()?, head_id)?;
+        let branches = handle_branches(&repo)?;
+        let tags = handle_tags(&repo)?;
+        let commit_list = walk(&repo, &mut repo.revwalk()?, head_id)?;
         Ok(Ok(Self {
             git: repo,
             path: path.to_string(),
@@ -154,171 +154,8 @@ impl RepoInfo {
         }))
     }
 
-    fn repo_name(repo: &Repository) -> Option<String> {
-        let dir = repo.workdir().unwrap_or(repo.path());
-        let name = dir.file_name()?.to_str()?;
-        let name = name.strip_suffix(".git").unwrap_or(name);
-        (!matches!(name, "" | "." | "..")).then(|| name.to_string())
-    }
-
-    fn handle_branches(repo: &Repository) -> Result<Vec<RefInfo>> {
-        let mut branches = Vec::new();
-        for branch in repo.branches(Some(BranchType::Local))? {
-            let (branch, _) = branch?;
-            let Some(name) = branch.name()? else {
-                continue;
-            };
-            let commit = branch.get().peel_to_commit()?;
-            let time = commit.committer().when();
-            branches.push(Self::ref_info(repo, "heads", name, &commit, time)?);
-        }
-        branches.sort_by(RefInfo::newest_first);
-        Ok(branches)
-    }
-
-    fn handle_tags(repo: &Repository) -> Result<Vec<RefInfo>> {
-        let mut tags = Vec::new();
-        for tag_ref in repo.references_glob("refs/tags/*")? {
-            let tag_ref = tag_ref?;
-            let Ok(name) = tag_ref.shorthand() else {
-                continue;
-            };
-            let Ok(commit) = tag_ref.peel_to_commit() else {
-                continue;
-            };
-            let tagger_time = tag_ref
-                .peel_to_tag()
-                .ok()
-                .and_then(|tag| tag.tagger().map(|sig| sig.when()));
-            let time = tagger_time.unwrap_or(commit.committer().when());
-            tags.push(Self::ref_info(repo, "tags", name, &commit, time)?);
-        }
-        tags.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| a.name.cmp(&b.name)));
-        Ok(tags)
-    }
-
-    fn ref_info(
-        repo: &Repository,
-        kind: &str,
-        name: &str,
-        commit: &Commit,
-        time: git2::Time,
-    ) -> Result<RefInfo> {
-        Ok(RefInfo {
-            name: name.to_string(),
-            dir: format!("{kind}/{name}"),
-            id: commit.id().to_string(),
-            time: time.seconds(),
-            date: Self::commit_date(commit)?,
-            summary: Self::commit_summary(commit),
-            dirs: Self::read_dirs(repo, commit)?,
-            submodules: Self::read_gitmodules(repo, commit)?,
-        })
-    }
-
-    fn read_gitmodules(repo: &Repository, commit: &Commit) -> Result<Vec<(String, String)>> {
-        let Some(blob) = commit
-            .tree()?
-            .get_name(".gitmodules")
-            .and_then(|entry| repo.find_blob(entry.id()).ok())
-        else {
-            return Ok(Vec::new());
-        };
-        let mut sections: Vec<(Option<String>, Option<String>)> = Vec::new();
-        for line in String::from_utf8_lossy(blob.content())
-            .lines()
-            .map(str::trim)
-        {
-            if line.starts_with('[') {
-                sections.push((None, None));
-            } else if let (Some((key, value)), Some(section)) =
-                (line.split_once('='), sections.last_mut())
-            {
-                let value = Some(value.trim().trim_matches('"').to_string());
-                match key.trim().to_ascii_lowercase().as_str() {
-                    "path" => section.0 = value,
-                    "url" => section.1 = value,
-                    _ => {}
-                }
-            }
-        }
-        Ok(sections
-            .into_iter()
-            .filter_map(|(path, url)| Some((path?, url?)))
-            .collect())
-    }
-
-    fn read_dirs(repo: &Repository, commit: &Commit) -> Result<BTreeMap<String, Dir>> {
-        let mut dirs = BTreeMap::new();
-        Self::read_dir(repo, &commit.tree()?, "", &mut dirs)?;
-        Ok(dirs)
-    }
-
-    fn read_dir(
-        repo: &Repository,
-        tree: &Tree,
-        path: &str,
-        dirs: &mut BTreeMap<String, Dir>,
-    ) -> Result<()> {
-        let mut entries = Vec::new();
-        for entry in tree.iter() {
-            let Ok(name) = entry.name() else {
-                continue;
-            };
-            let (blob, lines, bytes, link) = match entry.kind() {
-                Some(ObjectType::Blob) if entry.filemode() == 0o120000 => {
-                    let target = repo.find_blob(entry.id())?;
-                    let target = String::from_utf8_lossy(target.content()).into_owned();
-                    (None, None, None, Some(target))
-                }
-                Some(ObjectType::Blob) => {
-                    let blob = repo.find_blob(entry.id())?;
-                    let lines = (!blob.is_binary()).then(|| Self::count_lines(blob.content()));
-                    (Some(entry.id()), lines, Some(blob.size()), None)
-                }
-                Some(ObjectType::Tree) => {
-                    let sub_path = join_path(path, name);
-                    Self::read_dir(repo, &repo.find_tree(entry.id())?, &sub_path, dirs)?;
-                    (None, None, None, None)
-                }
-                _ => (None, None, None, None),
-            };
-            entries.push(TreeEntry {
-                name: name.to_string(),
-                is_dir: entry.kind() == Some(ObjectType::Tree),
-                blob,
-                lines,
-                bytes,
-                link,
-                commit: (entry.kind() == Some(ObjectType::Commit)).then(|| entry.id().to_string()),
-            });
-        }
-        entries.sort_by_key(|entry| !entry.is_dir);
-        let by_name = entries
-            .iter()
-            .enumerate()
-            .map(|(i, entry)| (entry.name.clone(), i))
-            .collect();
-        let dir = Dir {
-            path: path.to_string(),
-            entries,
-            by_name,
-        };
-        dirs.insert(dir.path.clone(), dir);
-        Ok(())
-    }
-
-    fn count_lines(content: &[u8]) -> usize {
-        let newlines = content.iter().filter(|&&b| b == b'\n').count();
-        if content.last().is_some_and(|&b| b != b'\n') {
-            newlines + 1
-        } else {
-            newlines
-        }
-    }
-
     pub fn read_commits(&self, rev: &mut Revwalk, id: &str) -> Result<Vec<CommitInfo>> {
-        Self::walk(&self.git, rev, Oid::from_str(id)?)
+        walk(&self.git, rev, Oid::from_str(id)?)
     }
 
     pub fn read_diff(&self, id: &str) -> Result<CommitDiff> {
@@ -406,63 +243,226 @@ impl RepoInfo {
             files,
         })
     }
+}
 
-    fn walk(repo: &Repository, rev: &mut Revwalk, start: Oid) -> Result<Vec<CommitInfo>> {
-        rev.reset()?;
-        rev.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
-        rev.push(start)?;
+fn repo_name(repo: &Repository) -> Option<String> {
+    let dir = repo.workdir().unwrap_or(repo.path());
+    let name = dir.file_name()?.to_str()?;
+    let name = name.strip_suffix(".git").unwrap_or(name);
+    (!matches!(name, "" | "." | "..")).then(|| name.to_string())
+}
 
-        let mut commit_list = Vec::new();
-        for oid in rev.by_ref() {
-            commit_list.push(Self::commit_info(&repo.find_commit(oid?)?)?);
+fn handle_branches(repo: &Repository) -> Result<Vec<RefInfo>> {
+    let mut branches = Vec::new();
+    for branch in repo.branches(Some(BranchType::Local))? {
+        let (branch, _) = branch?;
+        let Some(name) = branch.name()? else {
+            continue;
+        };
+        let commit = branch.get().peel_to_commit()?;
+        let time = commit.committer().when();
+        branches.push(ref_info(repo, "heads", name, &commit, time)?);
+    }
+    branches.sort_by(RefInfo::newest_first);
+    Ok(branches)
+}
+
+fn handle_tags(repo: &Repository) -> Result<Vec<RefInfo>> {
+    let mut tags = Vec::new();
+    for tag_ref in repo.references_glob("refs/tags/*")? {
+        let tag_ref = tag_ref?;
+        let Ok(name) = tag_ref.shorthand() else {
+            continue;
+        };
+        let Ok(commit) = tag_ref.peel_to_commit() else {
+            continue;
+        };
+        let tagger_time = tag_ref
+            .peel_to_tag()
+            .ok()
+            .and_then(|tag| tag.tagger().map(|sig| sig.when()));
+        let time = tagger_time.unwrap_or(commit.committer().when());
+        tags.push(ref_info(repo, "tags", name, &commit, time)?);
+    }
+    tags.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| a.name.cmp(&b.name)));
+    Ok(tags)
+}
+
+fn ref_info(
+    repo: &Repository,
+    kind: &str,
+    name: &str,
+    commit: &Commit,
+    time: git2::Time,
+) -> Result<RefInfo> {
+    Ok(RefInfo {
+        name: name.to_string(),
+        dir: format!("{kind}/{name}"),
+        id: commit.id().to_string(),
+        time: time.seconds(),
+        date: commit_date(commit)?,
+        summary: commit_summary(commit),
+        dirs: read_dirs(repo, commit)?,
+        submodules: read_gitmodules(repo, commit)?,
+    })
+}
+
+fn read_gitmodules(repo: &Repository, commit: &Commit) -> Result<Vec<(String, String)>> {
+    let Some(blob) = commit
+        .tree()?
+        .get_name(".gitmodules")
+        .and_then(|entry| repo.find_blob(entry.id()).ok())
+    else {
+        return Ok(Vec::new());
+    };
+    let mut sections: Vec<(Option<String>, Option<String>)> = Vec::new();
+    for line in String::from_utf8_lossy(blob.content())
+        .lines()
+        .map(str::trim)
+    {
+        if line.starts_with('[') {
+            sections.push((None, None));
+        } else if let (Some((key, value)), Some(section)) =
+            (line.split_once('='), sections.last_mut())
+        {
+            let value = Some(value.trim().trim_matches('"').to_string());
+            match key.trim().to_ascii_lowercase().as_str() {
+                "path" => section.0 = value,
+                "url" => section.1 = value,
+                _ => {}
+            }
         }
-        Ok(commit_list)
     }
+    Ok(sections
+        .into_iter()
+        .filter_map(|(path, url)| Some((path?, url?)))
+        .collect())
+}
 
-    fn commit_info(commit: &Commit) -> Result<CommitInfo> {
-        let author = commit.author();
-        let committer = commit.committer();
-        let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
-        Ok(CommitInfo {
-            id: commit.id().to_string(),
-            summary: Self::commit_summary(commit),
-            message: text(commit.message_bytes()),
-            author_name: text(author.name_bytes()),
-            author_email: text(author.email_bytes()),
-            author_date: Self::to_date(author.when())
-                .with_context(|| format!("commit {}: invalid author date", commit.id()))?,
-            committer_name: text(committer.name_bytes()),
-            committer_email: text(committer.email_bytes()),
-            committer_date: Self::commit_date(commit)?,
-        })
+fn read_dirs(repo: &Repository, commit: &Commit) -> Result<BTreeMap<String, Dir>> {
+    let mut dirs = BTreeMap::new();
+    read_dir(repo, &commit.tree()?, "", &mut dirs)?;
+    Ok(dirs)
+}
+
+fn read_dir(
+    repo: &Repository,
+    tree: &Tree,
+    path: &str,
+    dirs: &mut BTreeMap<String, Dir>,
+) -> Result<()> {
+    let mut entries = Vec::new();
+    for entry in tree.iter() {
+        let Ok(name) = entry.name() else {
+            continue;
+        };
+        let (blob, lines, bytes, link) = match entry.kind() {
+            Some(ObjectType::Blob) if entry.filemode() == 0o120000 => {
+                let target = repo.find_blob(entry.id())?;
+                let target = String::from_utf8_lossy(target.content()).into_owned();
+                (None, None, None, Some(target))
+            }
+            Some(ObjectType::Blob) => {
+                let blob = repo.find_blob(entry.id())?;
+                let lines = (!blob.is_binary()).then(|| count_lines(blob.content()));
+                (Some(entry.id()), lines, Some(blob.size()), None)
+            }
+            Some(ObjectType::Tree) => {
+                let sub_path = join_path(path, name);
+                read_dir(repo, &repo.find_tree(entry.id())?, &sub_path, dirs)?;
+                (None, None, None, None)
+            }
+            _ => (None, None, None, None),
+        };
+        entries.push(TreeEntry {
+            name: name.to_string(),
+            is_dir: entry.kind() == Some(ObjectType::Tree),
+            blob,
+            lines,
+            bytes,
+            link,
+            commit: (entry.kind() == Some(ObjectType::Commit)).then(|| entry.id().to_string()),
+        });
     }
+    entries.sort_by_key(|entry| !entry.is_dir);
+    let by_name = entries
+        .iter()
+        .enumerate()
+        .map(|(i, entry)| (entry.name.clone(), i))
+        .collect();
+    let dir = Dir {
+        path: path.to_string(),
+        entries,
+        by_name,
+    };
+    dirs.insert(dir.path.clone(), dir);
+    Ok(())
+}
 
-    fn commit_summary(commit: &Commit) -> String {
-        let summary = String::from_utf8_lossy(commit.summary_bytes().unwrap_or_default());
-        if summary.is_empty() {
-            NO_MESSAGE.to_string()
-        } else {
-            summary.into_owned()
-        }
+fn count_lines(content: &[u8]) -> usize {
+    let newlines = content.iter().filter(|&&b| b == b'\n').count();
+    if content.last().is_some_and(|&b| b != b'\n') {
+        newlines + 1
+    } else {
+        newlines
     }
+}
 
-    fn commit_date(commit: &Commit) -> Result<DateTime<FixedOffset>> {
-        Self::to_date(commit.committer().when())
-            .with_context(|| format!("commit {}: invalid committer date", commit.id()))
+fn walk(repo: &Repository, rev: &mut Revwalk, start: Oid) -> Result<Vec<CommitInfo>> {
+    rev.reset()?;
+    rev.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
+    rev.push(start)?;
+
+    let mut commit_list = Vec::new();
+    for oid in rev.by_ref() {
+        commit_list.push(commit_info(&repo.find_commit(oid?)?)?);
     }
+    Ok(commit_list)
+}
 
-    fn to_date(time: git2::Time) -> Option<DateTime<FixedOffset>> {
-        let offset = FixedOffset::east_opt(time.offset_minutes() * 60)?;
-        let date = DateTime::from_timestamp(time.seconds(), 0)?;
-        Some(date.with_timezone(&offset))
+fn commit_info(commit: &Commit) -> Result<CommitInfo> {
+    let author = commit.author();
+    let committer = commit.committer();
+    let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+    Ok(CommitInfo {
+        id: commit.id().to_string(),
+        summary: commit_summary(commit),
+        message: text(commit.message_bytes()),
+        author_name: text(author.name_bytes()),
+        author_email: text(author.email_bytes()),
+        author_date: to_date(author.when())
+            .with_context(|| format!("commit {}: invalid author date", commit.id()))?,
+        committer_name: text(committer.name_bytes()),
+        committer_email: text(committer.email_bytes()),
+        committer_date: commit_date(commit)?,
+    })
+}
+
+fn commit_summary(commit: &Commit) -> String {
+    let summary = String::from_utf8_lossy(commit.summary_bytes().unwrap_or_default());
+    if summary.is_empty() {
+        NO_MESSAGE.to_string()
+    } else {
+        summary.into_owned()
     }
+}
 
-    fn read_optional_file(repo_path: &Path, file_name: &str) -> Result<String> {
-        let real_path = repo_path.join(file_name);
-        match read_to_string(real_path) {
-            Ok(s) => Ok(s.trim().to_string()),
-            Err(e) if e.kind() == NotFound => Ok(String::new()),
-            Err(e) => Err(e).context(file_name.to_string()),
-        }
+fn commit_date(commit: &Commit) -> Result<DateTime<FixedOffset>> {
+    to_date(commit.committer().when())
+        .with_context(|| format!("commit {}: invalid committer date", commit.id()))
+}
+
+fn to_date(time: git2::Time) -> Option<DateTime<FixedOffset>> {
+    let offset = FixedOffset::east_opt(time.offset_minutes() * 60)?;
+    let date = DateTime::from_timestamp(time.seconds(), 0)?;
+    Some(date.with_timezone(&offset))
+}
+
+fn read_optional_file(repo_path: &Path, file_name: &str) -> Result<String> {
+    let real_path = repo_path.join(file_name);
+    match read_to_string(real_path) {
+        Ok(s) => Ok(s.trim().to_string()),
+        Err(e) if e.kind() == NotFound => Ok(String::new()),
+        Err(e) => Err(e).context(file_name.to_string()),
     }
 }
