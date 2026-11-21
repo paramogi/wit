@@ -463,13 +463,24 @@ pub fn gen_summary(
     };
     let last_commit = repo.commit_list[0].committer_date.format(DATE).to_string();
     let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
-    let mut rows: Vec<(&str, &str)> =
-        vec![("name", &repo.name), ("description", &repo.description)];
+    let mut rows = vec![
+        ("name", escape_str(&repo.name)),
+        ("description", escape_str(&repo.description)),
+    ];
     if !repo.owner.is_empty() {
-        rows.push(("owner", &repo.owner));
+        rows.push(("owner", escape_str(&repo.owner)));
     }
-    rows.push(("last commit", &last_commit));
-    rows.push(("clone url", &clone_url));
+    rows.push(("last commit", last_commit));
+    if let Some(release) = repo.releases.first() {
+        let link = format!(
+            "<a href=\"{}\">{}</a> · {}",
+            Tab::Releases.href(""),
+            escape_str(&release.tag),
+            release.date.format(DATE)
+        );
+        rows.push(("latest release", link));
+    }
+    rows.push(("clone url", escape_str(&clone_url)));
 
     let mut body = String::from("<div class=\"box summary-meta-box\">\n");
     for (key, val) in rows {
@@ -477,10 +488,9 @@ pub fn gen_summary(
             "\
 <div class=\"summary-meta-row border-b\">\n\
 <span class=\"summary-meta-key\">{key}</span>\n\
-<span class=\"summary-meta-val\">{}</span>\n\
+<span class=\"summary-meta-val\">{val}</span>\n\
 </div>\n\
 ",
-            escape_str(val)
         ));
     }
     body.push_str("</div>\n");
