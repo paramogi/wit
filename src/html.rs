@@ -90,14 +90,16 @@ enum Tab {
     Commits,
     Branches,
     Tags,
+    Releases,
 }
 
-const TABS: [Tab; 5] = [
+const TABS: [Tab; 6] = [
     Tab::Summary,
     Tab::Tree,
     Tab::Commits,
     Tab::Branches,
     Tab::Tags,
+    Tab::Releases,
 ];
 
 impl Tab {
@@ -108,6 +110,7 @@ impl Tab {
             Tab::Commits => "commits",
             Tab::Branches => "branches",
             Tab::Tags => "tags",
+            Tab::Releases => "releases",
         }
     }
 
@@ -118,6 +121,7 @@ impl Tab {
             Tab::Commits => "action-commits",
             Tab::Branches => "action-branches",
             Tab::Tags => "action-tags",
+            Tab::Releases => "action-releases",
         }
     }
 
@@ -128,13 +132,17 @@ impl Tab {
             Tab::Commits => format!("commits/{}/index.html", percent_encode(git_ref)),
             Tab::Branches => "branches.html".to_string(),
             Tab::Tags => "tags.html".to_string(),
+            Tab::Releases => "releases.html".to_string(),
         }
     }
 }
 
 fn repo_tabs(repo: &RepoInfo) -> impl Iterator<Item = Tab> {
-    TABS.into_iter()
-        .filter(move |&tab| tab != Tab::Tags || !repo.tags.is_empty())
+    TABS.into_iter().filter(move |&tab| match tab {
+        Tab::Tags => !repo.tags.is_empty(),
+        Tab::Releases => !repo.releases.is_empty(),
+        _ => true,
+    })
 }
 
 struct RepoNav<'a> {
@@ -538,6 +546,60 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         ));
     }
     body.push_str("</div>\n");
+
+    wrap_page(&repo.name, Some(&nav), &body)
+}
+
+pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
+    let nav = RepoNav {
+        repo,
+        git_ref: &repo.head_dir,
+        tab: Tab::Releases,
+        depth: 0,
+        path: "",
+    };
+
+    let mut body = String::new();
+    for (release, sums) in repo.releases.iter().zip(sums) {
+        body.push_str(&format!(
+            "\
+<div class=\"box mt-0 p-0\">\n\
+<div class=\"flex items-center gap-2 py px border-b\">\n\
+<div class=\"flex-1 flex items-center gap font-bold\">{}<a href=\"{}\">{}</a></div>\n\
+{}\
+</div>\n\
+",
+            icon("tag"),
+            Tab::Tree.href(&format!("tags/{}", release.tag)),
+            escape_str(&release.tag),
+            date_cell(&release.date)
+        ));
+        if !release.notes.is_empty() {
+            body.push_str(&format!(
+                "<div class=\"py px border-b mono white-space-bs\">{}</div>\n",
+                escape_str(&release.notes)
+            ));
+        }
+        let dir = percent_encode(&release.tag);
+        for (name, (bytes, sha256)) in release.files.iter().zip(sums) {
+            body.push_str(&format!(
+                "\
+<div class=\"py px border-b tree-row\">\n\
+<div class=\"flex items-center gap-2\">\n\
+<div class=\"flex-1 flex items-center gap tree-path\">{}<a class=\"truncate\" download href=\"releases/{dir}/{}\">{}</a></div>\n\
+<div class=\"tree-date\">{}</div>\n\
+</div>\n\
+<div class=\"mono text-sm release-sum\">sha256 {sha256}</div>\n\
+</div>\n\
+",
+                icon("file"),
+                percent_encode(name),
+                escape_str(name),
+                format_bytes(*bytes)
+            ));
+        }
+        body.push_str("</div>\n");
+    }
 
     wrap_page(&repo.name, Some(&nav), &body)
 }

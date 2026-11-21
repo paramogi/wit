@@ -5,13 +5,15 @@ mod repo_info;
 use anyhow::{Context, Result, bail};
 use html::{
     COMMITS_PER_PAGE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit, gen_commits,
-    gen_index, gen_summary, gen_tags, gen_tree,
+    gen_index, gen_releases, gen_summary, gen_tags, gen_tree,
 };
 use repo_info::{CommitInfo, RepoInfo, join_path};
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
-    env, fs,
-    io::ErrorKind,
+    env,
+    fs::{self, File},
+    io::{ErrorKind, Read},
     iter,
     path::{Path, PathBuf},
     process,
@@ -72,6 +74,29 @@ fn link_file(from: &Path, to: &Path) -> Result<()> {
     fs::create_dir_all(dir)
         .and_then(|()| fs::hard_link(from, to).or_else(|_| fs::copy(from, to).map(drop)))
         .with_context(|| to.display().to_string())
+}
+
+fn file_sum(path: &Path) -> Result<(usize, String)> {
+    let mut file = File::open(path).with_context(|| path.display().to_string())?;
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0; 1 << 16];
+    let mut bytes = 0;
+    loop {
+        let n = file
+            .read(&mut buf)
+            .with_context(|| path.display().to_string())?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+        bytes += n;
+    }
+    let sha256 = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    Ok((bytes, sha256))
 }
 
 fn last_changes<'a>(
@@ -171,11 +196,19 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
     {
         return Err(e).with_context(|| repo_dir.display().to_string());
     }
+    let mut sums = Vec::new();
     for release in &repo.releases {
         let release_dir = repo_dir.join("releases").join(&release.tag);
+        let mut release_sums = Vec::new();
         for name in &release.files {
-            link_file(&release.dir.join(name), &release_dir.join(name))?;
+            let to = release_dir.join(name);
+            link_file(&release.dir.join(name), &to)?;
+            release_sums.push(file_sum(&to)?);
         }
+        sums.push(release_sums);
+    }
+    if !repo.releases.is_empty() {
+        write_file(&repo_dir.join("releases.html"), &gen_releases(repo, &sums))?;
     }
     write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
     if !repo.tags.is_empty() {

@@ -9,6 +9,7 @@ Create dependencies:
 - pulldown-cmark
 - anyhow
 - imagesize
+- sha2
 
 ## Usage:
 

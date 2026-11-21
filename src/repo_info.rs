@@ -104,6 +104,8 @@ impl RefInfo {
 
 pub struct Release {
     pub tag: String,
+    pub date: DateTime<FixedOffset>,
+    pub notes: String,
     pub dir: PathBuf,
     pub files: Vec<String>,
 }
@@ -147,7 +149,7 @@ impl RepoInfo {
         }
         let branches = handle_branches(&repo)?;
         let tags = handle_tags(&repo)?;
-        let releases = read_releases(path, repo_path, &tags)?;
+        let releases = read_releases(&repo, path, &tags)?;
         let commit_list = walk(&repo, &mut repo.revwalk()?, head_id)?;
         Ok(Ok(Self {
             git: repo,
@@ -467,7 +469,8 @@ fn to_date(time: git2::Time) -> Option<DateTime<FixedOffset>> {
     Some(date.with_timezone(&offset))
 }
 
-fn read_releases(path: &str, repo_path: &Path, tags: &[RefInfo]) -> Result<Vec<Release>> {
+fn read_releases(repo: &Repository, path: &str, tags: &[RefInfo]) -> Result<Vec<Release>> {
+    let repo_path = repo.path();
     let releases_dir = repo_path.join("releases");
     let folders = match fs::read_dir(&releases_dir) {
         Ok(folders) => folders,
@@ -503,12 +506,31 @@ fn read_releases(path: &str, repo_path: &Path, tags: &[RefInfo]) -> Result<Vec<R
                 files.push(name);
             }
         }
-        if !files.is_empty() {
-            files.sort();
-            let tag = tag.name.clone();
-            releases.push(Release { tag, dir, files });
+        if files.is_empty() {
+            continue;
         }
+        files.sort();
+        let tag_ref = repo.find_reference(&format!("refs/tags/{}", tag.name))?;
+        let annotated = tag_ref.peel_to_tag().ok();
+        let notes = annotated
+            .as_ref()
+            .and_then(|t| t.message_bytes())
+            .map(|m| String::from_utf8_lossy(m).trim().to_string())
+            .unwrap_or_default();
+        let date = annotated
+            .as_ref()
+            .and_then(|t| t.tagger())
+            .and_then(|sig| to_date(sig.when()))
+            .unwrap_or(tag.date);
+        releases.push(Release {
+            tag: tag.name.clone(),
+            date,
+            notes,
+            dir,
+            files,
+        });
     }
+    releases.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| a.tag.cmp(&b.tag)));
     Ok(releases)
 }
 
