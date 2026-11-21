@@ -6,7 +6,7 @@ use html::{
     COMMITS_PER_PAGE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit, gen_commits,
     gen_index, gen_summary, gen_tags, gen_tree,
 };
-use repo_info::{CommitInfo, RepoInfo};
+use repo_info::{CommitInfo, RepoInfo, join_path};
 use std::{
     collections::HashMap,
     env, fs,
@@ -100,11 +100,7 @@ fn page_clash(repo: &RepoInfo) -> Option<String> {
                         .and_then(|file| dir.entry(file))
                         .is_some_and(|e| e.blob.is_some());
                 if clashes {
-                    let path = if dir.path.is_empty() {
-                        entry.name.clone()
-                    } else {
-                        format!("{}/{}", dir.path, entry.name)
-                    };
+                    let path = join_path(&dir.path, &entry.name);
                     return Some(format!("dir {path} in {} clashes with a page", git_ref.dir));
                 }
             }
@@ -156,81 +152,80 @@ fn run() -> Result<()> {
         if update.is_some() && !is_update(&repo.path) && repo_dir.exists() {
             continue;
         }
-        match fs::remove_dir_all(&repo_dir) {
-            Err(e) if e.kind() != ErrorKind::NotFound => {
-                return Err(e).with_context(|| repo_dir.display().to_string());
-            }
-            _ => {}
-        }
-        write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
-        if !repo.tags.is_empty() {
-            write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
-        }
-        let refs = || repo.branches.iter().chain(&repo.tags);
-        let head_first = refs()
-            .filter(|r| r.dir == repo.head_dir)
-            .chain(refs().filter(|r| r.dir != repo.head_dir));
-        let mut stats = HashMap::new();
-        let mut changes = HashMap::new();
-        let mut rev = repo.git.revwalk().with_context(|| repo.path.clone())?;
-        for git_ref in head_first {
-            let commits = repo
-                .read_commits(&mut rev, &git_ref.id)
-                .with_context(|| repo.path.clone())?;
-            for commit in &commits {
-                if stats.contains_key(&commit.id) {
-                    continue;
-                }
-                let diff = repo
-                    .read_diff(&commit.id)
-                    .with_context(|| repo.path.clone())?;
-                write_file(
-                    &repo_dir.join("commits").join(format!("{}.html", commit.id)),
-                    &gen_commit(repo, git_ref, commit, &diff),
-                )?;
-                stats.insert(commit.id.clone(), diff_stat(&diff));
-                if diff.parents.len() < 2 {
-                    let paths: Vec<String> = diff
-                        .files
-                        .iter()
-                        .flat_map(|f| iter::once(&f.path).chain(&f.old_path))
-                        .cloned()
-                        .collect();
-                    changes.insert(commit.id.clone(), paths);
-                }
-            }
-            let last = last_changes(&commits, &changes);
-            let commits_dir = repo_dir.join("commits").join(&git_ref.dir);
-            for page in 1..=commits.len().div_ceil(COMMITS_PER_PAGE) {
-                write_file(
-                    &commits_dir.join(commits_page(page)),
-                    &gen_commits(repo, git_ref, &commits, &stats, page),
-                )?;
-            }
-            for dir in git_ref.dirs.values() {
-                let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&dir.path);
-                write_file(
-                    &tree_dir.join("index.html"),
-                    &gen_tree(repo, git_ref, dir, &last),
-                )?;
-                let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&dir.path);
-                for entry in &dir.entries {
-                    let Some(id) = entry.blob else {
-                        continue;
-                    };
-                    let blob = repo.git.find_blob(id).with_context(|| repo.path.clone())?;
-                    write_file(
-                        &blob_dir.join(format!("{}.html", entry.name)),
-                        &gen_blob(repo, git_ref, dir, entry, blob.content(), &last),
-                    )?;
-                }
-            }
-        }
-        let head_last = last_changes(&repo.commit_list, &changes);
-        write_file(
-            &repo_dir.join("index.html"),
-            &gen_summary(repo, &stats, &head_last),
-        )?;
+        write_repo(repo, &repo_dir).with_context(|| repo.path.clone())?;
     }
     Ok(())
+}
+
+fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
+    if let Err(e) = fs::remove_dir_all(repo_dir)
+        && e.kind() != ErrorKind::NotFound
+    {
+        return Err(e).with_context(|| repo_dir.display().to_string());
+    }
+    write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
+    if !repo.tags.is_empty() {
+        write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
+    }
+    let refs = || repo.branches.iter().chain(&repo.tags);
+    let head_first = refs()
+        .filter(|r| r.dir == repo.head_dir)
+        .chain(refs().filter(|r| r.dir != repo.head_dir));
+    let mut stats = HashMap::new();
+    let mut changes = HashMap::new();
+    let mut rev = repo.git.revwalk()?;
+    for git_ref in head_first {
+        let commits = repo.read_commits(&mut rev, &git_ref.id)?;
+        for commit in &commits {
+            if stats.contains_key(&commit.id) {
+                continue;
+            }
+            let diff = repo.read_diff(&commit.id)?;
+            write_file(
+                &repo_dir.join("commits").join(format!("{}.html", commit.id)),
+                &gen_commit(repo, git_ref, commit, &diff),
+            )?;
+            stats.insert(commit.id.clone(), diff_stat(&diff));
+            if diff.parents.len() < 2 {
+                let paths: Vec<String> = diff
+                    .files
+                    .iter()
+                    .flat_map(|f| iter::once(&f.path).chain(&f.old_path))
+                    .cloned()
+                    .collect();
+                changes.insert(commit.id.clone(), paths);
+            }
+        }
+        let last = last_changes(&commits, &changes);
+        let commits_dir = repo_dir.join("commits").join(&git_ref.dir);
+        for page in 1..=commits.len().div_ceil(COMMITS_PER_PAGE) {
+            write_file(
+                &commits_dir.join(commits_page(page)),
+                &gen_commits(repo, git_ref, &commits, &stats, page),
+            )?;
+        }
+        for dir in git_ref.dirs.values() {
+            let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&dir.path);
+            write_file(
+                &tree_dir.join("index.html"),
+                &gen_tree(repo, git_ref, dir, &last),
+            )?;
+            let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&dir.path);
+            for entry in &dir.entries {
+                let Some(id) = entry.blob else {
+                    continue;
+                };
+                let blob = repo.git.find_blob(id)?;
+                write_file(
+                    &blob_dir.join(format!("{}.html", entry.name)),
+                    &gen_blob(repo, git_ref, dir, entry, blob.content(), &last),
+                )?;
+            }
+        }
+    }
+    let head_last = last_changes(&repo.commit_list, &changes);
+    write_file(
+        &repo_dir.join("index.html"),
+        &gen_summary(repo, &stats, &head_last),
+    )
 }

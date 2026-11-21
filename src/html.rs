@@ -1,5 +1,5 @@
 use crate::repo_info::{
-    CommitDiff, CommitInfo, Dir, FileChange, Line, RefInfo, RepoInfo, TreeEntry,
+    CommitDiff, CommitInfo, Dir, FileChange, Line, RefInfo, RepoInfo, TreeEntry, join_path,
 };
 
 use chrono::{DateTime, FixedOffset};
@@ -1575,14 +1575,6 @@ fn base64(bytes: &[u8]) -> String {
         }
     }
     encoded
-}
-
-fn join_path(parent: &str, child: &str) -> String {
-    if parent.is_empty() || child.is_empty() {
-        format!("{parent}{child}")
-    } else {
-        format!("{parent}/{child}")
-    }
 }
 
 fn ref_bar(

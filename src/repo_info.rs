@@ -73,6 +73,14 @@ impl Dir {
     }
 }
 
+pub fn join_path(parent: &str, child: &str) -> String {
+    if parent.is_empty() || child.is_empty() {
+        format!("{parent}{child}")
+    } else {
+        format!("{parent}/{child}")
+    }
+}
+
 pub struct RefInfo {
     pub name: String,
     pub dir: String,
@@ -157,16 +165,8 @@ impl RepoInfo {
                 continue;
             };
             let commit = branch.get().peel_to_commit()?;
-            branches.push(RefInfo {
-                name: name.to_string(),
-                dir: format!("heads/{name}"),
-                id: commit.id().to_string(),
-                time: commit.committer().when().seconds(),
-                date: Self::commit_date(&commit)?,
-                summary: Self::commit_summary(&commit),
-                dirs: Self::read_dirs(repo, &commit)?,
-                submodules: Self::read_gitmodules(repo, &commit)?,
-            });
+            let time = commit.committer().when();
+            branches.push(Self::ref_info(repo, "heads", name, &commit, time)?);
         }
         branches.sort_by(RefInfo::newest_first);
         Ok(branches)
@@ -187,19 +187,29 @@ impl RepoInfo {
                 .ok()
                 .and_then(|tag| tag.tagger().map(|sig| sig.when()));
             let time = tagger_time.unwrap_or(commit.committer().when());
-            tags.push(RefInfo {
-                name: name.to_string(),
-                dir: format!("tags/{name}"),
-                id: commit.id().to_string(),
-                time: time.seconds(),
-                date: Self::commit_date(&commit)?,
-                summary: Self::commit_summary(&commit),
-                dirs: Self::read_dirs(repo, &commit)?,
-                submodules: Self::read_gitmodules(repo, &commit)?,
-            });
+            tags.push(Self::ref_info(repo, "tags", name, &commit, time)?);
         }
         tags.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| a.name.cmp(&b.name)));
         Ok(tags)
+    }
+
+    fn ref_info(
+        repo: &Repository,
+        kind: &str,
+        name: &str,
+        commit: &Commit,
+        time: git2::Time,
+    ) -> Result<RefInfo> {
+        Ok(RefInfo {
+            name: name.to_string(),
+            dir: format!("{kind}/{name}"),
+            id: commit.id().to_string(),
+            time: time.seconds(),
+            date: Self::commit_date(commit)?,
+            summary: Self::commit_summary(commit),
+            dirs: Self::read_dirs(repo, commit)?,
+            submodules: Self::read_gitmodules(repo, commit)?,
+        })
     }
 
     fn read_gitmodules(repo: &Repository, commit: &Commit) -> Result<Vec<(String, String)>> {
@@ -263,11 +273,7 @@ impl RepoInfo {
                     (Some(entry.id()), lines, Some(blob.size()), None)
                 }
                 Some(ObjectType::Tree) => {
-                    let sub_path = if path.is_empty() {
-                        name.to_string()
-                    } else {
-                        format!("{path}/{name}")
-                    };
+                    let sub_path = join_path(path, name);
                     Self::read_dir(repo, &repo.find_tree(entry.id())?, &sub_path, dirs)?;
                     (None, None, None, None)
                 }
