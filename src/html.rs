@@ -55,7 +55,7 @@ const MAX_LINKS: usize = 40;
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-const ICONS: [(&str, &str); 22] = [
+const ICONS: [(&str, &str); 23] = [
     ("file", include_str!("icons/file-16.svg")),
     ("file-zip", include_str!("icons/file-zip-16.svg")),
     (
@@ -73,6 +73,7 @@ const ICONS: [(&str, &str); 22] = [
     ("git-branch", include_str!("icons/git-branch-16.svg")),
     ("git-commit", include_str!("icons/git-commit-16.svg")),
     ("tag", include_str!("icons/tag-16.svg")),
+    ("release", include_str!("icons/release-16.svg")),
     ("chevron-down", include_str!("icons/chevron-down-16.svg")),
     ("chevron-left", include_str!("icons/chevron-left-16.svg")),
     ("chevron-right", include_str!("icons/chevron-right-16.svg")),
@@ -589,7 +590,7 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
 <div class=\"ml-auto tree-date release-date\" title=\"{}\">released {}</div>\n\
 </div>\n\
 ",
-            icon("tag"),
+            icon("release"),
             Tab::Tree.href(&format!("tags/{}", release.tag)),
             escape_str(&release.tag),
             icon("git-commit"),
