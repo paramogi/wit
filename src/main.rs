@@ -1,4 +1,5 @@
 mod html;
+mod markdown;
 mod repo_info;
 
 use anyhow::{Context, Result, bail};
