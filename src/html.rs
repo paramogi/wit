@@ -202,13 +202,14 @@ fn format_bytes(bytes: usize) -> String {
     if bytes < 1000 {
         return format!("{bytes} b");
     }
+    let round = |value: f64| (value * 10.0 + 0.5).floor() / 10.0;
     let mut value = bytes as f64;
     let mut unit = 0;
-    while value >= 1000.0 && unit + 1 < BYTE_UNITS.len() {
+    while round(value) >= 999.5 && unit + 1 < BYTE_UNITS.len() {
         value /= 1000.0;
         unit += 1;
     }
-    let value = (value * 10.0 + 0.5).floor() / 10.0;
+    let value = round(value);
     if value < 10.0 {
         format!("{value:.1} {}", BYTE_UNITS[unit])
     } else {
