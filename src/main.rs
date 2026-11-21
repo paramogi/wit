@@ -11,6 +11,7 @@ use std::{
     collections::HashMap,
     env, fs,
     io::ErrorKind,
+    iter,
     path::{Path, PathBuf},
     process,
     time::UNIX_EPOCH,
@@ -163,7 +164,12 @@ fn run() -> Result<()> {
                 )?;
                 stats.insert(commit.id.clone(), diff_stat(&diff));
                 if diff.parents.len() < 2 {
-                    let paths: Vec<String> = diff.files.iter().map(|f| f.path.clone()).collect();
+                    let paths: Vec<String> = diff
+                        .files
+                        .iter()
+                        .flat_map(|f| iter::once(&f.path).chain(&f.old_path))
+                        .cloned()
+                        .collect();
                     changes.insert(commit.id.clone(), paths);
                 }
             }
