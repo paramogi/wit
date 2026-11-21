@@ -9,6 +9,7 @@ use pulldown_cmark::{
 use std::{
     cmp::Reverse,
     collections::{HashMap, HashSet},
+    fmt::Write,
 };
 
 const BRAND: &str = "wit";
@@ -970,12 +971,14 @@ fn change_path(file: &FileChange) -> String {
 fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
     let max = lines.iter().filter_map(|l| l.old.max(l.new)).max();
     let width = max.unwrap_or(0).to_string().len();
-    let number = |side: &str, num: Option<u32>| match num {
-        Some(num) => {
-            let id = format!("d{n}-{side}{num}");
-            format!("<a class=\"ln\" id=\"{id}\" href=\"#{id}\">{num:>width$}</a>")
-        }
-        None => format!("<span class=\"ln\">{}</span>", " ".repeat(width)),
+    let number = |body: &mut String, side: &str, num: Option<u32>| {
+        let _ = match num {
+            Some(num) => write!(
+                body,
+                "<a class=\"ln\" id=\"d{n}-{side}{num}\" href=\"#d{n}-{side}{num}\">{num:>width$}</a>"
+            ),
+            None => write!(body, "<span class=\"ln\">{:width$}</span>", ""),
+        };
     };
     body.push_str("<pre class=\"chroma joined\"><code>");
     for line in lines {
@@ -987,11 +990,10 @@ fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
             ' ' => ("", format!(" {text}"), line.old, line.new),
             _ => ("", "\\ No newline at end of file\n".to_string(), None, None),
         };
-        body.push_str(&format!(
-            "<span class=\"line{class}\">{}{}<span class=\"cl\">{text}</span></span>",
-            number("L", old),
-            number("R", new)
-        ));
+        let _ = write!(body, "<span class=\"line{class}\">");
+        number(body, "L", old);
+        number(body, "R", new);
+        let _ = write!(body, "<span class=\"cl\">{text}</span></span>");
     }
     body.push_str("</code></pre>\n");
 }
@@ -1688,7 +1690,7 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path:
 }
 
 fn write_code(body: &mut String, content: &[u8]) {
-    let text = String::from_utf8_lossy(content);
+    let text = escape_str(&String::from_utf8_lossy(content));
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let width = lines.len().to_string().len();
     body.push_str("<pre class=\"chroma\"><code>");
@@ -1698,10 +1700,10 @@ fn write_code(body: &mut String, content: &[u8]) {
             Some(text) => (text, "\n"),
             None => (*line, ""),
         };
-        body.push_str(&format!(
-            "<a class=\"ln\" id=\"L{n}\" href=\"#L{n}\">{n:>width$}</a><span class=\"cl\">{}</span>{newline}",
-            escape_str(text)
-        ));
+        let _ = write!(
+            body,
+            "<a class=\"ln\" id=\"L{n}\" href=\"#L{n}\">{n:>width$}</a><span class=\"cl\">{text}</span>{newline}"
+        );
     }
     body.push_str("</code></pre>\n");
 }
