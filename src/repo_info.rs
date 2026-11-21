@@ -5,7 +5,9 @@ use git2::{
     BranchType, Commit, Delta, DiffFile, DiffFindOptions, DiffOptions, ErrorCode, ObjectType, Oid,
     Patch, Repository, Sort, Tree,
 };
-use std::{cmp::Ordering, fs::read_to_string, io::ErrorKind::NotFound, path::Path};
+use std::{
+    cmp::Ordering, collections::BTreeMap, fs::read_to_string, io::ErrorKind::NotFound, path::Path,
+};
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
 
@@ -67,7 +69,7 @@ pub struct RefInfo {
     pub time: i64,
     pub date: DateTime<FixedOffset>,
     pub summary: String,
-    pub dirs: Vec<Dir>,
+    pub dirs: BTreeMap<String, Dir>,
     pub submodules: Vec<(String, String)>,
 }
 
@@ -221,13 +223,18 @@ impl RepoInfo {
             .collect())
     }
 
-    fn read_dirs(repo: &Repository, commit: &Commit) -> Result<Vec<Dir>> {
-        let mut dirs = Vec::new();
+    fn read_dirs(repo: &Repository, commit: &Commit) -> Result<BTreeMap<String, Dir>> {
+        let mut dirs = BTreeMap::new();
         Self::read_dir(repo, &commit.tree()?, "", &mut dirs)?;
         Ok(dirs)
     }
 
-    fn read_dir(repo: &Repository, tree: &Tree, path: &str, dirs: &mut Vec<Dir>) -> Result<()> {
+    fn read_dir(
+        repo: &Repository,
+        tree: &Tree,
+        path: &str,
+        dirs: &mut BTreeMap<String, Dir>,
+    ) -> Result<()> {
         let mut entries = Vec::new();
         for entry in tree.iter() {
             let Ok(name) = entry.name() else {
@@ -266,10 +273,11 @@ impl RepoInfo {
             });
         }
         entries.sort_by_key(|entry| !entry.is_dir);
-        dirs.push(Dir {
+        let dir = Dir {
             path: path.to_string(),
             entries,
-        });
+        };
+        dirs.insert(dir.path.clone(), dir);
         Ok(())
     }
 

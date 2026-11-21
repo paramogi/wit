@@ -237,7 +237,7 @@ fn find_ref<'a>(repo: &'a RepoInfo, dir: &str) -> Option<&'a RefInfo> {
 }
 
 fn root_dir(git_ref: &RefInfo) -> Option<&Dir> {
-    git_ref.dirs.iter().find(|d| d.path.is_empty())
+    git_ref.dirs.get("")
 }
 
 fn repo_file<'a>(dir: &'a Dir, names: &[&str]) -> Option<&'a TreeEntry> {
@@ -1381,7 +1381,7 @@ fn link_target(git_ref: &RefInfo, base: &str, repo_root: &str, url: &str) -> Opt
 
 fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
     let path = follow_links(git_ref, path)?;
-    if git_ref.dirs.iter().any(|d| d.path == path) {
+    if git_ref.dirs.contains_key(&path) {
         let href = Tab::Tree.href(&join_path(&git_ref.dir, &path));
         return Some(format!("{repo_root}{href}"));
     }
@@ -1427,7 +1427,7 @@ fn follow_links(git_ref: &RefInfo, path: &str) -> Option<String> {
                 path = resolve_path(dir, target)?;
             }
             None => {
-                let is_dir = git_ref.dirs.iter().any(|d| d.path == path);
+                let is_dir = git_ref.dirs.contains_key(&path);
                 return (is_dir || !dir_only).then_some(path);
             }
         }
@@ -1453,8 +1453,7 @@ fn find_entry<'a>(git_ref: &'a RefInfo, path: &str) -> Option<&'a TreeEntry> {
     let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
     git_ref
         .dirs
-        .iter()
-        .find(|d| d.path == dir)?
+        .get(dir)?
         .entries
         .iter()
         .find(|entry| entry.name == name)
@@ -1607,7 +1606,7 @@ fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
         return (href, true);
     }
     let mut dir = path;
-    while !dir.is_empty() && !git_ref.dirs.iter().any(|d| d.path == dir) {
+    while !dir.is_empty() && !git_ref.dirs.contains_key(dir) {
         dir = dir.rsplit_once('/').map_or("", |(parent, _)| parent);
     }
     (Tab::Tree.href(&join_path(&git_ref.dir, dir)), dir == path)

@@ -91,7 +91,7 @@ fn last_changes<'a>(
 
 fn page_clash(repo: &RepoInfo) -> Option<String> {
     for git_ref in repo.branches.iter().chain(&repo.tags) {
-        for dir in &git_ref.dirs {
+        for dir in git_ref.dirs.values() {
             for entry in dir.entries.iter().filter(|e| e.is_dir) {
                 let clashes = entry.name == "index.html"
                     || entry.name.strip_suffix(".html").is_some_and(|file| {
@@ -206,7 +206,7 @@ fn run() -> Result<()> {
                     &gen_commits(repo, git_ref, &commits, &stats, page),
                 )?;
             }
-            for dir in &git_ref.dirs {
+            for dir in git_ref.dirs.values() {
                 let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&dir.path);
                 write_file(
                     &tree_dir.join("index.html"),
