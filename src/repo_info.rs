@@ -74,6 +74,10 @@ impl Dir {
 }
 
 pub fn archive_name(repo: &str, tag: &str) -> String {
+    let tag = match tag.strip_prefix('v') {
+        Some(rest) if rest.starts_with(|c: char| c.is_ascii_digit()) => rest,
+        _ => tag,
+    };
     format!("{repo}-{}", tag.replace('/', "-"))
 }
 
