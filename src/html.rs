@@ -28,6 +28,8 @@ const BYTE_UNITS: [&str; 5] = ["b", "kb", "mb", "gb", "tb"];
 
 const README_NAMES: [&str; 2] = ["README.md", "README"];
 
+const MARKDOWN_BOX: &str = "box markdown-body";
+
 const REPO_FILES: [(&str, [&str; 2]); 2] = [
     ("README", README_NAMES),
     ("LICENSE", ["LICENSE", "COPYING"]),
@@ -289,7 +291,7 @@ fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, dir: &Dir
     write_file_head(body, entry, content, markdown);
     if markdown {
         let base = path.rsplit_once('/').map_or("", |(parent, _)| parent);
-        write_markdown(body, repo, git_ref, base, repo_root, content);
+        write_markdown(body, MARKDOWN_BOX, repo, git_ref, base, repo_root, content);
         write_code(body, content);
     } else {
         body.push_str(&format!(
@@ -574,11 +576,19 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
             escape_str(&release.tag),
             date_cell(&release.date)
         ));
-        if !release.notes.is_empty() {
-            body.push_str(&format!(
-                "<div class=\"py px border-b mono white-space-bs\">{}</div>\n",
-                escape_str(&release.notes)
-            ));
+        if !release.notes.is_empty()
+            && let Some(tag) = repo.tags.iter().find(|t| t.name == release.tag)
+        {
+            let notes = release.notes.as_bytes();
+            write_markdown(
+                &mut body,
+                "markdown-body border-b",
+                repo,
+                tag,
+                "",
+                "",
+                notes,
+            );
         }
         let dir = percent_encode(&release.tag);
         for (name, (bytes, sha256)) in release.files.iter().zip(sums) {
@@ -738,9 +748,15 @@ pub fn gen_blob(
             data_uri(mime, content),
             escape_str(&entry.name)
         )),
-        None if text && is_markdown(&entry.name) => {
-            write_markdown(&mut body, repo, git_ref, &dir.path, &repo_root, content)
-        }
+        None if text && is_markdown(&entry.name) => write_markdown(
+            &mut body,
+            MARKDOWN_BOX,
+            repo,
+            git_ref,
+            &dir.path,
+            &repo_root,
+            content,
+        ),
         _ if text => write_code(&mut body, content),
         _ => body.push_str("binary file, cannot display\n"),
     }
@@ -1331,7 +1347,10 @@ fn write_code(body: &mut String, content: &[u8]) {
     let text = escape_str(&String::from_utf8_lossy(content));
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let width = lines.len().to_string().len();
-    body.push_str("<pre class=\"chroma\"><code>");
+    let _ = write!(
+        body,
+        "<pre class=\"chroma\" style=\"--ln: {width}ch\"><code>"
+    );
     for (i, line) in lines.iter().enumerate() {
         let n = i + 1;
         let (text, newline) = match line.strip_suffix('\n') {

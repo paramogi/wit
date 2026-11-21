@@ -33,6 +33,7 @@ pub fn is_markdown(name: &str) -> bool {
 
 pub fn write_markdown(
     body: &mut String,
+    class: &str,
     repo: &RepoInfo,
     git_ref: &RefInfo,
     base: &str,
@@ -138,7 +139,7 @@ pub fn write_markdown(
             _ => html_events.push(event),
         }
     }
-    body.push_str("<div class=\"box markdown-body\">");
+    body.push_str(&format!("<div class=\"{class}\">"));
     push_html(body, html_events.into_iter());
     body.push_str("</div>\n");
 }

@@ -568,6 +568,10 @@ p {
   line-height: 1.5rem;
 }
 
+.action-releases .markdown-body {
+  padding: 0.65rem 0.5rem;
+}
+
 .markdown-body > :first-child {
   margin-top: 0;
 }
@@ -771,6 +775,18 @@ summary .anchor {
 .chroma .cl {
   display: inline-block;
   padding-right: 0.5em;
+}
+
+#view-source ~ .chroma code {
+  min-width: 0;
+}
+
+#view-source ~ .chroma .cl {
+  max-width: calc(100% - var(--ln) - 0.5em);
+  padding-right: 0;
+  vertical-align: top;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .chroma .ln:target {
