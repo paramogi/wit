@@ -416,7 +416,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
 
 pub fn gen_index(repos: &[RepoInfo]) -> String {
     let mut sorted: Vec<&RepoInfo> = repos.iter().collect();
-    sorted.sort_by_key(|repo| Reverse(repo.commit_list.first().map(|c| c.committer_date)));
+    sorted.sort_by_key(|repo| Reverse(repo.commit_list[0].committer_date));
 
     let mut body = String::from("<div class=\"home-grid\">\n");
     for repo in sorted {
@@ -468,19 +468,14 @@ pub fn gen_summary(
         depth: 0,
         path: "",
     };
-    let last_commit = repo
-        .commit_list
-        .first()
-        .map(|commit| commit.committer_date.format(DATE).to_string());
+    let last_commit = repo.commit_list[0].committer_date.format(DATE).to_string();
     let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
     let mut rows: Vec<(&str, &str)> =
         vec![("name", &repo.name), ("description", &repo.description)];
     if !repo.owner.is_empty() {
         rows.push(("owner", &repo.owner));
     }
-    if let Some(date) = &last_commit {
-        rows.push(("last commit", date));
-    }
+    rows.push(("last commit", &last_commit));
     rows.push(("clone url", &clone_url));
 
     let mut body = String::from("<div class=\"box summary-meta-box\">\n");
