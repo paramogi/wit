@@ -683,11 +683,12 @@ fn bar_details(repo_root: &str, id: &str, summary: &str, date: &DateTime<FixedOf
         "\
 {}\
 <div class=\"ml-auto flex items-center gap\">\n\
-<div class=\"tree-commit mono\"><a href=\"{repo_root}commits/{id}.html\">{}</a></div>\n\
+<div class=\"flex items-center gap tree-commit mono\">{}<a href=\"{repo_root}commits/{id}.html\">{}</a></div>\n\
 {}\
 </div>\n\
 ",
         summary_cell(repo_root, id, summary),
+        icon("git-commit"),
         &id[..7],
         date_cell(date)
     )
@@ -1525,7 +1526,7 @@ fn write_commit_row(
         "\
 <div class=\"box m-0 commit-row{joined}\">\n\
 <div class=\"flex flex-wrap items-center gap text-sm\">\n\
-<a href=\"{href}\" class=\"mono\">{}</a>\n\
+{}<a href=\"{href}\" class=\"mono\">{}</a>\n\
 <div class=\"flex items-center gap-xs\">\n\
 <span>{}</span>\n\
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
@@ -1539,6 +1540,7 @@ fn write_commit_row(
 </div>\n\
 </div>\n\
 ",
+        icon("git-commit"),
         &commit.id[..7],
         escape_str(&commit.author_name),
         date,
