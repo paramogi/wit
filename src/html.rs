@@ -49,7 +49,7 @@ const REF_CHIPS: usize = 2;
 
 const MAX_LINKS: usize = 40;
 
-const PAGE_IDS: [&str; 10] = [
+const PAGE_IDS: [&str; 12] = [
     "header",
     "got_link",
     "site_path",
@@ -60,6 +60,8 @@ const PAGE_IDS: [&str; 10] = [
     "tree_content",
     "ref-branches",
     "ref-tags",
+    "view-source",
+    "view-rendered",
 ];
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -1071,8 +1073,8 @@ fn write_markdown(
             events.push(event);
         }
     }
-    let events = gather_footnotes(events);
-    let mut ids = heading_ids(&events).into_iter();
+    let (events, footnote_ids) = gather_footnotes(events);
+    let mut ids = heading_ids(&events, footnote_ids).into_iter();
     let mut html_events = Vec::with_capacity(events.len());
     for event in events {
         match event {
@@ -1134,7 +1136,7 @@ fn write_markdown(
     body.push_str("</div>\n");
 }
 
-fn gather_footnotes(events: Vec<Event<'_>>) -> Vec<Event<'_>> {
+fn gather_footnotes(events: Vec<Event<'_>>) -> (Vec<Event<'_>>, Vec<String>) {
     let mut main = Vec::with_capacity(events.len());
     let mut definitions: HashMap<String, Vec<Event>> = HashMap::new();
     let mut referenced: Vec<(String, usize)> = Vec::new();
@@ -1179,11 +1181,14 @@ fn gather_footnotes(events: Vec<Event<'_>>) -> Vec<Event<'_>> {
             None => main.push(event),
         }
     }
+    let mut ids = Vec::new();
     if referenced.is_empty() {
-        return main;
+        return (main, ids);
     }
     main.push(Event::Html("<section class=\"footnotes\">\n<ol>\n".into()));
     for (label, count) in referenced {
+        ids.push(format!("fn-{label}"));
+        ids.extend((1..=count).map(|k| footnote_ref_id(&label, k)));
         let mut body = definitions.remove(&label).unwrap_or_default();
         let arrows: String = (1..=count)
             .map(|k| {
@@ -1211,7 +1216,7 @@ fn gather_footnotes(events: Vec<Event<'_>>) -> Vec<Event<'_>> {
         main.push(Event::Html("</li>\n".into()));
     }
     main.push(Event::Html("</ol>\n</section>\n".into()));
-    main
+    (main, ids)
 }
 
 fn footnote_ref_id(label: &str, k: usize) -> String {
@@ -1222,8 +1227,12 @@ fn footnote_ref_id(label: &str, k: usize) -> String {
     }
 }
 
-fn heading_ids(events: &[Event]) -> Vec<String> {
-    let mut used: HashSet<String> = PAGE_IDS.iter().map(|id| id.to_string()).collect();
+fn heading_ids(events: &[Event], footnote_ids: Vec<String>) -> Vec<String> {
+    let mut used: HashSet<String> = PAGE_IDS
+        .iter()
+        .map(|id| id.to_string())
+        .chain(footnote_ids)
+        .collect();
     let mut texts = Vec::new();
     let mut heading: Option<String> = None;
     for event in events {
