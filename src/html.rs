@@ -552,24 +552,33 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
 
     let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
     for git_ref in refs {
-        body.push_str(&format!(
-            "\
-<div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
-<div class=\"flex-1 flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
-{}\
-{}\
-</div>\n\
-",
-            ref_icon(git_ref),
-            Tab::Tree.href(&git_ref.dir),
-            escape_str(&git_ref.name),
-            summary_cell("", &git_ref.id, &git_ref.summary),
-            date_cell(&git_ref.date)
+        body.push_str(&ref_row(
+            git_ref,
+            "div",
+            "flex justify-between items-center gap-2 py px tree-row border-b",
+            "flex-1 flex items-center gap",
         ));
     }
     body.push_str("</div>\n");
 
     wrap_page(&repo.name, Some(&nav), &body)
+}
+
+fn ref_row(git_ref: &RefInfo, element: &str, row_class: &str, name_class: &str) -> String {
+    format!(
+        "\
+<{element} class=\"{row_class}\">\n\
+<div class=\"{name_class}\">{}<a href=\"{}\">{}</a></div>\n\
+{}\
+{}\
+</{element}>\n\
+",
+        ref_icon(git_ref),
+        Tab::Tree.href(&git_ref.dir),
+        escape_str(&git_ref.name),
+        summary_cell("", &git_ref.id, &git_ref.summary),
+        date_cell(&git_ref.date)
+    )
 }
 
 fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
@@ -614,14 +623,28 @@ fn format_zoned(date: &DateTime<FixedOffset>, format: &str) -> String {
     format!("{}&nbsp;UTC{zone}", date.format(format))
 }
 
+fn tree_depth(git_ref: &RefInfo, dir: &Dir) -> usize {
+    1 + join_path(&git_ref.dir, &dir.path).split('/').count()
+}
+
+fn last_details(repo_root: &str, last: &HashMap<String, &CommitInfo>, path: &str) -> String {
+    last.get(path).map_or_else(String::new, |commit| {
+        bar_details(
+            repo_root,
+            &commit.id,
+            &commit.summary,
+            &commit.committer_date,
+        )
+    })
+}
+
 pub fn gen_tree(
     repo: &RepoInfo,
     git_ref: &RefInfo,
     dir: &Dir,
     last: &HashMap<String, &CommitInfo>,
 ) -> String {
-    let tree_path = join_path(&git_ref.dir, &dir.path);
-    let depth = 1 + tree_path.split('/').count();
+    let depth = tree_depth(git_ref, dir);
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
@@ -630,19 +653,12 @@ pub fn gen_tree(
         path: "",
     };
     let repo_root = "../".repeat(depth);
-    let blob_dir = format!("{repo_root}blob/{tree_path}/");
+    let blob_dir = format!("{repo_root}blob/{}/", join_path(&git_ref.dir, &dir.path));
 
     let details = if dir.path.is_empty() {
         bar_details(&repo_root, &git_ref.id, &git_ref.summary, &git_ref.date)
     } else {
-        last.get(&dir.path).map_or_else(String::new, |commit| {
-            bar_details(
-                &repo_root,
-                &commit.id,
-                &commit.summary,
-                &commit.committer_date,
-            )
-        })
+        last_details(&repo_root, last, &dir.path)
     };
 
     let mut body = ref_bar(repo, git_ref, &dir.path, &repo_root, &details);
@@ -661,7 +677,7 @@ pub fn gen_blob(
     content: &[u8],
     last: &HashMap<String, &CommitInfo>,
 ) -> String {
-    let depth = 1 + join_path(&git_ref.dir, &dir.path).split('/').count();
+    let depth = tree_depth(git_ref, dir);
     let path = join_path(&dir.path, &entry.name);
     let nav = RepoNav {
         repo,
@@ -671,14 +687,7 @@ pub fn gen_blob(
         path: &path,
     };
     let repo_root = "../".repeat(depth);
-    let details = last.get(&path).map_or_else(String::new, |commit| {
-        bar_details(
-            &repo_root,
-            &commit.id,
-            &commit.summary,
-            &commit.committer_date,
-        )
-    });
+    let details = last_details(&repo_root, last, &path);
 
     let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
     let views = has_source_view(entry);
@@ -1087,13 +1096,16 @@ fn write_markdown(
         _ => event,
     });
     let mut events: Vec<Event> = Vec::new();
+    let mut html: Option<String> = None;
     for event in parsed {
-        if let (Some(Event::Html(block)), Event::Html(line)) = (events.last_mut(), &event) {
-            *block = format!("{block}{line}").into();
-        } else {
-            events.push(event);
+        if let Event::Html(line) = &event {
+            html.get_or_insert_default().push_str(line);
+            continue;
         }
+        events.extend(html.take().map(|block| Event::Html(block.into())));
+        events.push(event);
     }
+    events.extend(html.map(|block| Event::Html(block.into())));
     let (events, footnote_ids) = gather_footnotes(events);
     let mut ids = heading_ids(&events, footnote_ids).into_iter();
     let mut html_events = Vec::with_capacity(events.len());
@@ -1884,21 +1896,10 @@ fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &s
 <div id=\"{label}_content\" class=\"box p-0\">\n\
 "
     ));
+    let row_class = format!("{wrapper} flex justify-between items-center gap-2 border-b py px");
+    let name_class = format!("{inner} flex-1 flex items-center gap");
     for git_ref in refs.iter().take(SUMMARY_REF_COUNT) {
-        body.push_str(&format!(
-            "\
-<section class=\"{wrapper} flex justify-between items-center gap-2 border-b py px\">\n\
-<div class=\"{inner} flex-1 flex items-center gap\">{}<a href=\"{}\">{}</a></div>\n\
-{}\
-{}\
-</section>\n\
-",
-            ref_icon(git_ref),
-            Tab::Tree.href(&git_ref.dir),
-            escape_str(&git_ref.name),
-            summary_cell("", &git_ref.id, &git_ref.summary),
-            date_cell(&git_ref.date)
-        ));
+        body.push_str(&ref_row(git_ref, "section", &row_class, &name_class));
     }
     body.push_str(&format!(
         "\
