@@ -67,6 +67,13 @@ fn write_file(path: &Path, contents: &str) -> Result<()> {
         .with_context(|| path.display().to_string())
 }
 
+fn link_file(from: &Path, to: &Path) -> Result<()> {
+    let dir = to.parent().unwrap_or(Path::new(""));
+    fs::create_dir_all(dir)
+        .and_then(|()| fs::hard_link(from, to).or_else(|_| fs::copy(from, to).map(drop)))
+        .with_context(|| to.display().to_string())
+}
+
 fn last_changes<'a>(
     commits: &'a [CommitInfo],
     changes: &HashMap<String, Vec<String>>,
@@ -163,6 +170,12 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
         && e.kind() != ErrorKind::NotFound
     {
         return Err(e).with_context(|| repo_dir.display().to_string());
+    }
+    for release in &repo.releases {
+        let release_dir = repo_dir.join("releases").join(&release.tag);
+        for name in &release.files {
+            link_file(&release.dir.join(name), &release_dir.join(name))?;
+        }
     }
     write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
     if !repo.tags.is_empty() {

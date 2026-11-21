@@ -8,9 +8,9 @@ use git2::{
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap},
-    fs::read_to_string,
+    fs::{self, read_to_string},
     io::ErrorKind::NotFound,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 const DEFAULT_DESCRIPTION: &str = "[no description]";
@@ -102,6 +102,12 @@ impl RefInfo {
     }
 }
 
+pub struct Release {
+    pub tag: String,
+    pub dir: PathBuf,
+    pub files: Vec<String>,
+}
+
 pub struct RepoInfo {
     pub git: Repository,
     pub path: String,
@@ -111,6 +117,7 @@ pub struct RepoInfo {
     pub head_dir: String,
     pub branches: Vec<RefInfo>,
     pub tags: Vec<RefInfo>,
+    pub releases: Vec<Release>,
     pub commit_list: Vec<CommitInfo>,
 }
 
@@ -140,6 +147,7 @@ impl RepoInfo {
         }
         let branches = handle_branches(&repo)?;
         let tags = handle_tags(&repo)?;
+        let releases = read_releases(path, repo_path, &tags)?;
         let commit_list = walk(&repo, &mut repo.revwalk()?, head_id)?;
         Ok(Ok(Self {
             git: repo,
@@ -150,6 +158,7 @@ impl RepoInfo {
             head_dir,
             branches,
             tags,
+            releases,
             commit_list,
         }))
     }
@@ -456,6 +465,51 @@ fn to_date(time: git2::Time) -> Option<DateTime<FixedOffset>> {
     let offset = FixedOffset::east_opt(time.offset_minutes() * 60)?;
     let date = DateTime::from_timestamp(time.seconds(), 0)?;
     Some(date.with_timezone(&offset))
+}
+
+fn read_releases(path: &str, repo_path: &Path, tags: &[RefInfo]) -> Result<Vec<Release>> {
+    let releases_dir = repo_path.join("releases");
+    let folders = match fs::read_dir(&releases_dir) {
+        Ok(folders) => folders,
+        Err(e) if e.kind() == NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e).context("releases"),
+    };
+    for folder in folders {
+        let name = folder.context("releases")?.file_name();
+        let name = name.to_string_lossy();
+        let nested = format!("{name}/");
+        if !tags
+            .iter()
+            .any(|t| t.name == name || t.name.starts_with(&nested))
+        {
+            eprintln!("{path}: releases/{name}: no such tag, skipped");
+        }
+    }
+    let mut releases = Vec::new();
+    for tag in tags {
+        let dir = releases_dir.join(&tag.name);
+        let context = || format!("releases/{}", tag.name);
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == NotFound => continue,
+            Err(e) => return Err(e).with_context(context),
+        };
+        let mut files = Vec::new();
+        for entry in entries {
+            let entry = entry.with_context(context)?;
+            if entry.file_type().with_context(context)?.is_file()
+                && let Ok(name) = entry.file_name().into_string()
+            {
+                files.push(name);
+            }
+        }
+        if !files.is_empty() {
+            files.sort();
+            let tag = tag.name.clone();
+            releases.push(Release { tag, dir, files });
+        }
+    }
+    Ok(releases)
 }
 
 fn read_optional_file(repo_path: &Path, file_name: &str) -> Result<String> {
