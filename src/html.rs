@@ -966,9 +966,7 @@ fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
     let number = |side: &str, num: Option<u32>| match num {
         Some(num) => {
             let id = format!("d{n}-{side}{num}");
-            format!(
-                "<span class=\"ln\" id=\"{id}\"><a class=\"lnlinks\" href=\"#{id}\">{num:>width$}</a></span>"
-            )
+            format!("<a class=\"ln\" id=\"{id}\" href=\"#{id}\">{num:>width$}</a>")
         }
         None => format!("<span class=\"ln\">{}</span>", " ".repeat(width)),
     };
@@ -1706,12 +1704,16 @@ fn write_code(body: &mut String, content: &[u8]) {
     let text = String::from_utf8_lossy(content);
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let width = lines.len().to_string().len();
-    body.push_str("<pre class=\"chroma file-code\"><code>");
+    body.push_str("<pre class=\"chroma\"><code>");
     for (i, line) in lines.iter().enumerate() {
         let n = i + 1;
+        let (text, newline) = match line.strip_suffix('\n') {
+            Some(text) => (text, "\n"),
+            None => (*line, ""),
+        };
         body.push_str(&format!(
-            "<a class=\"ln\" id=\"L{n}\" href=\"#L{n}\">{n:>width$}</a>{}",
-            escape_str(line)
+            "<a class=\"ln\" id=\"L{n}\" href=\"#L{n}\">{n:>width$}</a><span class=\"cl\">{}</span>{newline}",
+            escape_str(text)
         ));
     }
     body.push_str("</code></pre>\n");

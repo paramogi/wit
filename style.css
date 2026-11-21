@@ -761,13 +761,9 @@ summary .anchor {
   text-decoration: none;
 }
 
-.chroma .cl,
-.file-code code {
+.chroma .cl {
+  display: inline-block;
   padding-right: 0.5em;
-}
-
-.file-code code {
-  box-sizing: content-box;
 }
 
 .chroma .ln:target {
@@ -812,12 +808,6 @@ summary .anchor {
 
 .people-id {
   text-align: right;
-}
-
-.chroma .lnlinks {
-  outline: none;
-  text-decoration: none;
-  color: inherit;
 }
 
 .summary-meta-box {
