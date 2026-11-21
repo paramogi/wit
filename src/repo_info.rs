@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, FixedOffset};
 use git2::{
     BranchType, Commit, Delta, DiffFile, DiffFindOptions, DiffOptions, ErrorCode, ObjectType, Oid,
-    Patch, Repository, Sort, Tree,
+    Patch, Repository, Revwalk, Sort, Tree,
 };
 use std::{
     cmp::Ordering,
@@ -128,7 +128,7 @@ impl RepoInfo {
         }
         let branches = Self::handle_branches(&repo)?;
         let tags = Self::handle_tags(&repo)?;
-        let commit_list = Self::walk(&repo, head_id)?;
+        let commit_list = Self::walk(&repo, &mut repo.revwalk()?, head_id)?;
         Ok(Ok(Self {
             git: repo,
             path: path.to_string(),
@@ -307,8 +307,8 @@ impl RepoInfo {
         }
     }
 
-    pub fn read_commits(&self, id: &str) -> Result<Vec<CommitInfo>> {
-        Self::walk(&self.git, Oid::from_str(id)?)
+    pub fn read_commits(&self, rev: &mut Revwalk, id: &str) -> Result<Vec<CommitInfo>> {
+        Self::walk(&self.git, rev, Oid::from_str(id)?)
     }
 
     pub fn read_diff(&self, id: &str) -> Result<CommitDiff> {
@@ -397,13 +397,13 @@ impl RepoInfo {
         })
     }
 
-    fn walk(repo: &Repository, start: Oid) -> Result<Vec<CommitInfo>> {
-        let mut rev = repo.revwalk()?;
+    fn walk(repo: &Repository, rev: &mut Revwalk, start: Oid) -> Result<Vec<CommitInfo>> {
+        rev.reset()?;
         rev.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         rev.push(start)?;
 
         let mut commit_list = Vec::new();
-        for oid in rev {
+        for oid in rev.by_ref() {
             commit_list.push(Self::commit_info(&repo.find_commit(oid?)?)?);
         }
         Ok(commit_list)

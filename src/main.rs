@@ -172,9 +172,10 @@ fn run() -> Result<()> {
             .chain(refs().filter(|r| r.dir != repo.head_dir));
         let mut stats = HashMap::new();
         let mut changes = HashMap::new();
+        let mut rev = repo.git.revwalk().with_context(|| repo.path.clone())?;
         for git_ref in head_first {
             let commits = repo
-                .read_commits(&git_ref.id)
+                .read_commits(&mut rev, &git_ref.id)
                 .with_context(|| repo.path.clone())?;
             for commit in &commits {
                 if stats.contains_key(&commit.id) {
