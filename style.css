@@ -750,16 +750,24 @@ summary .anchor {
 }
 
 .chroma .ln {
+  display: inline-block;
   white-space: pre;
   -webkit-user-select: none;
   user-select: none;
   margin-right: 0.2em;
   padding: 0 0.3em 0 0;
   color: #7f7f7f;
+  outline: none;
+  text-decoration: none;
 }
 
-.chroma .cl {
+.chroma .cl,
+.file-code code {
   padding-right: 0.5em;
+}
+
+.file-code code {
+  box-sizing: content-box;
 }
 
 .chroma .ln:target {

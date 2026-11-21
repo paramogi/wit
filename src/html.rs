@@ -1706,11 +1706,11 @@ fn write_code(body: &mut String, content: &[u8]) {
     let text = String::from_utf8_lossy(content);
     let lines: Vec<&str> = text.split_inclusive('\n').collect();
     let width = lines.len().to_string().len();
-    body.push_str("<pre class=\"chroma\"><code>");
+    body.push_str("<pre class=\"chroma file-code\"><code>");
     for (i, line) in lines.iter().enumerate() {
         let n = i + 1;
         body.push_str(&format!(
-            "<span class=\"line\"><span class=\"ln\" id=\"L{n}\"><a class=\"lnlinks\" href=\"#L{n}\">{n:>width$}</a></span><span class=\"cl\">{}</span></span>",
+            "<a class=\"ln\" id=\"L{n}\" href=\"#L{n}\">{n:>width$}</a>{}",
             escape_str(line)
         ));
     }
