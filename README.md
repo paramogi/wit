@@ -2,6 +2,15 @@ A lightweight, static Git web frontend written in Rust
 
 ## Installation
 
+Build with Rust's cargo, then install (`PREFIX` defaults to `/usr/local`):
+
+    make
+    sudo make install
+
+This installs `wit` to `${PREFIX}/bin`, and `style.css`, `fonts/`, `post-receive`, `README.md` and `LICENSE` to `${PREFIX}/share/doc/wit`. `make uninstall` removes them. `DESTDIR` works as usual.
+
+At runtime wit needs libgit2 and git (for `git archive`).
+
 Create dependencies:
 
 - git2
