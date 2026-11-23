@@ -27,7 +27,7 @@ pub const COMMITS_PER_PAGE: usize = 2000;
 
 const SUMMARY_REF_COUNT: usize = 3;
 
-const BYTE_UNITS: [&str; 5] = ["b", "kb", "mb", "gb", "tb"];
+const BYTE_UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
 
 const README_NAMES: [&str; 2] = ["README.md", "README"];
 
@@ -197,7 +197,7 @@ pub fn escape_str(s: &str) -> String {
 
 fn format_bytes(bytes: usize) -> String {
     if bytes < 1000 {
-        return format!("{bytes} b");
+        return format!("{bytes} B");
     }
     let round = |value: f64| (value * 10.0 + 0.5).floor() / 10.0;
     let mut value = bytes as f64;
@@ -817,7 +817,11 @@ pub fn gen_blob(
     let details = last_details(&repo_root, last, &path);
 
     let mut body = ref_bar(repo, git_ref, &path, &repo_root, commits, "page");
-    body.push_str(&details);
+    if !details.is_empty() {
+        body.push_str(&format!(
+            "<div class=\"box joined flex items-center gap last-commit\">\n{details}</div>\n"
+        ));
+    }
     let views = has_source_view(entry);
     write_file_head(&mut body, entry, content, views);
     let text = entry.lines.is_some();
@@ -851,8 +855,8 @@ fn write_file_head(body: &mut String, entry: &TreeEntry, content: &[u8], views: 
     if views {
         body.push_str(
             "\
-<input type=\"radio\" name=\"view\" id=\"view-source\" hidden>\n\
-<input type=\"radio\" name=\"view\" id=\"view-rendered\" hidden checked>\n\
+<input type=\"radio\" class=\"vh\" name=\"view\" id=\"view-source\">\n\
+<input type=\"radio\" class=\"vh\" name=\"view\" id=\"view-rendered\" checked>\n\
 <div class=\"buttons flex view-switch\"><label for=\"view-source\">source</label>\n\
 <label for=\"view-rendered\">rendered</label></div>\n\
 ",
@@ -860,7 +864,10 @@ fn write_file_head(body: &mut String, entry: &TreeEntry, content: &[u8], views: 
     }
     let lines = entry
         .lines
-        .map(|n| format!("<span>{n} loc</span>\n"))
+        .map(|n| {
+            let s = if n == 1 { "" } else { "s" };
+            format!("<span>{n} line{s}</span>\n")
+        })
         .unwrap_or_default();
     let bytes = entry.bytes.map(format_bytes).unwrap_or_default();
     let pixels = image_type(&entry.name)
@@ -1463,10 +1470,22 @@ fn write_code(body: &mut String, content: &[u8]) {
         };
         let _ = write!(
             body,
-            "<a class=\"ln\" id=\"L{n}\" href=\"#L{n}\">{n:>width$}</a><span class=\"cl\">{text}</span>{newline}"
+            "<a class=\"ln\" id=\"L{n}\" href=\"#L{n}\" tabindex=\"-1\">{n:>width$}</a><span class=\"cl\">"
         );
+        push_line(body, text);
+        body.push_str("</span>");
+        body.push_str(newline);
     }
     body.push_str("</code></pre>\n");
+}
+
+fn push_line(body: &mut String, text: &str) {
+    for (i, piece) in text.split('\r').enumerate() {
+        if i > 0 {
+            body.push('\n');
+        }
+        body.push_str(piece);
+    }
 }
 
 fn write_listing(
