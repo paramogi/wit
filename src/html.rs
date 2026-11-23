@@ -133,9 +133,9 @@ impl Tab {
             Tab::Summary => String::new(),
             Tab::Tree => format!("tree/{}/", percent_encode(git_ref)),
             Tab::Commits => format!("commits/{}/", percent_encode(git_ref)),
-            Tab::Branches => "branches/".to_string(),
-            Tab::Tags => "tags/".to_string(),
-            Tab::Releases => "releases/".to_string(),
+            Tab::Branches => "branches".to_string(),
+            Tab::Tags => "tags".to_string(),
+            Tab::Releases => "releases".to_string(),
         }
     }
 }
@@ -782,7 +782,7 @@ fn release_row(
 fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
     let summary = escape_str(summary);
     format!(
-        "<div class=\"flex flex-2 tree-commit\"><a class=\"truncate\" href=\"{repo_root}commits/{id}/\" title=\"{summary}\">{summary}</a></div>\n"
+        "<div class=\"flex flex-2 tree-commit\"><a class=\"truncate\" href=\"{repo_root}commits/{id}\" title=\"{summary}\">{summary}</a></div>\n"
     )
 }
 
@@ -803,7 +803,7 @@ fn commit_cells(repo_root: &str, id: &str, summary: &str, date: &DateTime<FixedO
 
 fn short_id(repo_root: &str, id: &str) -> String {
     format!(
-        "<a href=\"{repo_root}commits/{id}/\" class=\"commit-id\">{}{}</a>",
+        "<a href=\"{repo_root}commits/{id}\" class=\"commit-id\">{}{}</a>",
         icon("git-commit"),
         &id[..7]
     )
@@ -956,7 +956,7 @@ fn page_href(page: usize, to: usize) -> String {
     here(if to == 1 {
         up.to_string()
     } else {
-        format!("{up}{to}/")
+        format!("{up}{to}")
     })
 }
 
@@ -1088,7 +1088,7 @@ pub fn gen_commit(
     let parents: Vec<String> = diff
         .parents
         .iter()
-        .map(|id| format!("<a href=\"../{id}/\">{}</a>", &id[..7]))
+        .map(|id| format!("<a href=\"../{id}\">{}</a>", &id[..7]))
         .collect();
     let parents = match parents.len() {
         0 => String::new(),
@@ -1294,7 +1294,7 @@ fn has_source_view(entry: &TreeEntry) -> bool {
 }
 
 fn blob_href(git_ref: &RefInfo, path: &str) -> String {
-    percent_encode(&format!("blob/{}/{path}/", git_ref.dir))
+    percent_encode(&format!("blob/{}/{path}", git_ref.dir))
 }
 
 pub fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
@@ -1747,7 +1747,7 @@ fn write_commit_row(
     joined: &str,
     date: &str,
 ) {
-    let href = format!("{repo_root}commits/{}/", commit.id);
+    let href = format!("{repo_root}commits/{}", commit.id);
     let stat = stat
         .map(|stat| format!("<div class=\"commit-stat flex-1\"><div>{stat}</div></div>\n"))
         .unwrap_or_default();
