@@ -992,25 +992,52 @@ pub fn gen_commit(
         .collect();
     let parents = match parents.len() {
         0 => String::new(),
-        1 => format!("<div class=\"people-id\">parent {}</div>\n", parents[0]),
+        1 => format!(
+            "<div class=\"commit-parent\"><span>parent</span><span>{}</span></div>\n",
+            parents[0]
+        ),
         _ => format!(
-            "<div class=\"people-id\">parents {}</div>\n",
+            "<div class=\"commit-parent\"><span>parents</span><span>{}</span></div>\n",
             parents.join(", ")
         ),
     };
     let format = "%d-%m-%Y&nbsp;%H:%M";
+    let rest = commit
+        .message
+        .trim()
+        .split_once("\n\n")
+        .map_or("", |(_, rest)| rest.trim());
+    let message_body = if rest.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<div class=\"white-space-bs commit-body\">{}</div>\n",
+            escape_str(rest)
+        )
+    };
 
     let mut body = format!(
         "\
-<div class=\"people\">\n\
-<div>author:</div>\n\
+<div class=\"box commit-head\">\n\
+<div class=\"flex gap commit-msg\">\n\
+<div class=\"flex-1\">\n\
+<div class=\"commit-title\"><span class=\"commit-id\">{}{short}</span>{}</div>\n\
+{message_body}\
+</div>\n\
+<div>{}</div>\n\
+</div>\n\
+<div class=\"commit-meta\">\n\
+<div>author</div>\n\
 <div>{} &lt;{}&gt; on {}</div>\n\
-<div class=\"people-id\">commit {short}</div>\n\
-<div>committer:</div>\n\
+<div>committer</div>\n\
 <div>{} &lt;{}&gt; on {}</div>\n\
 {parents}\
 </div>\n\
+</div>\n\
 ",
+        icon("git-commit"),
+        escape_str(&commit.summary),
+        diff_stat(diff),
         escape_str(&commit.author_name),
         escape_str(&commit.author_email),
         format_zoned(&commit.author_date, format),
@@ -1018,23 +1045,14 @@ pub fn gen_commit(
         escape_str(&commit.committer_email),
         format_zoned(&commit.committer_date, format)
     );
-    body.push_str(&format!(
-        "\
-<div class=\"box flex gap mono mb-0\">\n\
-<div class=\"flex-1 white-space-bs\">{}</div>\n\
-<div>{}</div>\n\
-</div>\n\
-",
-        escape_str(commit.message.trim_end()),
-        diff_stat(diff)
-    ));
     if !diff.files.is_empty() {
-        body.push_str("<div class=\"box mono joined\">\n");
+        body.push_str("<div class=\"box joined commit-files\">\n");
         for (n, file) in diff.files.iter().enumerate() {
             body.push_str(&format!(
-                "<div class=\"my flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n",
+                "<div class=\"flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a><div class=\"ml-auto diff-stat\">{}</div></div>\n",
                 status_icon(file.status),
-                change_path(file)
+                change_path(file),
+                file_stat(file)
             ));
         }
         body.push_str("</div>\n");
@@ -1043,15 +1061,14 @@ pub fn gen_commit(
         body.push_str(&format!(
             "\
 <div>\n\
-<div id=\"diff-{n}\" class=\"box sticky border-visited flex items-center justify-between mono py mb-0\">\n\
+<div id=\"diff-{n}\" class=\"box sticky flex items-center diff-head\">\n\
 <div class=\"flex-1 flex items-center gap\">{}<a href=\"#diff-{n}\">{}</a></div>\n\
-<div class=\"diff-stat\"><span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span></div>\n\
+<div class=\"diff-stat\">{}</div>\n\
 </div>\n\
 ",
             status_icon(file.status),
             change_path(file),
-            file.added,
-            file.removed
+            file_stat(file)
         ));
         match file.binary {
             Some((old, new)) => {
@@ -1086,8 +1103,15 @@ fn status_icon(status: char) -> String {
         _ => ("diff-modified", " color-orange", "modified"),
     };
     format!(
-        "<span class=\"flex{class}\" title=\"{title}\">{}</span>",
+        "<span class=\"flex{class}\" title=\"{title}\" role=\"img\" aria-label=\"{title}\">{}</span>",
         icon(name)
+    )
+}
+
+fn file_stat(file: &FileChange) -> String {
+    format!(
+        "<span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span>",
+        file.added, file.removed
     )
 }
 
@@ -1105,7 +1129,7 @@ fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
         let _ = match num {
             Some(num) => write!(
                 body,
-                "<a class=\"ln\" id=\"d{n}-{side}{num}\" href=\"#d{n}-{side}{num}\">{num:>width$}</a>"
+                "<a class=\"ln\" id=\"d{n}-{side}{num}\" href=\"#d{n}-{side}{num}\" tabindex=\"-1\">{num:>width$}</a>"
             ),
             None => write!(body, "<span class=\"ln\">{:width$}</span>", ""),
         };
@@ -1123,7 +1147,9 @@ fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
         let _ = write!(body, "<span class=\"line{class}\">");
         number(body, "L", old);
         number(body, "R", new);
-        let _ = write!(body, "<span class=\"cl\">{text}</span></span>");
+        body.push_str("<span class=\"cl\">");
+        push_line(body, &text);
+        body.push_str("</span></span>");
     }
     body.push_str("</code></pre>\n");
 }
@@ -1472,7 +1498,7 @@ fn write_code(body: &mut String, content: &[u8]) {
 
 fn push_line(body: &mut String, text: &str) {
     for (i, piece) in text.split('\r').enumerate() {
-        if i > 0 {
+        if i > 0 && !piece.starts_with('\n') {
             body.push('\n');
         }
         body.push_str(piece);
