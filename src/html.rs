@@ -130,9 +130,9 @@ impl Tab {
 
     fn href(self, git_ref: &str) -> String {
         match self {
-            Tab::Summary => "index.html".to_string(),
-            Tab::Tree => format!("tree/{}/index.html", percent_encode(git_ref)),
-            Tab::Commits => format!("commits/{}/index.html", percent_encode(git_ref)),
+            Tab::Summary => String::new(),
+            Tab::Tree => format!("tree/{}/", percent_encode(git_ref)),
+            Tab::Commits => format!("commits/{}/", percent_encode(git_ref)),
             Tab::Branches => "branches.html".to_string(),
             Tab::Tags => "tags.html".to_string(),
             Tab::Releases => "releases.html".to_string(),
@@ -351,11 +351,12 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
             let name = escape_str(&nav.repo.name);
             header.push_str(&format!(
                 "\
-<a class=\"brand\" href=\"{root}index.html\">{BRAND}</a>\n\
-<h1 id=\"site_path\"><a class=\"truncate\" href=\"{repo_root}index.html\" title=\"{name}\">{name}</a></h1>\n\
+<a class=\"brand\" href=\"{root}\">{BRAND}</a>\n\
+<h1 id=\"site_path\"><a class=\"truncate\" href=\"{}\" title=\"{name}\">{name}</a></h1>\n\
 </div>\n\
 <nav class=\"repo-tabs\" aria-label=\"repository\">\n\
-"
+",
+                here(repo_root.clone())
             ));
             let files = file_links(nav, &repo_root);
             let on_file = files.iter().any(|(current, _)| *current);
@@ -374,8 +375,8 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
                 };
                 let label = tab.label();
                 header.push_str(&format!(
-                    "<a class=\"tab\"{current} href=\"{repo_root}{}\"><span class=\"tab-label\" data-label=\"{label}\">{label}</span>",
-                    tab.href(nav.git_ref)
+                    "<a class=\"tab\"{current} href=\"{}\"><span class=\"tab-label\" data-label=\"{label}\">{label}</span>",
+                    here(format!("{repo_root}{}", tab.href(nav.git_ref)))
                 ));
                 if let Some(count) = count {
                     header.push_str(&format!(
@@ -400,7 +401,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
         }
         None => {
             header.push_str(&format!(
-                "<a class=\"brand\" aria-current=\"page\" href=\"index.html\">{BRAND}</a>\n</div>\n"
+                "<a class=\"brand\" aria-current=\"page\" href=\"./\">{BRAND}</a>\n</div>\n"
             ));
             ("action-index", "")
         }
@@ -466,7 +467,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
         body.push_str(&format!(
             "\
 <li class=\"repo-row\">\n\
-<h2 class=\"flex repo-name\"><a class=\"truncate row-link\" href=\"{dir}/index.html\">{name}</a></h2>\n\
+<h2 class=\"flex repo-name\"><a class=\"truncate row-link\" href=\"{dir}/\">{name}</a></h2>\n\
 <p class=\"repo-date\"><span class=\"repo-date-label\">last commit </span>{}</p>\n\
 <p class=\"repo-desc{empty}\">{description}</p>\n\
 <div class=\"repo-links\">{links}</div>\n\
@@ -950,6 +951,22 @@ fn write_file_head(body: &mut String, entry: &TreeEntry, content: &[u8], views: 
     ));
 }
 
+fn page_href(page: usize) -> String {
+    if page == 1 {
+        "./".to_string()
+    } else {
+        format!("{page}.html")
+    }
+}
+
+fn here(href: String) -> String {
+    if href.is_empty() {
+        "./".to_string()
+    } else {
+        href
+    }
+}
+
 pub fn commits_page(page: usize) -> String {
     if page == 1 {
         "index.html".to_string()
@@ -1240,7 +1257,7 @@ fn commits_pager(page: usize, pages: usize) -> String {
     let arrow = |n: usize, label: &str, name: &str| {
         format!(
             "<a href=\"{}\" title=\"{label}\" aria-label=\"{label}\">{}</a>\n",
-            commits_page(n),
+            page_href(n),
             icon(name)
         )
     };
@@ -1260,7 +1277,7 @@ fn commits_pager(page: usize, pages: usize) -> String {
         if n == page {
             pager.push_str(&format!("<span aria-current=\"page\">{n}</span>\n"));
         } else {
-            pager.push_str(&format!("<a href=\"{}\">{n}</a>\n", commits_page(n)));
+            pager.push_str(&format!("<a href=\"{}\">{n}</a>\n", page_href(n)));
         }
         shown = n;
     }
@@ -1612,7 +1629,7 @@ fn write_listing(
 <div class=\"flex items-center gap-2 px row tree-row border-b up-row\">\n\
 <div class=\"flex-1 tree-path flex items-center gap\">\n\
 {}\n\
-<a class=\"truncate row-link\" href=\"../index.html\" title=\"parent folder\">..</a>\n\
+<a class=\"truncate row-link\" href=\"../\" title=\"parent folder\">..</a>\n\
 </div>\n\
 </div>\n\
 ",
@@ -1644,7 +1661,7 @@ fn write_listing(
             }
         };
         let (icon_name, name) = if entry.is_dir {
-            let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
+            let href = percent_encode(&format!("{tree_dir}{name}/"));
             ("file-directory", link(href, escape_str(name)))
         } else if let Some(target) = &entry.link {
             let text = format!("{} &rarr; {}", escape_str(name), escape_str(target));
