@@ -559,15 +559,32 @@ pub fn gen_summary(repo: &RepoInfo, last: &HashMap<String, &CommitInfo>) -> Stri
     wrap_page(&repo.name, Some(&nav), &body)
 }
 
-pub fn gen_branches(repo: &RepoInfo) -> String {
-    gen_refs(repo, Tab::Branches, &repo.branches)
+pub fn gen_branches(repo: &RepoInfo, counts: &HashMap<String, usize>) -> String {
+    let (head, others): (Vec<&RefInfo>, Vec<&RefInfo>) = repo
+        .branches
+        .iter()
+        .partition(|git_ref| git_ref.dir == repo.head_dir);
+    let mut body = String::new();
+    write_refs(&mut body, "default branch", &head, counts);
+    if !others.is_empty() {
+        let heading = format!(
+            "other branches <span class=\"count\">{}</span>",
+            others.len()
+        );
+        write_refs(&mut body, &heading, &others, counts);
+    }
+    gen_refs(repo, Tab::Branches, &body)
 }
 
-pub fn gen_tags(repo: &RepoInfo) -> String {
-    gen_refs(repo, Tab::Tags, &repo.tags)
+pub fn gen_tags(repo: &RepoInfo, counts: &HashMap<String, usize>) -> String {
+    let tags: Vec<&RefInfo> = repo.tags.iter().collect();
+    let heading = format!("tags <span class=\"count\">{}</span>", tags.len());
+    let mut body = String::new();
+    write_refs(&mut body, &heading, &tags, counts);
+    gen_refs(repo, Tab::Tags, &body)
 }
 
-fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
+fn gen_refs(repo: &RepoInfo, tab: Tab, body: &str) -> String {
     let nav = RepoNav {
         repo,
         git_ref: &repo.head_dir,
@@ -576,19 +593,43 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         path: "",
         commits: repo.commit_list.len(),
     };
+    wrap_page(&repo.name, Some(&nav), body)
+}
 
-    let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
+fn write_refs(
+    body: &mut String,
+    heading: &str,
+    refs: &[&RefInfo],
+    counts: &HashMap<String, usize>,
+) {
+    if refs.is_empty() {
+        return;
+    }
+    body.push_str(&format!(
+        "<header class=\"subtitle\"><h2>{heading}</h2></header>\n<div class=\"box mt-0 p-0\">\n"
+    ));
     for git_ref in refs {
-        body.push_str(&ref_row(
-            git_ref,
-            "div",
-            "flex justify-between items-center gap-2 py px tree-row border-b",
-            "flex-1 flex items-center gap",
+        body.push_str(&format!(
+            "\
+<div class=\"flex items-center gap-2 px row tree-row border-b branch-row\">\n\
+<div class=\"flex-1 flex items-center gap branch-name\">{}<a class=\"truncate row-link\" href=\"{}\">{}</a></div>\n\
+<div class=\"tree-commit short-id branch-sha\">{}</div>\n\
+{}\
+{}\
+<a class=\"branch-log\" href=\"{}\">{}</a>\n\
+</div>\n\
+",
+            ref_icon(git_ref),
+            Tab::Tree.href(&git_ref.dir),
+            escape_str(&git_ref.name),
+            short_id("", &git_ref.id),
+            summary_cell("", &git_ref.id, &git_ref.summary),
+            date_cell(&git_ref.date),
+            Tab::Commits.href(&git_ref.dir),
+            commit_count(counts[&git_ref.dir])
         ));
     }
     body.push_str("</div>\n");
-
-    wrap_page(&repo.name, Some(&nav), &body)
 }
 
 pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {

@@ -238,19 +238,17 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
     if !repo.releases.is_empty() {
         write_file(&repo_dir.join("releases.html"), &gen_releases(repo, &sums))?;
     }
-    write_file(&repo_dir.join("branches.html"), &gen_branches(repo))?;
-    if !repo.tags.is_empty() {
-        write_file(&repo_dir.join("tags.html"), &gen_tags(repo))?;
-    }
     let refs = || repo.branches.iter().chain(&repo.tags);
     let head_first = refs()
         .filter(|r| r.dir == repo.head_dir)
         .chain(refs().filter(|r| r.dir != repo.head_dir));
     let mut stats = HashMap::new();
     let mut changes = HashMap::new();
+    let mut counts = HashMap::new();
     let mut rev = repo.git.revwalk()?;
     for git_ref in head_first {
         let commits = repo.read_commits(&mut rev, &git_ref.id)?;
+        counts.insert(git_ref.dir.clone(), commits.len());
         for commit in &commits {
             if stats.contains_key(&commit.id) {
                 continue;
@@ -305,6 +303,13 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
                 )?;
             }
         }
+    }
+    write_file(
+        &repo_dir.join("branches.html"),
+        &gen_branches(repo, &counts),
+    )?;
+    if !repo.tags.is_empty() {
+        write_file(&repo_dir.join("tags.html"), &gen_tags(repo, &counts))?;
     }
     let head_last = last_changes(&repo.commit_list, &changes);
     write_file(&repo_dir.join("index.html"), &gen_summary(repo, &head_last))
