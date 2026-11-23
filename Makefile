@@ -3,7 +3,7 @@
 PREFIX = /usr/local
 MANPREFIX = ${PREFIX}/man
 DOCPREFIX = ${PREFIX}/share/doc/wit
-DOC = style.css README.md LICENSE
+DOC = style.css favicon.ico README.md LICENSE
 
 all:
 	cargo build --release --locked

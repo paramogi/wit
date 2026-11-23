@@ -27,7 +27,8 @@ and so is one with a directory whose pages would overwrite another page.
 .Nm
 writes no stylesheet.
 Copy
-.Pa style.css
+.Pa style.css ,
+.Pa favicon.ico
 and the
 .Pa fonts
 directory from
@@ -90,8 +91,8 @@ Write a site for every repository in
 .Pa /srv/git :
 .Bd -literal -offset indent
 wit -O alice -o /var/www/git /srv/git/*.git
-cp -r /usr/local/share/doc/wit/style.css \e
-    /usr/local/share/doc/wit/fonts /var/www/git/
+cd /usr/local/share/doc/wit
+cp -r style.css favicon.ico fonts /var/www/git/
 .Ed
 .Pp
 Rebuild a repository's pages on every push, with a

@@ -421,6 +421,7 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
 <title>{}</title>\n\
 <link rel=\"stylesheet\" href=\"{root}style.css\">\n\
+<link rel=\"icon\" href=\"{root}favicon.ico\">\n\
 </head>\n\
 <body>\n\
 {icons}\

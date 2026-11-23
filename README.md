@@ -9,7 +9,7 @@ make
 sudo make install
 ```
 
-This installs `wit` to `${PREFIX}/bin`, its man page to `${PREFIX}/man/man1`, and `style.css`, `fonts/`, `post-receive`, `README.md` and `LICENSE` to `${PREFIX}/share/doc/wit`. `make uninstall` removes them. `DESTDIR` and `MANPREFIX` work as usual.
+This installs `wit` to `${PREFIX}/bin`, its man page to `${PREFIX}/man/man1`, and `style.css`, `favicon.ico`, `fonts/`, `post-receive`, `README.md` and `LICENSE` to `${PREFIX}/share/doc/wit`. `make uninstall` removes them. `DESTDIR` and `MANPREFIX` work as usual.
 
 At runtime wit needs libgit2 and git (for `git archive`).
 
@@ -40,14 +40,14 @@ For example, to build a site for every repo in `/srv/git`:
 
 ```sh
 wit -O alice -o /var/www/git /srv/git/*.git
-cp -r /usr/local/share/doc/wit/style.css /usr/local/share/doc/wit/fonts /var/www/git/
+cd /usr/local/share/doc/wit && cp -r style.css favicon.ico fonts /var/www/git/
 ```
 
 See `man wit` for the details.
 
 ### Stylesheet
 
-wit doesn't write a stylesheet. Copy `style.css` and the `fonts/` dir (installed in `${PREFIX}/share/doc/wit`) into the site dir (the one after `-o`), and copy them again after changing them or updating wit.
+wit doesn't write a stylesheet. Copy `style.css`, `favicon.ico` and the `fonts/` dir (installed in `${PREFIX}/share/doc/wit`) into the site dir (the one after `-o`), and copy them again after changing them or updating wit. Every page links `style.css` and `favicon.ico` at the site's top.
 
 ### Rebuilding on every push
 
