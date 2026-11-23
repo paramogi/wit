@@ -55,39 +55,35 @@ const MAX_LINKS: usize = 40;
 
 const BASE64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-const ICONS: [(&str, &str); 23] = [
-    ("file", include_str!("icons/file-16.svg")),
-    ("file-zip", include_str!("icons/file-zip-16.svg")),
-    (
-        "file-directory",
-        include_str!("icons/file-directory-16.svg"),
-    ),
+const ICONS: [(&str, &str); 25] = [
+    ("book", include_str!("icons/book.svg")),
+    ("law", include_str!("icons/law.svg")),
+    ("file-directory", include_str!("icons/file-directory.svg")),
+    ("file", include_str!("icons/file.svg")),
+    ("file-archive", include_str!("icons/file-archive.svg")),
     (
         "file-symlink-file",
-        include_str!("icons/file-symlink-file-16.svg"),
+        include_str!("icons/file-symlink-file.svg"),
     ),
-    (
-        "file-submodule",
-        include_str!("icons/file-submodule-16.svg"),
-    ),
-    ("git-branch", include_str!("icons/git-branch-16.svg")),
-    ("git-commit", include_str!("icons/git-commit-16.svg")),
-    ("tag", include_str!("icons/tag-16.svg")),
-    ("release", include_str!("icons/release-16.svg")),
-    ("chevron-down", include_str!("icons/chevron-down-16.svg")),
-    ("chevron-left", include_str!("icons/chevron-left-16.svg")),
-    ("chevron-right", include_str!("icons/chevron-right-16.svg")),
-    ("chevron-up", include_str!("icons/chevron-up-16.svg")),
-    ("diff-added", include_str!("icons/diff-added-16.svg")),
-    ("diff-removed", include_str!("icons/diff-removed-16.svg")),
-    ("diff-modified", include_str!("icons/diff-modified-16.svg")),
-    ("diff-renamed", include_str!("icons/diff-renamed-16.svg")),
-    ("link", include_str!("icons/link-16.svg")),
-    ("info", include_str!("icons/info-16.svg")),
-    ("light-bulb", include_str!("icons/light-bulb-16.svg")),
-    ("report", include_str!("icons/report-16.svg")),
-    ("alert", include_str!("icons/alert-16.svg")),
-    ("stop", include_str!("icons/stop-16.svg")),
+    ("file-submodule", include_str!("icons/file-submodule.svg")),
+    ("git-branch", include_str!("icons/git-branch.svg")),
+    ("git-commit", include_str!("icons/git-commit.svg")),
+    ("tag", include_str!("icons/tag.svg")),
+    ("release", include_str!("icons/release.svg")),
+    ("chevron-down", include_str!("icons/chevron-down.svg")),
+    ("chevron-right", include_str!("icons/chevron-right.svg")),
+    ("chevron-up", include_str!("icons/chevron-up.svg")),
+    ("chevron-left", include_str!("icons/chevron-left.svg")),
+    ("diff-added", include_str!("icons/diff-added.svg")),
+    ("diff-removed", include_str!("icons/diff-removed.svg")),
+    ("diff-modified", include_str!("icons/diff-modified.svg")),
+    ("diff-renamed", include_str!("icons/diff-renamed.svg")),
+    ("link", include_str!("icons/link.svg")),
+    ("info", include_str!("icons/info.svg")),
+    ("light-bulb", include_str!("icons/light-bulb.svg")),
+    ("report", include_str!("icons/report.svg")),
+    ("alert", include_str!("icons/alert.svg")),
+    ("stop", include_str!("icons/stop.svg")),
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -161,7 +157,9 @@ struct RepoNav<'a> {
 }
 
 pub fn icon(name: &str) -> String {
-    format!("<svg width=\"16\" height=\"16\"><use href=\"#icon.{name}\"/></svg>")
+    format!(
+        "<svg width=\"16\" height=\"16\" aria-hidden=\"true\"><use href=\"#icon.{name}\"/></svg>"
+    )
 }
 
 fn ref_icon(git_ref: &RefInfo) -> String {
@@ -316,10 +314,15 @@ fn icon_symbols(body: &str) -> String {
         .iter()
         .filter(|(id, _)| used.contains(id))
         .map(|(id, svg)| {
+            let view_box = svg
+                .split("viewBox=\"")
+                .nth(1)
+                .and_then(|s| s.split('"').next());
             let start = svg.find('>').map_or(0, |i| i + 1);
             let end = svg.rfind("</svg>").unwrap_or(svg.len());
             format!(
-                "<symbol id=\"icon.{id}\" viewBox=\"0 0 16 16\">{}</symbol>",
+                "<symbol id=\"icon.{id}\" viewBox=\"{}\">{}</symbol>",
+                view_box.unwrap_or_default(),
                 &svg[start..end]
             )
         })
@@ -327,7 +330,7 @@ fn icon_symbols(body: &str) -> String {
     if symbols.is_empty() {
         String::new()
     } else {
-        format!("<svg style=\"display: none\">{symbols}</svg>\n")
+        format!("<svg style=\"display: none\" aria-hidden=\"true\">{symbols}</svg>\n")
     }
 }
 
@@ -622,7 +625,7 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
             let href = format!("archive/{dir}.{format}");
             let download = format!("{archive}.{format}");
             let label = format!("Source code ({format})");
-            body.push_str(&release_row("file-zip", &href, &download, &label, sum));
+            body.push_str(&release_row("file-archive", &href, &download, &label, sum));
         }
         body.push_str("</div>\n");
     }

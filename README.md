@@ -40,7 +40,7 @@ wit hardlinks the files into the site, at `<repo>/releases/<tag>/`, so keep the 
 
 ## Credits
 
-The icons are from [Octicons](https://github.com/primer/octicons), Copyright (c) 2026 GitHub Inc., licensed under the [MIT License](https://github.com/primer/octicons/blob/main/LICENSE).
+The icons are from [Phosphor Icons](https://github.com/phosphor-icons/core), Copyright (c) 2023 Phosphor Icons, licensed under the [MIT License](https://github.com/phosphor-icons/core/blob/main/LICENSE).
 
 ---
 
