@@ -1,0 +1,109 @@
+.Dd November 23, 2026
+.Dt WIT 1
+.Os
+.Sh NAME
+.Nm wit
+.Nd static git web frontend
+.Sh SYNOPSIS
+.Nm
+.Op Fl O Ar owner
+.Op Fl u Ar repo
+.Fl o Ar outdir
+.Ar repo ...
+.Sh DESCRIPTION
+.Nm
+writes static HTML pages for git repositories into
+.Ar outdir :
+an index of the repositories and, for each one, a summary page,
+tree and file pages and a commit log for every branch and tag,
+a page for every commit, the branches, the tags and the releases.
+.Pp
+Each
+.Ar repo
+is a bare repository or a working copy.
+Its name is its directory's name without
+.Pa .git .
+Two repositories with the same name stop the run before anything is written.
+A repository whose HEAD has no commits or is detached is skipped with a warning,
+and so is one with a directory whose pages would overwrite another page.
+.Pp
+.Nm
+writes no stylesheet.
+Copy
+.Pa style.css
+and the
+.Pa fonts
+directory from
+.Pa /usr/local/share/doc/wit
+into
+.Ar outdir ,
+and copy them again after changing them.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl O Ar owner
+Show
+.Ar owner
+as the owner of every repository without an
+.Pa owner
+file.
+.It Fl o Ar outdir
+Write the site into
+.Ar outdir .
+.It Fl u Ar repo
+Rebuild only
+.Ar repo ,
+which must be one of the listed repositories,
+and any listed repository that has no pages in
+.Ar outdir
+yet.
+The index is always written from every listed repository.
+Without
+.Fl u ,
+every repository is rebuilt.
+A rebuilt repository's old pages are deleted first.
+.El
+.Sh FILES
+These files are read from a bare repository's directory,
+or from a working copy's
+.Pa .git
+directory:
+.Bl -tag -width Ds
+.It Pa description
+The description shown on the index and the summary page.
+git's placeholder text counts as none.
+.It Pa owner
+The owner shown on the summary page.
+.It Pa releases/ Ns Ar tag Ns Pa /
+The files of the release for
+.Ar tag .
+They are hard linked into
+.Ar outdir Ns Pa / Ns Ar repo Ns Pa /releases/ Ns Ar tag Ns Pa / ,
+or copied when that fails,
+and listed with their sizes and SHA-256 sums,
+next to zip and tar.gz source archives made by
+.Xr git-archive 1 .
+Subdirectories and symbolic links are ignored.
+A directory that names no tag is skipped with a warning.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Write a site for every repository in
+.Pa /srv/git :
+.Bd -literal -offset indent
+wit -O alice -o /var/www/git /srv/git/*.git
+cp -r /usr/local/share/doc/wit/style.css \e
+    /usr/local/share/doc/wit/fonts /var/www/git/
+.Ed
+.Pp
+Rebuild a repository's pages on every push, with a
+.Pa hooks/post-receive
+script in each repository:
+.Bd -literal -offset indent
+#!/bin/sh
+wit -o /var/www/git -u . /srv/git/*.git
+.Ed
+.Sh SEE ALSO
+.Xr git 1 ,
+.Xr githooks 5

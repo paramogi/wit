@@ -50,13 +50,3 @@ wit hardlinks the files into the site, at `<repo>/releases/<tag>/`, so keep the 
 ## Credits
 
 The icons are from [Phosphor Icons](https://github.com/phosphor-icons/core), Copyright (c) 2023 Phosphor Icons, licensed under the [MIT License](https://github.com/phosphor-icons/core/blob/main/LICENSE) (`fonts/phosphor-icons-MIT.txt`). The font is [Recursive](https://github.com/arrowtype/recursive), Copyright 2019 The Recursive Project Authors, licensed under the SIL Open Font License 1.1 (`fonts/OFL.txt`).
-
----
-
-<a href="https://brainmade.org/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://brainmade.org/88x31-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://brainmade.org/88x31-light.png">
-    <img alt="Brain made dot org" src="https://brainmade.org/88x31-light.png">
-  </picture>
-</a>
