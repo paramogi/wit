@@ -17,7 +17,7 @@ Create dependencies:
 
 ### Stylesheet
 
-wit doesn't write a stylesheet. Copy `style.css` into the site dir (the one after `-o`), and copy it again after changing it.
+wit doesn't write a stylesheet. Copy `style.css` and the `fonts/` dir into the site dir (the one after `-o`), and copy them again after changing them.
 
 ### Rebuilding on every push
 
@@ -40,7 +40,7 @@ wit hardlinks the files into the site, at `<repo>/releases/<tag>/`, so keep the 
 
 ## Credits
 
-The icons are from [Phosphor Icons](https://github.com/phosphor-icons/core), Copyright (c) 2023 Phosphor Icons, licensed under the [MIT License](https://github.com/phosphor-icons/core/blob/main/LICENSE).
+The icons are from [Phosphor Icons](https://github.com/phosphor-icons/core), Copyright (c) 2023 Phosphor Icons, licensed under the [MIT License](https://github.com/phosphor-icons/core/blob/main/LICENSE) (`fonts/phosphor-icons-MIT.txt`). The font is [Recursive](https://github.com/arrowtype/recursive), Copyright 2019 The Recursive Project Authors, licensed under the SIL Open Font License 1.1 (`fonts/OFL.txt`).
 
 ---
 

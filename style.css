@@ -33,7 +33,6 @@
   --text-xl: 1.375rem;
   --text-2xl: 1.75rem;
   --radius: 6px;
-  /* For corners inside a 1px border, so they follow the outer curve. */
   --radius-inner: calc(var(--radius) - 1px);
   --radius-sm: 4px;
   --bg: #f2f2ef;
@@ -72,7 +71,6 @@
   --menu-shadow: 0 6px 18px rgb(0 0 0 / 0.1);
   --switch-w: 12rem;
   --bar-h: 2.65rem;
-  /* Rendered markdown's line length: about 80 characters of Recursive. */
   --measure: 40rem;
 }
 
@@ -126,8 +124,6 @@ html {
   scroll-padding-top: calc(var(--bar-h) + 0.85rem);
 }
 
-/* At least the window's height, so the footer can sit at the bottom of
-   short pages. */
 body {
   margin: 0 auto;
   padding: 0 1rem;
@@ -148,9 +144,6 @@ body {
   border: 0;
 }
 
-/* Toggle radios (source/rendered, branches/tags) stay keyboard-reachable but are
-   pinned inside the viewport: clicking a label focuses its radio, and a radio left
-   at the top of the section would make the browser scroll back up to it. */
 input.vh[type="radio"] {
   position: fixed !important;
   top: 50%;
@@ -180,8 +173,6 @@ kbd,
   font-variation-settings: "MONO" 1;
 }
 
-/* Back to the UI face inside those: ref names in chips, the "sha256" label,
-   and the dot after a commit's hash (monospace spaces would widen it). */
 .chip code,
 .rel-sum-label,
 .commit-title > .commit-id::after {
@@ -234,11 +225,6 @@ label {
   cursor: pointer;
 }
 
-/* Negative block margin cancels the padding so the button sits in the
-   line box exactly like the inline <code> chip it replaced (top-aligned:
-   a flex box's baseline would come from its first icon). It is a flex box
-   no wider than its menu, so a long ref name (.truncate) is cut short
-   between the icons. */
 .ref-btn {
   display: inline-flex;
   align-items: center;
@@ -274,9 +260,6 @@ label {
   vertical-align: -0.25em;
 }
 
-/* Laid out like the "N refs" button beside it (block, icon inline), so a
-   long ref name can end in an ellipsis (.truncate) within the cap. The pill
-   stretches to the .chips line, with its text centred in it. */
 .chip code {
   display: block;
   align-content: center;
@@ -318,10 +301,6 @@ path {
   fill: currentColor;
 }
 
-/* Hover always moves toward the text colour: muted links darken, links
-   already in the text colour just underline. Links take their colour from
-   --link, and components mute them by setting --link rather than a `color`
-   that would out-rank this hover. */
 a {
   text-decoration: none;
   color: var(--link, var(--fg));
@@ -347,9 +326,6 @@ a,
   outline-offset: 2px;
 }
 
-/* The header's first line is "wit / repo", the name cut short (.truncate)
-   if it needs more; the tabs and the repo's documents share the line below
-   (.repo-tabs). */
 #header,
 #site_path {
   display: flex;
@@ -371,7 +347,6 @@ a.brand[aria-current] {
   font-size: var(--text-2xl);
 }
 
-/* The header's names are links without the link look: no underline on hover. */
 :is(a.brand, #site_path a):hover {
   text-decoration: none;
 }
@@ -396,10 +371,6 @@ main {
   timeline-scope: --switch;
 }
 
-/* Every page but the index ends with this. Sticking at 100vh pushes it as far
-   down as the body allows, so on a short page it sits at the window's bottom;
-   on a long one it is already at the end and stays put. (A flex column would
-   do the same but stop the page's margins collapsing, shifting the content.) */
 .site-footer {
   position: sticky;
   top: 100vh;
@@ -558,8 +529,6 @@ main {
   background-color: var(--surface);
 }
 
-/* The pager mixes links with plain-text cells (gaps, the current page), so
-   its rule has to outrank `.buttons a` to reach every cell. */
 .buttons a + a,
 .buttons label + label,
 .buttons.pager > * + * {
@@ -586,8 +555,6 @@ main {
   border-right-color: var(--current);
 }
 
-/* Only where the current item is still a link: the pager's current page is
-   plain text. */
 .buttons a[aria-current]:hover {
   color: var(--current-fg);
   background-color: var(--current-hover);
@@ -653,11 +620,6 @@ main {
   border-radius: 0 var(--radius) 0 0;
 }
 
-/* The stuck look (square corners, shadow, the bar notched around the switch)
-   runs on scroll timelines. Where those are unsupported the timeline would be
-   dropped, the animation would run once with a 0s duration, and `both` fill
-   would hold the stuck keyframe for good, so the animations are only declared
-   alongside their timelines. */
 @supports (animation-timeline: view()) {
   .sticky {
     animation: stuck-top linear both;
@@ -750,11 +712,6 @@ main {
   display: none;
 }
 
-/* The lists are popovers opened by their button (popovertarget): a click or
-   Enter opens one, Esc or a click elsewhere closes it, and only one is open at
-   a time. In the top layer they need no z-index; anchor positioning puts each
-   under the button that opened it, flipping above near the window's bottom.
-   A ref name too long for the 20rem cap is cut short (.truncate). */
 .ref-menu-list {
   inset: auto;
   flex-direction: column;
@@ -846,13 +803,6 @@ main {
   padding-bottom: calc(0.15rem + 1px);
 }
 
-/* Either list scrolls within 30rem, and within what the window leaves below
-   the menu's place: the ref button ends at most ~13.5rem down (phones), and
-   the menu's head and a gap take the rest of the 17rem. On a shorter window
-   the list scrolls rather than the menu sliding up over its button, but its
-   limit stays at least 7rem (three rows and a bit of the next, to show it
-   scrolls); below that, the menu slides up after all. A list shorter than
-   its limit keeps its own height. */
 .ref-branches,
 .ref-tags {
   display: flex;
@@ -863,14 +813,10 @@ main {
   border-bottom-right-radius: var(--radius-inner);
 }
 
-/* A list long enough to scroll keeps room for its scrollbar, so its rows
-   don't shift when one appears. */
 .ref-menu-list .long {
   scrollbar-gutter: stable;
 }
 
-/* Rows keep their height and a list scrolls: the overflow that cuts a name
-   short (.truncate) would otherwise let them shrink to fit. */
 .ref-menu-list a {
   display: block;
   flex-shrink: 0;
@@ -882,7 +828,6 @@ main {
   margin-right: 0.3em;
 }
 
-/* A 16px icon inline with its text, centred on it. */
 .ref-menu-list a svg,
 .commit-title > .commit-id > svg {
   vertical-align: calc(-0.15em - 1px);
@@ -965,8 +910,6 @@ main {
   --link: var(--muted);
 }
 
-/* One line of its own text high: what doesn't fit wraps out of sight, and
-   the line sits centred like its neighbours. */
 .commit-stat {
   display: flex;
   flex-wrap: wrap;
@@ -988,9 +931,6 @@ main {
   white-space: nowrap;
 }
 
-/* Text that wraps rather than being cut short: a word too long for its line
-   breaks wherever it must instead of spilling out of its box (and pushing
-   its neighbours out with it). */
 .summary-meta-val,
 .repo-desc,
 .commit-title,
@@ -1001,10 +941,6 @@ main {
   overflow-wrap: anywhere;
 }
 
-/* A .row is one link: its .row-link stretches over the whole row, so the row
-   lights up and the link underlines wherever the row is pointed at. A commit
-   row has two row links to the same commit, its hash and its summary. Repo
-   cards use the same stretched link with their own hover look. */
 .row:hover {
   background-color: var(--hover);
 }
@@ -1024,17 +960,11 @@ main {
   inset: 0;
 }
 
-/* A row's other links and menus sit above the stretched link, so they stay
-   clickable, and so does a release file's checksum, so it can be selected
-   and copied. The rest of the row (dates, sizes) is part of the link. */
 :is(.row, .repo-row) :is(a:not(.row-link), .ref-more, .repo-links, .rel-sum) {
   position: relative;
   z-index: 1;
 }
 
-/* Pointing at a row (but not at one of its other links or menus) underlines
-   its row links and brings muted ones up to the text colour. The dot joining
-   a commit's hash and summary sits in .commit-summary, outside the links. */
 .row:hover:not(:has(:is(a:not(.row-link), .ref-more):hover)) :is(.row-link, .commit-summary) {
   --link: var(--fg);
   text-decoration: underline;
@@ -1063,9 +993,6 @@ main {
   text-decoration: none;
 }
 
-/* Cells holding text that is cut short: each cell may shrink, and the
-   element inside carries .truncate, so that element itself ends at the
-   ellipsis (and a link's focus ring is never clipped by its cell). */
 #header,
 #site_path,
 .tree-path,
@@ -1088,8 +1015,6 @@ main {
   color: var(--folder);
 }
 
-/* The side padding centres a --measure-wide column in the box. A word or
-   identifier too long for the line breaks rather than spilling out. */
 .markdown-body {
   padding: 2rem max(2rem, calc((100% - var(--measure)) / 2));
   line-height: 1.5;
@@ -1110,8 +1035,6 @@ main {
   max-width: var(--measure);
 }
 
-/* A heading's margins collapse through its .markdown-heading wrapper, so a
-   leading or trailing heading is trimmed inside it. */
 .markdown-body > :first-child,
 .markdown-body > .markdown-heading:first-child > :first-child {
   margin-top: 0;
@@ -1127,8 +1050,6 @@ main {
   margin-bottom: 1rem;
 }
 
-/* Rendered markdown starts at h2, a level below the page's h1 (the repo
-   name): # is h2, ## is h3, and so on, with ##### and ###### both h6. */
 .markdown-body :is(h2, h3, h4, h5, h6) {
   margin: 1.75rem 0 0.75rem;
   font-weight: 700;
@@ -1150,10 +1071,6 @@ main {
   text-decoration-color: currentColor;
 }
 
-/* A heading's permalink follows it rather than sitting inside it, so the
-   heading's accessible name is just its text. It is drawn in the gutter to
-   the left of the heading (or of the disclosure marker, in a summary), muted
-   until it is pointed at. */
 .markdown-heading,
 .markdown-body summary:has(> .anchor) {
   position: relative;
@@ -1333,8 +1250,6 @@ main {
   text-decoration: none;
 }
 
-/* Inset ring: lines sit flush against each other and the gutter edge, so the
-   global 2px offset would overlap the neighbouring lines or be clipped. */
 .chroma .ln:focus-visible {
   outline-offset: -2px;
 }
@@ -1424,10 +1339,6 @@ pre.chroma[style] {
   font-weight: 600;
 }
 
-/* The hash, its dot and the title's first word run on as one line: no
-   wrapping inside the hash, and no break between it and the title (an
-   inline-flex box would allow one), so a long title starts right after the
-   dot and breaks further on. */
 .commit-title > .commit-id {
   white-space: nowrap;
   font-size: var(--text-sm);
@@ -1458,8 +1369,6 @@ pre.chroma[style] {
   min-width: 0;
 }
 
-/* One line: a long release name is cut short (.truncate) rather than
-   squeezing the date beside it. */
 .summary-meta-val:has(> :is(.commit-id, .release-id)) {
   display: flex;
   align-items: center;
@@ -1509,8 +1418,6 @@ pre.chroma[style] {
   min-width: 0;
 }
 
-/* Only the readme's own boxes (rendered and source), not the code blocks
-   inside the rendered markdown, which keep their spacing. */
 .summary-tree .box,
 .summary-readme > :is(.box, pre) {
   margin-bottom: 0;
@@ -1532,8 +1439,6 @@ pre.chroma[style] {
   display: none;
 }
 
-/* The date sits at the far right, and keeps a gap from an author name cut
-   short beside it. */
 .summary-side .commit-by > :last-child {
   margin-left: auto;
   padding-left: 0.65rem;
@@ -1550,8 +1455,6 @@ pre.chroma[style] {
   }
 }
 
-/* The index: one card per repo, the same box the repo pages use, with the
-   name set like the tab bar (light, heavy when pointed at). */
 .repo-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
@@ -1584,9 +1487,6 @@ pre.chroma[style] {
   letter-spacing: -0.01em;
 }
 
-/* Pointing at a repo (or tabbing to it) makes it "current": its name takes
-   the tab bar's weight shift and its date and description come up from
-   muted. */
 .repo-row:hover .repo-name a,
 .repo-name a:focus-visible {
   font-weight: 800;
@@ -1620,10 +1520,6 @@ pre.chroma[style] {
   -webkit-line-clamp: 2;
 }
 
-/* Every card spaces its links alike, so they line up from card to card. The
-   gap is the one that spreads the full set (summary to releases, 22em of
-   text) across the row (100cqi, the card's inner width), so that row ends at
-   the inset it starts with; it never drops below 0.7rem, wrapping instead. */
 .repo-links {
   display: flex;
   grid-area: links;
@@ -1676,8 +1572,6 @@ pre.chroma[style] {
     grid-template-columns: max-content 1fr;
   }
 
-  /* The parent row's label and hashes become cells of the two-column grid,
-     lining up under the author and committer rows. */
   .commit-parent {
     display: contents;
   }
@@ -1717,8 +1611,6 @@ pre.chroma[style] {
   margin-left: auto;
 }
 
-/* On phones the bar wraps to show the full path and is not sticky, so
-   nothing below it depends on its height. */
 @media only screen and (max-width: 600px) {
   .ref-bar {
     flex-wrap: wrap;
@@ -1782,9 +1674,6 @@ pre.chroma[style] {
   padding-bottom: 0.5rem;
 }
 
-/* Each day's date sits in a gutter left of its commits: inset from the edge
-   as far as text inside a box (padding plus border), then about the rows'
-   own 1rem column gap before the commits. */
 .log-day {
   --date-gutter: 6.5rem;
   display: flow-root;
@@ -1833,8 +1722,6 @@ pre.chroma[style] {
     grid-area: stat;
   }
 
-  /* The hash is smaller than the summary beside it; this drops its hover
-     underline onto the summary's, so the two read as one line. */
   .action-commits .commit-row .commit-id {
     grid-area: id;
     text-underline-offset: 0.3em;
@@ -1846,7 +1733,6 @@ pre.chroma[style] {
     margin-left: -1rem;
   }
 
-  /* The smaller dot sits on the summary's baseline, as it would inline. */
   .action-commits .commit-row .commit-summary {
     align-items: baseline;
   }
@@ -1966,8 +1852,6 @@ header.subtitle h2 .count {
   padding-top: 2rem;
 }
 
-/* On repo pages the tabs end the header: they stand clear of the title
-   (.repo-tabs) and close to the content they switch. */
 .topbar:has(> .repo-tabs) {
   margin-bottom: 1rem;
 }
@@ -1978,8 +1862,6 @@ header.subtitle h2 .count {
   margin-left: auto;
 }
 
-/* The text, not the icon, gives the link its baseline, so it lines up with
-   the tabs' text. */
 .doc-link {
   display: flex;
   align-items: baseline;
@@ -2005,9 +1887,6 @@ header.subtitle h2 .count {
   color: var(--fg);
 }
 
-/* The tabs take the room the documents leave at the right of their line,
-   wrapping onto more lines rather than pushing the documents onto one of
-   their own. (On phones it is the other way round; see below.) */
 .repo-tabs {
   display: flex;
   flex: 1 1 0;
@@ -2027,10 +1906,6 @@ header.subtitle h2 .count {
   --link: var(--muted);
 }
 
-/* The brand and the tabs go heavy when current or pointed at; repo cards on
-   the index borrow the same shift for their names and fade their dates and
-   descriptions in. Neither "wit" (set mono) nor a repo name (in a fixed grid
-   column) needs the tabs' .tab-label width reservation. */
 a.brand,
 .tab,
 .repo-name a,
@@ -2113,11 +1988,6 @@ a:is(.commit-id, .release-id) {
   margin-right: 0.3em;
 }
 
-/* A branch or tag row's tip hash and message are two links to one commit,
-   so they sit together (the margin undoes the row's gap) and light up
-   together: pointing at either underlines both, and the dot between them,
-   and brings both up from muted. The hash sets its own muted --link, so it is
-   named as well as the two cells. */
 .branch-sha + .tree-commit {
   margin-left: -1.3rem;
 }
@@ -2168,10 +2038,6 @@ a:is(.commit-id, .release-id) {
   }
 }
 
-/* Collapsed, the button would still spill out of its zero-width box, and
-   hidden content still counts towards the page's width (scrolling sideways),
-   so it is clipped until it is needed. The menu opens in the top layer, so
-   clipping never cuts it off. */
 @keyframes more-needed {
   0% {
     max-width: 10rem;
@@ -2215,8 +2081,6 @@ a:is(.commit-id, .release-id) {
     font-size: var(--text-lg);
   }
 
-  /* The tabs keep their own width: the documents drop below them rather
-     than squeezing them into a narrow column. */
   .repo-tabs {
     flex-basis: auto;
   }
