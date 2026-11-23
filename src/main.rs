@@ -144,6 +144,13 @@ fn last_changes<'a>(
 }
 
 fn page_clash(repo: &RepoInfo) -> Option<String> {
+    if let Some(release) = repo
+        .releases
+        .iter()
+        .find(|r| r.tag.split('/').next() == Some("index.html"))
+    {
+        return Some(format!("release {} clashes with a page", release.tag));
+    }
     for git_ref in repo.branches.iter().chain(&repo.tags) {
         for dir in git_ref.dirs.values() {
             for entry in dir.entries.iter().filter(|e| e.is_dir) {
@@ -236,7 +243,10 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
         sums.push(release_sums);
     }
     if !repo.releases.is_empty() {
-        write_file(&repo_dir.join("releases.html"), &gen_releases(repo, &sums))?;
+        write_file(
+            &repo_dir.join("releases").join("index.html"),
+            &gen_releases(repo, &sums),
+        )?;
     }
     let refs = || repo.branches.iter().chain(&repo.tags);
     let head_first = refs()
@@ -305,11 +315,14 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
         }
     }
     write_file(
-        &repo_dir.join("branches.html"),
+        &repo_dir.join("branches").join("index.html"),
         &gen_branches(repo, &counts),
     )?;
     if !repo.tags.is_empty() {
-        write_file(&repo_dir.join("tags.html"), &gen_tags(repo, &counts))?;
+        write_file(
+            &repo_dir.join("tags").join("index.html"),
+            &gen_tags(repo, &counts),
+        )?;
     }
     let head_last = last_changes(&repo.commit_list, &changes);
     write_file(&repo_dir.join("index.html"), &gen_summary(repo, &head_last))

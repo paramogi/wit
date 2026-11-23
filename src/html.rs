@@ -133,9 +133,9 @@ impl Tab {
             Tab::Summary => String::new(),
             Tab::Tree => format!("tree/{}/", percent_encode(git_ref)),
             Tab::Commits => format!("commits/{}/", percent_encode(git_ref)),
-            Tab::Branches => "branches.html".to_string(),
-            Tab::Tags => "tags.html".to_string(),
-            Tab::Releases => "releases.html".to_string(),
+            Tab::Branches => "branches/".to_string(),
+            Tab::Tags => "tags/".to_string(),
+            Tab::Releases => "releases/".to_string(),
         }
     }
 }
@@ -642,7 +642,7 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, body: &str) -> String {
         repo,
         git_ref: &repo.head_dir,
         tab,
-        depth: 0,
+        depth: 1,
         path: "",
         commits: repo.commit_list.len(),
     };
@@ -665,18 +665,18 @@ fn write_refs(
         body.push_str(&format!(
             "\
 <div class=\"flex items-center gap-2 px row tree-row border-b branch-row\">\n\
-<div class=\"flex-1 flex items-center gap branch-name\">{}<a class=\"truncate row-link\" href=\"{}\">{}</a></div>\n\
+<div class=\"flex-1 flex items-center gap branch-name\">{}<a class=\"truncate row-link\" href=\"../{}\">{}</a></div>\n\
 <div class=\"tree-commit short-id branch-sha\">{}</div>\n\
 {}\
 {}\
-<a class=\"branch-log\" href=\"{}\">{}</a>\n\
+<a class=\"branch-log\" href=\"../{}\">{}</a>\n\
 </div>\n\
 ",
             ref_icon(git_ref),
             Tab::Tree.href(&git_ref.dir),
             escape_str(&git_ref.name),
-            short_id("", &git_ref.id),
-            summary_cell("", &git_ref.id, &git_ref.summary),
+            short_id("../", &git_ref.id),
+            summary_cell("../", &git_ref.id, &git_ref.summary),
             date_cell(&git_ref.date),
             Tab::Commits.href(&git_ref.dir),
             commit_count(counts[&git_ref.dir])
@@ -690,7 +690,7 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
         repo,
         git_ref: &repo.head_dir,
         tab: Tab::Releases,
-        depth: 0,
+        depth: 1,
         path: "",
         commits: repo.commit_list.len(),
     };
@@ -707,7 +707,7 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
             "\
 <section id=\"release-{}\" class=\"box mt-0 p-0 rel\">\n\
 <div class=\"flex items-center gap-2 px border-b rel-head\">\n\
-<div class=\"flex-1 flex items-center gap rel-name\">{}<a class=\"truncate\" href=\"{}\">{}</a></div>\n\
+<div class=\"flex-1 flex items-center gap rel-name\">{}<a class=\"truncate\" href=\"../{}\">{}</a></div>\n\
 <div class=\"ml-auto flex items-center\">\n\
 <div class=\"flex items-center tree-commit short-id\">{}</div>\n\
 {}\
@@ -718,7 +718,7 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
             icon("release"),
             Tab::Tree.href(&format!("tags/{}", release.tag)),
             escape_str(&release.tag),
-            short_id("", &tag.id),
+            short_id("../", &tag.id),
             date_cell(&release.date)
         ));
         if !release.notes.is_empty() {
@@ -729,19 +729,19 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
                 repo,
                 tag,
                 "",
-                "",
+                "../",
                 notes,
             );
         }
         let dir = percent_encode(&release.tag);
         let (file_sums, archive_sums) = sums.split_at(release.files.len());
         for (name, sum) in release.files.iter().zip(file_sums) {
-            let href = format!("releases/{dir}/{}", percent_encode(name));
+            let href = format!("{dir}/{}", percent_encode(name));
             body.push_str(&release_row("file", &href, name, name, sum));
         }
         let archive = archive_name(&repo.name, &release.tag);
         for (format, sum) in ARCHIVE_FORMATS.iter().zip(archive_sums) {
-            let href = format!("archive/{dir}.{format}");
+            let href = format!("../archive/{dir}.{format}");
             let download = format!("{archive}.{format}");
             body.push_str(&release_row(
                 "file-archive",
