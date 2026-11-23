@@ -782,7 +782,7 @@ fn release_row(
 fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
     let summary = escape_str(summary);
     format!(
-        "<div class=\"flex flex-2 tree-commit\"><a class=\"truncate\" href=\"{repo_root}commits/{id}.html\" title=\"{summary}\">{summary}</a></div>\n"
+        "<div class=\"flex flex-2 tree-commit\"><a class=\"truncate\" href=\"{repo_root}commits/{id}/\" title=\"{summary}\">{summary}</a></div>\n"
     )
 }
 
@@ -803,7 +803,7 @@ fn commit_cells(repo_root: &str, id: &str, summary: &str, date: &DateTime<FixedO
 
 fn short_id(repo_root: &str, id: &str) -> String {
     format!(
-        "<a href=\"{repo_root}commits/{id}.html\" class=\"commit-id\">{}{}</a>",
+        "<a href=\"{repo_root}commits/{id}/\" class=\"commit-id\">{}{}</a>",
         icon("git-commit"),
         &id[..7]
     )
@@ -1079,7 +1079,7 @@ pub fn gen_commit(
         repo,
         git_ref: &git_ref.dir,
         tab: Tab::Commits,
-        depth: 1,
+        depth: 2,
         path: "",
         commits,
     };
@@ -1087,7 +1087,7 @@ pub fn gen_commit(
     let parents: Vec<String> = diff
         .parents
         .iter()
-        .map(|id| format!("<a href=\"{id}.html\">{}</a>", &id[..7]))
+        .map(|id| format!("<a href=\"../{id}/\">{}</a>", &id[..7]))
         .collect();
     let parents = match parents.len() {
         0 => String::new(),
@@ -1746,7 +1746,7 @@ fn write_commit_row(
     joined: &str,
     date: &str,
 ) {
-    let href = format!("{repo_root}commits/{}.html", commit.id);
+    let href = format!("{repo_root}commits/{}/", commit.id);
     let stat = stat
         .map(|stat| format!("<div class=\"commit-stat flex-1\"><div>{stat}</div></div>\n"))
         .unwrap_or_default();

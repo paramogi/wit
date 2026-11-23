@@ -265,7 +265,7 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
             }
             let diff = repo.read_diff(&commit.id)?;
             write_file(
-                &repo_dir.join("commits").join(format!("{}.html", commit.id)),
+                &repo_dir.join("commits").join(&commit.id).join("index.html"),
                 &gen_commit(repo, git_ref, commit, &diff, commits.len()),
             )?;
             stats.insert(commit.id.clone(), diff_stat(&diff));
