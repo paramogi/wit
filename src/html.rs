@@ -21,8 +21,6 @@ const BRIEF_COUNT: usize = 5;
 
 const DATE: &str = "%d-%m-%Y";
 
-const DATE_TIME: &str = "%d-%m-%Y&nbsp;%H:%M:%S";
-
 pub const COMMITS_PER_PAGE: usize = 200;
 
 const SUMMARY_REF_COUNT: usize = 3;
@@ -642,28 +640,31 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
         commits: repo.commit_list.len(),
     };
 
-    let mut body = String::new();
-    for (release, sums) in repo.releases.iter().zip(sums) {
+    let mut body = format!(
+        "<header class=\"subtitle\"><h2>releases <span class=\"count\">{}</span></h2></header>\n",
+        repo.releases.len()
+    );
+    for (n, (release, sums)) in repo.releases.iter().zip(sums).enumerate() {
         let Some(tag) = repo.tags.iter().find(|t| t.name == release.tag) else {
             continue;
         };
         body.push_str(&format!(
             "\
-<div class=\"box mt-0 p-0\">\n\
-<div class=\"flex items-center gap-2 py px border-b\">\n\
-<div class=\"flex items-center gap font-bold\">{}<a href=\"{}\">{}</a></div>\n\
-<div class=\"flex items-center gap tree-commit mono\">{}<a href=\"commits/{}.html\">{}</a></div>\n\
-<div class=\"ml-auto tree-date release-date\" title=\"{}\">released {}</div>\n\
+<section id=\"release-{}\" class=\"box mt-0 p-0 rel\">\n\
+<div class=\"flex items-center gap-2 px border-b rel-head\">\n\
+<div class=\"flex-1 flex items-center gap rel-name\">{}<a class=\"truncate\" href=\"{}\">{}</a></div>\n\
+<div class=\"ml-auto flex items-center\">\n\
+<div class=\"flex items-center tree-commit short-id\">{}</div>\n\
+{}\
+</div>\n\
 </div>\n\
 ",
+            n + 1,
             icon("release"),
             Tab::Tree.href(&format!("tags/{}", release.tag)),
             escape_str(&release.tag),
-            icon("git-commit"),
-            tag.id,
-            &tag.id[..7],
-            format_zoned(&release.date, DATE_TIME),
-            release.date.format(DATE)
+            short_id("", &tag.id),
+            date_cell(&release.date)
         ));
         if !release.notes.is_empty() {
             let notes = release.notes.as_bytes();
@@ -687,10 +688,15 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
         for (format, sum) in ARCHIVE_FORMATS.iter().zip(archive_sums) {
             let href = format!("archive/{dir}.{format}");
             let download = format!("{archive}.{format}");
-            let label = format!("Source code ({format})");
-            body.push_str(&release_row("file-archive", &href, &download, &label, sum));
+            body.push_str(&release_row(
+                "file-archive",
+                &href,
+                &download,
+                &download,
+                sum,
+            ));
         }
-        body.push_str("</div>\n");
+        body.push_str("</section>\n");
     }
 
     wrap_page(&repo.name, Some(&nav), &body)
@@ -705,12 +711,10 @@ fn release_row(
 ) -> String {
     format!(
         "\
-<div class=\"py px border-b tree-row\">\n\
-<div class=\"flex items-center gap-2\">\n\
-<div class=\"flex-1 flex items-center gap tree-path\">{}<a class=\"truncate\" download=\"{}\" href=\"{href}\">{}</a></div>\n\
-<div class=\"tree-date\">{}</div>\n\
-</div>\n\
-<div class=\"mono text-sm release-sum\">sha256 {sha256}</div>\n\
+<div class=\"flex items-center gap-2 px row tree-row border-b rel-file\">\n\
+<div class=\"flex-1 flex items-center gap rel-name\">{}<a class=\"truncate row-link\" download=\"{}\" href=\"{href}\">{}</a></div>\n\
+<div class=\"truncate rel-sum\"><span class=\"rel-sum-label\">sha256</span> {sha256}</div>\n\
+<div class=\"rel-size\">{}</div>\n\
 </div>\n\
 ",
         icon(icon_name),
