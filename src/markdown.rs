@@ -5,24 +5,32 @@ use crate::html::{
 use crate::repo_info::{RefInfo, RepoInfo};
 
 use pulldown_cmark::{
-    BlockQuoteKind, Event, LinkType, Options, Parser, Tag, TagEnd, html::push_html,
+    BlockQuoteKind, Event, HeadingLevel, LinkType, Options, Parser, Tag, TagEnd, html::push_html,
 };
 use std::collections::{HashMap, HashSet};
 
-const PAGE_IDS: [&str; 12] = [
+const PAGE_IDS: [&str; 7] = [
     "header",
-    "got_link",
     "site_path",
-    "site_link",
-    "briefs_content",
-    "branches_content",
-    "tags_content",
-    "tree_content",
+    "ref-menu",
     "ref-branches",
     "ref-tags",
     "view-source",
     "view-rendered",
 ];
+
+const NUMBERED_PAGE_IDS: [&str; 2] = ["ref-more-", "release-"];
+
+struct RawHeading {
+    start: usize,
+    level: u8,
+    open_end: usize,
+    close: usize,
+    close_end: usize,
+    has_id: bool,
+    text: String,
+    label: String,
+}
 
 pub fn is_markdown(name: &str) -> bool {
     name == "README"
@@ -83,6 +91,7 @@ pub fn write_markdown(
     let (events, footnote_ids) = gather_footnotes(events);
     let mut ids = heading_ids(&events, footnote_ids).into_iter();
     let mut html_events = Vec::with_capacity(events.len());
+    let mut heading_end: Option<String> = None;
     for event in events {
         match event {
             Event::Start(Tag::Heading {
@@ -91,19 +100,27 @@ pub fn write_markdown(
                 attrs,
                 ..
             }) => {
-                let id = ids.next().unwrap_or_default();
-                let has_id = !id.is_empty();
-                let anchor = anchor_link(&id);
-                html_events.push(Event::Start(Tag::Heading {
-                    level,
-                    id: has_id.then(|| id.into()),
-                    classes,
-                    attrs,
-                }));
-                if has_id {
-                    html_events.push(Event::InlineHtml(anchor.into()));
+                let (id, label) = ids.next().unwrap_or_default();
+                let level = lower_level(level);
+                if id.is_empty() {
+                    html_events.push(Event::Start(Tag::Heading {
+                        level,
+                        id: None,
+                        classes,
+                        attrs,
+                    }));
+                } else {
+                    let n = level as usize;
+                    html_events.push(Event::Html(
+                        format!("<div class=\"markdown-heading\"><h{n} id=\"{id}\">").into(),
+                    ));
+                    heading_end = Some(format!("</h{n}>{}</div>\n", anchor_link(&id, &label)));
                 }
             }
+            Event::End(TagEnd::Heading(level)) => html_events.push(match heading_end.take() {
+                Some(end) => Event::Html(end.into()),
+                None => Event::End(TagEnd::Heading(lower_level(level))),
+            }),
             Event::Start(Tag::BlockQuote(Some(kind))) => {
                 let (name, label, icon_name) = match kind {
                     BlockQuoteKind::Note => ("note", "Note", "info"),
@@ -121,17 +138,41 @@ pub fn write_markdown(
                 ));
             }
             Event::Html(html) => {
+                let lower = html.to_ascii_lowercase();
                 let mut linked = String::with_capacity(html.len());
                 let mut copied = 0;
-                for (at, _) in raw_headings(&html) {
-                    let id = ids.next().unwrap_or_default();
-                    linked.push_str(&html[copied..at]);
-                    if id.is_empty() {
-                        linked.push('>');
+                for heading in raw_headings(&html) {
+                    let (id, label) = if heading.has_id {
+                        Default::default()
                     } else {
-                        linked.push_str(&format!(" id=\"{id}\">{}", anchor_link(&id)));
+                        ids.next().unwrap_or_default()
+                    };
+                    let in_summary = lower[..heading.start].rfind("<summary")
+                        > lower[..heading.start].rfind("</summary");
+                    let wrap = !id.is_empty() && !in_summary;
+                    let n = (heading.level + 1).min(6);
+                    linked.push_str(&html[copied..heading.start]);
+                    if wrap {
+                        linked.push_str("<div class=\"markdown-heading\">");
                     }
-                    copied = at + 1;
+                    linked.push_str(&format!(
+                        "<h{n}{}",
+                        &html[heading.start + 3..heading.open_end]
+                    ));
+                    if !id.is_empty() {
+                        linked.push_str(&format!(" id=\"{id}\""));
+                    }
+                    linked.push_str(&format!(
+                        ">{}</h{n}>",
+                        &html[heading.open_end + 1..heading.close]
+                    ));
+                    if !id.is_empty() {
+                        linked.push_str(&anchor_link(&id, &label));
+                    }
+                    if wrap {
+                        linked.push_str("</div>");
+                    }
+                    copied = heading.close_end;
                 }
                 linked.push_str(&html[copied..]);
                 html_events.push(Event::Html(linked.into()));
@@ -235,7 +276,7 @@ fn footnote_ref_id(label: &str, k: usize) -> String {
     }
 }
 
-fn heading_ids(events: &[Event], footnote_ids: Vec<String>) -> Vec<String> {
+fn heading_ids(events: &[Event], footnote_ids: Vec<String>) -> Vec<(String, String)> {
     let mut used: HashSet<String> = PAGE_IDS
         .iter()
         .map(|id| id.to_string())
@@ -251,14 +292,22 @@ fn heading_ids(events: &[Event], footnote_ids: Vec<String>) -> Vec<String> {
                     heading.push_str(text);
                 }
             }
-            Event::End(TagEnd::Heading(_)) => texts.extend(heading.take()),
-            Event::Html(html) => texts.extend(raw_headings(html).into_iter().map(|(_, text)| text)),
+            Event::End(TagEnd::Heading(_)) => texts.extend(heading.take().map(|text| {
+                let label = escape_str(&text);
+                (text, label)
+            })),
+            Event::Html(html) => texts.extend(
+                raw_headings(html)
+                    .into_iter()
+                    .filter(|heading| !heading.has_id)
+                    .map(|heading| (heading.text, heading.label)),
+            ),
             _ => {}
         }
     }
     texts
-        .iter()
-        .map(|text| {
+        .into_iter()
+        .map(|(text, label)| {
             let slug: String = text
                 .to_lowercase()
                 .chars()
@@ -267,17 +316,34 @@ fn heading_ids(events: &[Event], footnote_ids: Vec<String>) -> Vec<String> {
                 .collect();
             let mut id = slug.clone();
             let mut n = 0;
-            while !slug.is_empty() && used.contains(&id) {
+            while !slug.is_empty() && (used.contains(&id) || numbered_page_id(&id)) {
                 n += 1;
                 id = format!("{slug}-{n}");
             }
             used.insert(id.clone());
-            id
+            (id, label)
         })
         .collect()
 }
 
-fn raw_headings(html: &str) -> Vec<(usize, String)> {
+fn numbered_page_id(id: &str) -> bool {
+    NUMBERED_PAGE_IDS.iter().any(|prefix| {
+        id.strip_prefix(prefix)
+            .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+    })
+}
+
+fn is_entity(rest: &str) -> bool {
+    rest.split_once(';').is_some_and(|(name, _)| {
+        !name.is_empty() && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'#')
+    })
+}
+
+fn lower_level(level: HeadingLevel) -> HeadingLevel {
+    HeadingLevel::try_from(level as usize + 1).unwrap_or(HeadingLevel::H6)
+}
+
+fn raw_headings(html: &str) -> Vec<RawHeading> {
     let lower = html.to_ascii_lowercase();
     let bytes = lower.as_bytes();
     let mut headings = Vec::new();
@@ -301,16 +367,30 @@ fn raw_headings(html: &str) -> Vec<(usize, String)> {
         let Some(close) = lower[open_end..].find(&close_tag).map(|i| open_end + i) else {
             break;
         };
+        let Some(close_end) = lower[close..].find('>').map(|i| close + i + 1) else {
+            break;
+        };
         from = close;
-        if lower[start..open_end]
+        let has_id = lower[start..open_end]
             .split_whitespace()
-            .any(|attr| attr.starts_with("id="))
-        {
-            continue;
+            .any(|attr| attr.starts_with("id="));
+        let inner = &html[open_end + 1..close];
+        let mut label = String::new();
+        let mut in_tag = false;
+        for (at, c) in inner.char_indices() {
+            if in_tag {
+                in_tag = c != '>';
+            } else if c == '<' {
+                in_tag = true;
+            } else if c == '&' && is_entity(&inner[at + 1..]) {
+                label.push('&');
+            } else {
+                label.push_str(&escape_str(&c.to_string()));
+            }
         }
         let mut text = String::new();
         let mut until = None;
-        for c in html[open_end + 1..close].chars() {
+        for c in inner.chars() {
             match until {
                 Some(end) if c == end => until = None,
                 Some(';') if !c.is_ascii_alphanumeric() && c != '#' => {
@@ -323,13 +403,25 @@ fn raw_headings(html: &str) -> Vec<(usize, String)> {
                 None => text.push(c),
             }
         }
-        headings.push((open_end, text.trim().to_string()));
+        headings.push(RawHeading {
+            start,
+            level: level - b'0',
+            open_end,
+            close,
+            close_end,
+            has_id,
+            text: text.trim().to_string(),
+            label: label.trim().to_string(),
+        });
     }
     headings
 }
 
-fn anchor_link(id: &str) -> String {
-    format!("<a class=\"anchor\" href=\"#{id}\">{}</a>", icon("link"))
+fn anchor_link(id: &str, label: &str) -> String {
+    format!(
+        "<a class=\"anchor\" href=\"#{id}\" aria-label=\"{label}, link to this section\">{}</a>",
+        icon("link")
+    )
 }
 
 fn rewrite_html(
