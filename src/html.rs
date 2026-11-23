@@ -488,73 +488,126 @@ pub fn gen_summary(repo: &RepoInfo, last: &HashMap<String, &CommitInfo>) -> Stri
         path: "",
         commits: repo.commit_list.len(),
     };
-    let last_commit = repo.commit_list[0].committer_date.format(DATE).to_string();
-    let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
-    let mut rows = vec![
-        ("name", escape_str(&repo.name)),
-        ("description", description(repo).1),
-    ];
-    if !repo.owner.is_empty() {
-        rows.push(("owner", escape_str(&repo.owner)));
-    }
-    rows.push(("last commit", last_commit));
-    if let Some(release) = repo.releases.first() {
-        let link = format!(
-            "<a href=\"{}\">{}</a> · {}",
-            Tab::Releases.href(""),
-            escape_str(&release.tag),
-            release.date.format(DATE)
-        );
-        rows.push(("latest release", link));
-    }
-    rows.push(("clone url", escape_str(&clone_url)));
-
-    let mut body = String::from("<div class=\"box summary-meta-box\">\n");
-    for (key, val) in rows {
-        body.push_str(&format!(
-            "\
-<div class=\"summary-meta-row border-b\">\n\
-<span class=\"summary-meta-key\">{key}</span>\n\
-<span class=\"summary-meta-val\">{val}</span>\n\
-</div>\n\
-",
-        ));
-    }
-    body.push_str("</div>\n");
-    write_briefs(&mut body, repo);
-    if repo.branches.len() > 1 {
-        write_summary_refs(
-            &mut body,
-            Tab::Branches,
-            &repo.branches,
-            "branches_wrapper",
-            "branch",
-        );
-    }
-    if !repo.tags.is_empty() {
-        write_summary_refs(&mut body, Tab::Tags, &repo.tags, "tag_wrapper", "tag_name");
-    }
+    let mut body = String::from("<div class=\"summary-layout\">\n<div class=\"summary-main\">\n");
     let head = find_ref(repo, &repo.head_dir);
     if let Some(head) = head
         && let Some(root) = root_dir(head)
     {
-        body.push_str(
-            "\
-<div class=\"summary-tree\">\n\
-<header class=\"subtitle\">\n\
-<h2>tree</h2>\n\
-</header>\n\
-<div id=\"tree_content\">\n\
-",
-        );
+        body.push_str("<div class=\"summary-tree\">\n");
         body.push_str(&ref_bar(repo, head, "", "", repo.commit_list.len(), "true"));
         let tree_dir = format!("tree/{}/", repo.head_dir);
         write_listing(&mut body, head, root, "", &tree_dir, last);
-        body.push_str("</div>\n</div>\n");
+        body.push_str("</div>\n");
         write_readme(&mut body, repo, head, root, "");
     }
+    body.push_str("</div>\n<aside class=\"summary-side\">\n");
+
+    let meta_row = |key: &str, class: &str, val: &str| {
+        let key = if key.is_empty() {
+            String::new()
+        } else {
+            format!("<span class=\"summary-meta-key\">{key}</span>\n")
+        };
+        format!(
+            "<div class=\"summary-meta-row border-b\">\n{key}<span class=\"summary-meta-val{class}\">{val}</span>\n</div>\n"
+        )
+    };
+    let dot = "&nbsp;&centerdot;&nbsp;";
+    let newest = &repo.commit_list[0];
+    let (empty, description) = description(repo);
+    body.push_str("<div class=\"box summary-meta-box\">\n");
+    body.push_str(&meta_row("", empty, &description));
+    if !repo.owner.is_empty() {
+        body.push_str(&meta_row("owner", " truncate", &escape_str(&repo.owner)));
+    }
+    let last_commit = format!(
+        "{}{dot}{}",
+        short_id("", &newest.id),
+        newest.committer_date.format(DATE)
+    );
+    body.push_str(&meta_row("last commit", "", &last_commit));
+    if let Some(release) = repo.releases.first() {
+        let link = format!(
+            "<a href=\"{}\" class=\"release-id\">{}<span class=\"truncate\">{}</span></a>{dot}{}",
+            Tab::Releases.href(""),
+            icon("release"),
+            escape_str(&release.tag),
+            release.date.format(DATE)
+        );
+        body.push_str(&meta_row("latest release", "", &link));
+    }
+    let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
+    body.push_str(&meta_row("clone url", "", &escape_str(&clone_url)));
+    body.push_str("</div>\n");
+
+    write_briefs(&mut body, repo);
+    if repo.branches.len() > 1 {
+        let rows: String = repo
+            .branches
+            .iter()
+            .take(SUMMARY_REF_COUNT)
+            .map(|r| side_row(&ref_icon(r), &Tab::Tree.href(&r.dir), &r.name, &r.date))
+            .collect();
+        write_side_list(&mut body, Tab::Branches, &rows);
+    }
+    if !repo.tags.is_empty() {
+        let rows: String = repo
+            .tags
+            .iter()
+            .take(SUMMARY_REF_COUNT)
+            .map(|r| side_row(&ref_icon(r), &Tab::Tree.href(&r.dir), &r.name, &r.date))
+            .collect();
+        write_side_list(&mut body, Tab::Tags, &rows);
+    }
+    if !repo.releases.is_empty() {
+        let rows: String = repo
+            .releases
+            .iter()
+            .take(SUMMARY_REF_COUNT)
+            .enumerate()
+            .map(|(n, release)| {
+                let href = format!("{}#release-{}", Tab::Releases.href(""), n + 1);
+                side_row(&icon("release"), &href, &release.tag, &release.date)
+            })
+            .collect();
+        write_side_list(&mut body, Tab::Releases, &rows);
+    }
+    body.push_str("</aside>\n</div>\n");
 
     wrap_page(&repo.name, Some(&nav), &body)
+}
+
+fn side_row(icon: &str, href: &str, name: &str, date: &DateTime<FixedOffset>) -> String {
+    format!(
+        "\
+<section class=\"flex items-center gap-2 px row tree-row border-b\">\n\
+<div class=\"branch-name flex-1 flex items-center gap\">{icon}<a class=\"truncate row-link\" href=\"{href}\">{}</a></div>\n\
+{}\
+</section>\n\
+",
+        escape_str(name),
+        date_cell(date)
+    )
+}
+
+fn write_side_list(body: &mut String, tab: Tab, rows: &str) {
+    let label = tab.label();
+    body.push_str(&format!(
+        "\
+<div>\n\
+<header class=\"subtitle\">\n\
+<h2>{label}</h2>\n\
+</header>\n\
+<div class=\"box p-0 side-list\">\n\
+{rows}\
+<div class=\"row side-all px\">\n\
+<a class=\"row-link\" href=\"{}\">all {label}</a>\n\
+</div>\n\
+</div>\n\
+</div>\n\
+",
+        tab.href("")
+    ));
 }
 
 pub fn gen_branches(repo: &RepoInfo, counts: &HashMap<String, usize>) -> String {
@@ -721,23 +774,6 @@ fn release_row(
         escape_str(download),
         escape_str(label),
         format_bytes(*bytes)
-    )
-}
-
-fn ref_row(git_ref: &RefInfo, element: &str, row_class: &str, name_class: &str) -> String {
-    format!(
-        "\
-<{element} class=\"{row_class}\">\n\
-<div class=\"{name_class}\">{}<a href=\"{}\">{}</a></div>\n\
-{}\
-{}\
-</{element}>\n\
-",
-        ref_icon(git_ref),
-        Tab::Tree.href(&git_ref.dir),
-        escape_str(&git_ref.name),
-        summary_cell("", &git_ref.id, &git_ref.summary),
-        date_cell(&git_ref.date)
     )
 }
 
@@ -1722,15 +1758,7 @@ fn write_commit_row(
 }
 
 fn write_briefs(body: &mut String, repo: &RepoInfo) {
-    body.push_str(
-        "\
-<div class=\"summary-briefs\">\n\
-<header class=\"subtitle\">\n\
-<h2>commit briefs</h2>\n\
-</header>\n\
-<div id=\"briefs_content\">\n\
-",
-    );
+    body.push_str("<div>\n<header class=\"subtitle\">\n<h2>commits</h2>\n</header>\n");
     let mut menus = 1;
     for (n, commit) in repo.commit_list.iter().take(BRIEF_COUNT).enumerate() {
         let joined = if n == 0 { "" } else { " joined" };
@@ -1738,33 +1766,13 @@ fn write_briefs(body: &mut String, repo: &RepoInfo) {
         let date = commit.committer_date.format(DATE).to_string();
         write_commit_row(body, commit, None, &labels, "", joined, &date);
     }
-    body.push_str("</div>\n</div>\n");
-}
-
-fn write_summary_refs(body: &mut String, tab: Tab, refs: &[RefInfo], wrapper: &str, inner: &str) {
-    let label = tab.label();
     body.push_str(&format!(
         "\
-<div class=\"summary-{label}\">\n\
-<header class=\"subtitle\">\n\
-<h2>{label}</h2>\n\
-</header>\n\
-<div id=\"{label}_content\" class=\"box p-0\">\n\
-"
-    ));
-    let row_class = format!("{wrapper} flex justify-between items-center gap-2 border-b py px");
-    let name_class = format!("{inner} flex-1 flex items-center gap");
-    for git_ref in refs.iter().take(SUMMARY_REF_COUNT) {
-        body.push_str(&ref_row(git_ref, "section", &row_class, &name_class));
-    }
-    body.push_str(&format!(
-        "\
-<div class=\"navs_wrapper py px\">\n\
-<div class=\"navs\"><a href=\"{}\">all {label}</a></div>\n\
-</div>\n\
+<div class=\"box m-0 joined row side-all px\">\n\
+<a class=\"row-link\" href=\"{}\">all commits</a>\n\
 </div>\n\
 </div>\n\
 ",
-        tab.href("")
+        Tab::Commits.href(&repo.head_dir)
     ));
 }
