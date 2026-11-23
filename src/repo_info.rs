@@ -13,9 +13,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const DEFAULT_DESCRIPTION: &str = "[no description]";
-
 const NO_MESSAGE: &str = "(no message)";
+
+const GIT_DESCRIPTION: &str =
+    "Unnamed repository; edit this file 'description' to name the repository.";
 
 pub struct CommitInfo {
     pub id: String,
@@ -148,8 +149,8 @@ impl RepoInfo {
         let repo_path = repo.path();
         let name = repo_name(&repo).context("could not work out the repo's name")?;
         let mut description = read_optional_file(repo_path, "description")?;
-        if description.is_empty() {
-            description = DEFAULT_DESCRIPTION.to_string();
+        if description == GIT_DESCRIPTION {
+            description.clear();
         }
         let mut owner = read_optional_file(repo_path, "owner")?;
         if owner.is_empty() {

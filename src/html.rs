@@ -15,6 +15,8 @@ const BRAND: &str = "wit";
 
 const CLONE_URL_BASE: &str = "https://git.paramogi.world/";
 
+const NO_DESCRIPTION: &str = "[no description]";
+
 const BRIEF_COUNT: usize = 5;
 
 const DATE: &str = "%d-%m-%Y";
@@ -443,15 +445,23 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
     )
 }
 
+fn description(repo: &RepoInfo) -> (&'static str, String) {
+    if repo.description.is_empty() {
+        (" empty", NO_DESCRIPTION.to_string())
+    } else {
+        ("", escape_str(&repo.description))
+    }
+}
+
 pub fn gen_index(repos: &[RepoInfo]) -> String {
     let mut sorted: Vec<&RepoInfo> = repos.iter().collect();
     sorted.sort_by_key(|repo| Reverse(repo.commit_list[0].committer_date));
 
-    let mut body = String::from("<div class=\"home-grid\">\n");
+    let mut body = String::from("<h1 class=\"vh\">repositories</h1>\n<ul class=\"repo-list\">\n");
     for repo in sorted {
         let name = escape_str(&repo.name);
         let dir = percent_encode(&repo.name);
-        let links: Vec<String> = repo_tabs(repo)
+        let links: String = repo_tabs(repo)
             .map(|tab| {
                 format!(
                     "<a href=\"{dir}/{}\">{}</a>",
@@ -460,27 +470,20 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
                 )
             })
             .collect();
-        let date = &repo.commit_list[0].committer_date;
+        let (empty, description) = description(repo);
         body.push_str(&format!(
             "\
-<div class=\"box home-card\">\n\
-<div>\n\
-<div class=\"flex flex-wrap items-center gap\">\n\
-<p class=\"repo-name\"><a href=\"{dir}/index.html\">{name}</a></p>\n\
-<div class=\"ml-auto text-sm\" title=\"{}\">last commit {}</div>\n\
-</div>\n\
-<div class=\"repo-desc\">{}</div>\n\
-</div>\n\
-<nav class=\"repo-links\">{}</nav>\n\
-</div>\n\
+<li class=\"repo-row\">\n\
+<h2 class=\"flex repo-name\"><a class=\"truncate row-link\" href=\"{dir}/index.html\">{name}</a></h2>\n\
+<p class=\"repo-date\"><span class=\"repo-date-label\">last commit </span>{}</p>\n\
+<p class=\"repo-desc{empty}\">{description}</p>\n\
+<div class=\"repo-links\">{links}</div>\n\
+</li>\n\
 ",
-            format_zoned(date, DATE_TIME),
-            date.format(DATE),
-            escape_str(&repo.description),
-            links.join(" | ")
+            repo.commit_list[0].committer_date.format(DATE),
         ));
     }
-    body.push_str("</div>\n");
+    body.push_str("</ul>\n");
 
     wrap_page("repositories", None, &body)
 }
@@ -502,7 +505,7 @@ pub fn gen_summary(
     let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
     let mut rows = vec![
         ("name", escape_str(&repo.name)),
-        ("description", escape_str(&repo.description)),
+        ("description", description(repo).1),
     ];
     if !repo.owner.is_empty() {
         rows.push(("owner", escape_str(&repo.owner)));
