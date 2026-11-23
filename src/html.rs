@@ -560,8 +560,8 @@ pub fn gen_summary(
 <div id=\"tree_content\">\n\
 ",
         );
-        let details = bar_details("", &head.id, &head.summary, &head.date);
-        body.push_str(&ref_bar(repo, head, "", "", &details));
+        body.push_str(&ref_bar(repo, head, "", "", repo.commit_list.len(), "true"));
+        body.push_str(&bar_details("", &head.id, &head.summary, &head.date));
         let tree_dir = format!("tree/{}/", repo.head_dir);
         write_listing(&mut body, head, root, "", &tree_dir, last);
         body.push_str("</div>\n</div>\n");
@@ -790,7 +790,8 @@ pub fn gen_tree(
         last_details(&repo_root, last, &dir.path)
     };
 
-    let mut body = ref_bar(repo, git_ref, &dir.path, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &dir.path, &repo_root, commits, "page");
+    body.push_str(&details);
     write_listing(&mut body, git_ref, dir, &repo_root, "", last);
     write_readme(&mut body, repo, git_ref, dir, &repo_root);
 
@@ -820,7 +821,8 @@ pub fn gen_blob(
     let repo_root = "../".repeat(depth);
     let details = last_details(&repo_root, last, &path);
 
-    let mut body = ref_bar(repo, git_ref, &path, &repo_root, &details);
+    let mut body = ref_bar(repo, git_ref, &path, &repo_root, commits, "page");
+    body.push_str(&details);
     let views = has_source_view(entry);
     write_file_head(&mut body, entry, content, views);
     let text = entry.lines.is_some();
@@ -911,21 +913,19 @@ pub fn gen_commits(
         )
     } else if end < total {
         format!("<span class=\"font-bold\">{end}</span> of {total} commits")
-    } else if total == 1 {
-        "<span class=\"font-bold\">1</span> commit".to_string()
     } else {
-        format!("<span class=\"font-bold\">{total}</span> commits")
+        commit_count(total)
     };
 
     let mut body = format!(
         "\
-<div class=\"group-2\">\n\
-<div class=\"box sticky flex items-center gap border-visited flex-wrap m-0\">\n\
+<div class=\"log\">\n\
+<div class=\"box sticky flex items-center gap flex-wrap m-0\">\n\
 {}\
 <div>{count}</div>\n\
 </div>\n\
 ",
-        ref_menu(repo, git_ref, &repo_root, Tab::Commits, "")
+        ref_menu(repo, git_ref, &repo_root, Tab::Commits, "", "page")
     );
     let mut day = String::new();
     for commit in commits {
@@ -1319,36 +1319,49 @@ fn ref_bar(
     git_ref: &RefInfo,
     path: &str,
     repo_root: &str,
-    details: &str,
+    commits: usize,
+    current: &str,
 ) -> String {
-    let mut bar = String::from(
-        "<div class=\"box sticky flex items-center gap border-visited flex-wrap ref-bar\">\n",
-    );
-    bar.push_str(&ref_menu(repo, git_ref, repo_root, Tab::Tree, path));
-    if !path.is_empty() {
-        let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
-        for part in path.split('/').filter(|p| !p.is_empty()) {
-            let tree_path = format!("{}/{part}", parts[parts.len() - 1].1);
-            parts.push((part, tree_path));
+    let mut bar =
+        String::from("<div class=\"box sticky flex items-center gap flex-wrap ref-bar\">\n");
+    bar.push_str(&ref_menu(
+        repo,
+        git_ref,
+        repo_root,
+        Tab::Tree,
+        path,
+        current,
+    ));
+    let mut parts = vec![(repo.name.as_str(), git_ref.dir.clone())];
+    for part in path.split('/').filter(|p| !p.is_empty()) {
+        let tree_path = format!("{}/{part}", parts[parts.len() - 1].1);
+        parts.push((part, tree_path));
+    }
+    for (i, (part, tree_path)) in parts.iter().enumerate() {
+        if i > 0 {
+            bar.push_str("<span>/</span>\n");
         }
-        for (i, (part, tree_path)) in parts.iter().enumerate() {
-            if i > 0 {
-                bar.push_str("<span>/</span>\n");
-            }
-            if i == parts.len() - 1 {
-                bar.push_str(&format!(
-                    "<span class=\"font-bold truncate\">{}</span>\n",
-                    escape_str(part)
-                ));
-            } else {
-                let href = format!("{repo_root}{}", Tab::Tree.href(tree_path));
-                bar.push_str(&format!("{}\n", crumb(part, Some(href))));
-            }
+        if i == parts.len() - 1 {
+            bar.push_str(&format!(
+                "<span class=\"font-bold\">{}</span>\n",
+                escape_str(part)
+            ));
+        } else {
+            let href = format!("{repo_root}{}", Tab::Tree.href(tree_path));
+            bar.push_str(&format!("{}\n", crumb(part, Some(href))));
         }
     }
-    bar.push_str(details);
-    bar.push_str("</div>\n");
+    bar.push_str(&format!(
+        "<a class=\"ref-bar-commits\" href=\"{repo_root}{}\">{}</a>\n</div>\n",
+        Tab::Commits.href(&git_ref.dir),
+        commit_count(commits)
+    ));
     bar
+}
+
+fn commit_count(commits: usize) -> String {
+    let s = if commits == 1 { "" } else { "s" };
+    format!("<span class=\"font-bold\">{commits}</span> commit{s}")
 }
 
 fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
@@ -1362,11 +1375,22 @@ fn menu_target(git_ref: &RefInfo, path: &str) -> (String, bool) {
     (Tab::Tree.href(&join_path(&git_ref.dir, dir)), dir == path)
 }
 
-fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path: &str) -> String {
+fn ref_menu(
+    repo: &RepoInfo,
+    git_ref: &RefInfo,
+    repo_root: &str,
+    tab: Tab,
+    path: &str,
+    current: &str,
+) -> String {
+    let name = escape_str(&git_ref.name);
     let mut menu = format!(
-        "<div class=\"ref-menu\">\n<code>{}{}{}{}</code>\n<div class=\"ref-menu-list\">\n",
+        "\
+<div class=\"ref-menu\">\n\
+<button type=\"button\" class=\"ref-btn\" popovertarget=\"ref-menu\" aria-label=\"{name}, switch branch or tag\">{}<span class=\"truncate\">{name}</span>{}{}</button>\n\
+<div class=\"ref-menu-list\" id=\"ref-menu\" popover>\n\
+",
         ref_icon(git_ref),
-        escape_str(&git_ref.name),
         icon("chevron-down"),
         icon("chevron-up")
     );
@@ -1380,9 +1404,9 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path:
             .iter()
             .map(|r| {
                 let active = if r.dir == git_ref.dir {
-                    " btn-active"
+                    format!(" aria-current=\"{current}\"")
                 } else {
-                    ""
+                    String::new()
                 };
                 let (href, found) = match tab {
                     Tab::Tree => menu_target(r, path),
@@ -1399,7 +1423,7 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path:
                     (" missing", format!(" title=\"not in this {kind}\""))
                 };
                 format!(
-                    "<a class=\"flex items-center gap{active}{missing}\"{title} href=\"{repo_root}{href}\">{}{}</a>\n",
+                    "<a class=\"flex items-center gap{missing}\"{title}{active} href=\"{repo_root}{href}\">{}{}</a>\n",
                     ref_icon(r),
                     escape_str(&r.name)
                 )
@@ -1415,8 +1439,8 @@ fn ref_menu(repo: &RepoInfo, git_ref: &RefInfo, repo_root: &str, tab: Tab, path:
         };
         menu.push_str(&format!(
             "\
-<input type=\"radio\" name=\"ref-kind\" id=\"ref-branches\"{branches}>\n\
-<input type=\"radio\" name=\"ref-kind\" id=\"ref-tags\"{tags}>\n\
+<input type=\"radio\" class=\"vh\" name=\"ref-kind\" id=\"ref-branches\"{branches}>\n\
+<input type=\"radio\" class=\"vh\" name=\"ref-kind\" id=\"ref-tags\"{tags}>\n\
 <div class=\"ref-kinds buttons flex\"><label for=\"ref-branches\">branches</label><label for=\"ref-tags\">tags</label></div>\n\
 {}\
 ",
