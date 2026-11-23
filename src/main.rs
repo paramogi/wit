@@ -7,7 +7,7 @@ use html::{
     ARCHIVE_FORMATS, COMMITS_PER_PAGE, commits_page, diff_stat, gen_blob, gen_branches, gen_commit,
     gen_commits, gen_index, gen_releases, gen_summary, gen_tags, gen_tree,
 };
-use repo_info::{CommitInfo, RepoInfo, archive_name, join_path};
+use repo_info::{CommitInfo, RepoInfo, archive_name};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
@@ -151,23 +151,13 @@ fn page_clash(repo: &RepoInfo) -> Option<String> {
     {
         return Some(format!("release {} clashes with a page", release.tag));
     }
-    for git_ref in repo.branches.iter().chain(&repo.tags) {
-        for dir in git_ref.dirs.values() {
-            for entry in dir.entries.iter().filter(|e| e.is_dir) {
-                let clashes = entry.name == "index.html"
-                    || entry
-                        .name
-                        .strip_suffix(".html")
-                        .and_then(|file| dir.entry(file))
-                        .is_some_and(|e| e.blob.is_some());
-                if clashes {
-                    let path = join_path(&dir.path, &entry.name);
-                    return Some(format!("dir {path} in {} clashes with a page", git_ref.dir));
-                }
-            }
-        }
-    }
-    None
+    repo.branches.iter().chain(&repo.tags).find_map(|git_ref| {
+        let path = git_ref
+            .dirs
+            .keys()
+            .find(|path| path.rsplit('/').next() == Some("index.html"))?;
+        Some(format!("dir {path} in {} clashes with a page", git_ref.dir))
+    })
 }
 
 fn run() -> Result<()> {
@@ -300,7 +290,7 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
                 };
                 let blob = repo.git.find_blob(id)?;
                 write_file(
-                    &blob_dir.join(format!("{}.html", entry.name)),
+                    &blob_dir.join(&entry.name).join("index.html"),
                     &gen_blob(
                         repo,
                         git_ref,

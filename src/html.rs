@@ -875,7 +875,7 @@ pub fn gen_blob(
     last: &HashMap<String, &CommitInfo>,
     commits: usize,
 ) -> String {
-    let depth = tree_depth(git_ref, dir);
+    let depth = tree_depth(git_ref, dir) + 1;
     let path = join_path(&dir.path, &entry.name);
     let nav = RepoNav {
         repo,
@@ -1294,7 +1294,7 @@ fn has_source_view(entry: &TreeEntry) -> bool {
 }
 
 fn blob_href(git_ref: &RefInfo, path: &str) -> String {
-    percent_encode(&format!("blob/{}/{path}.html", git_ref.dir))
+    percent_encode(&format!("blob/{}/{path}/", git_ref.dir))
 }
 
 pub fn path_href(git_ref: &RefInfo, repo_root: &str, path: &str) -> Option<String> {
