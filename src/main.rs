@@ -258,7 +258,7 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
             let diff = repo.read_diff(&commit.id)?;
             write_file(
                 &repo_dir.join("commits").join(format!("{}.html", commit.id)),
-                &gen_commit(repo, git_ref, commit, &diff),
+                &gen_commit(repo, git_ref, commit, &diff, commits.len()),
             )?;
             stats.insert(commit.id.clone(), diff_stat(&diff));
             if diff.parents.len() < 2 {
@@ -283,7 +283,7 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
             let tree_dir = repo_dir.join("tree").join(&git_ref.dir).join(&dir.path);
             write_file(
                 &tree_dir.join("index.html"),
-                &gen_tree(repo, git_ref, dir, &last),
+                &gen_tree(repo, git_ref, dir, &last, commits.len()),
             )?;
             let blob_dir = repo_dir.join("blob").join(&git_ref.dir).join(&dir.path);
             for entry in &dir.entries {
@@ -293,7 +293,15 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
                 let blob = repo.git.find_blob(id)?;
                 write_file(
                     &blob_dir.join(format!("{}.html", entry.name)),
-                    &gen_blob(repo, git_ref, dir, entry, blob.content(), &last),
+                    &gen_blob(
+                        repo,
+                        git_ref,
+                        dir,
+                        entry,
+                        blob.content(),
+                        &last,
+                        commits.len(),
+                    ),
                 )?;
             }
         }

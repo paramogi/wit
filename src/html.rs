@@ -33,9 +33,9 @@ const MARKDOWN_BOX: &str = "box markdown-body";
 
 pub const ARCHIVE_FORMATS: [&str; 2] = ["zip", "tar.gz"];
 
-const REPO_FILES: [(&str, [&str; 2]); 2] = [
-    ("README", README_NAMES),
-    ("LICENSE", ["LICENSE", "COPYING"]),
+const REPO_FILES: [(&str, &str, [&str; 2]); 2] = [
+    ("README", "book", README_NAMES),
+    ("LICENSE", "law", ["LICENSE", "COPYING"]),
 ];
 
 const IMAGE_TYPES: [(&str, &str); 6] = [
@@ -119,11 +119,11 @@ impl Tab {
 
     fn main_class(self) -> &'static str {
         match self {
-            Tab::Summary => "action-readme",
+            Tab::Summary => "",
             Tab::Tree => "action-code",
             Tab::Commits => "action-commits",
             Tab::Branches => "action-branches",
-            Tab::Tags => "action-tags",
+            Tab::Tags => "",
             Tab::Releases => "action-releases",
         }
     }
@@ -154,6 +154,7 @@ struct RepoNav<'a> {
     tab: Tab,
     depth: usize,
     path: &'a str,
+    commits: usize,
 }
 
 pub fn icon(name: &str) -> String {
@@ -240,7 +241,7 @@ fn repo_file<'a>(dir: &'a Dir, names: &[&str]) -> Option<&'a TreeEntry> {
         .find_map(|name| dir.entry(name).filter(|e| !e.is_dir))
 }
 
-fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
+fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<(bool, String)> {
     let Some(git_ref) = find_ref(nav.repo, nav.git_ref) else {
         return Vec::new();
     };
@@ -249,17 +250,22 @@ fn file_links(nav: &RepoNav, repo_root: &str) -> Vec<String> {
     };
     REPO_FILES
         .iter()
-        .filter_map(|(label, names)| {
+        .filter_map(|(label, icon_name, names)| {
             let path = follow_links(git_ref, &repo_file(root, names)?.name)?;
             let href = path_href(git_ref, repo_root, &path)?;
-            let class = if path == nav.path {
-                " class=\"btn-active\""
-            } else {
-                ""
-            };
-            Some(format!(
-                "<a{class} href=\"{}\">{label}</a>",
-                escape_str(&href)
+            let current = path == nav.path;
+            Some((
+                current,
+                format!(
+                    "<a class=\"doc-link\"{} href=\"{}\">{}{label}</a>",
+                    if current {
+                        " aria-current=\"page\""
+                    } else {
+                        ""
+                    },
+                    escape_str(&href),
+                    icon(icon_name)
+                ),
             ))
         })
         .collect()
@@ -305,10 +311,13 @@ fn write_readme(body: &mut String, repo: &RepoInfo, git_ref: &RefInfo, dir: &Dir
     body.push_str("</div>\n");
 }
 
-fn icon_symbols(body: &str) -> String {
-    let used: HashSet<&str> = body
-        .match_indices("href=\"#icon.")
-        .filter_map(|(at, found)| body[at + found.len()..].split('"').next())
+fn icon_symbols(parts: &[&str]) -> String {
+    let used: HashSet<&str> = parts
+        .iter()
+        .flat_map(|part| {
+            part.match_indices("href=\"#icon.")
+                .filter_map(|(at, found)| part[at + found.len()..].split('"').next())
+        })
         .collect();
     let symbols: String = ICONS
         .iter()
@@ -342,8 +351,75 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
         ),
         None => (String::new(), title.to_string()),
     };
-    let icons = icon_symbols(body);
-    let mut page = format!(
+    let mut header = String::from("<header class=\"topbar\">\n<div id=\"header\">\n");
+    let (main_class, footer) = match nav {
+        Some(nav) => {
+            let repo_root = "../".repeat(nav.depth);
+            let name = escape_str(&nav.repo.name);
+            header.push_str(&format!(
+                "\
+<a class=\"brand\" href=\"{root}index.html\">{BRAND}</a>\n\
+<h1 id=\"site_path\"><a class=\"truncate\" href=\"{repo_root}index.html\" title=\"{name}\">{name}</a></h1>\n\
+</div>\n\
+<nav class=\"repo-tabs\" aria-label=\"repository\">\n\
+"
+            ));
+            let files = file_links(nav, &repo_root);
+            let on_file = files.iter().any(|(current, _)| *current);
+            for tab in repo_tabs(nav.repo) {
+                let current = match (tab == nav.tab, on_file) {
+                    (false, _) => "",
+                    (true, false) => " aria-current=\"page\"",
+                    (true, true) => " aria-current=\"true\"",
+                };
+                let count = match tab {
+                    Tab::Commits => Some(nav.commits),
+                    Tab::Branches => Some(nav.repo.branches.len()),
+                    Tab::Tags => Some(nav.repo.tags.len()),
+                    Tab::Releases => Some(nav.repo.releases.len()),
+                    _ => None,
+                };
+                let label = tab.label();
+                header.push_str(&format!(
+                    "<a class=\"tab\"{current} href=\"{repo_root}{}\"><span class=\"tab-label\" data-label=\"{label}\">{label}</span>",
+                    tab.href(nav.git_ref)
+                ));
+                if let Some(count) = count {
+                    header.push_str(&format!(
+                        "<span class=\"tab-count\"><span class=\"vh\">, </span>{count}</span>"
+                    ));
+                }
+                header.push_str("</a>\n");
+            }
+            header.push_str("</nav>\n");
+            if !files.is_empty() {
+                header.push_str("<nav class=\"repo-docs\" aria-label=\"documents\">\n");
+                for (_, link) in &files {
+                    header.push_str(link);
+                    header.push('\n');
+                }
+                header.push_str("</nav>\n");
+            }
+            (
+                nav.tab.main_class(),
+                "<footer class=\"site-footer\">powered by <a href=\"#\">wit</a></footer>\n",
+            )
+        }
+        None => {
+            header.push_str(&format!(
+                "<a class=\"brand\" aria-current=\"page\" href=\"index.html\">{BRAND}</a>\n</div>\n"
+            ));
+            ("action-index", "")
+        }
+    };
+    header.push_str("</header>\n");
+    let main = if main_class.is_empty() {
+        "<main>".to_string()
+    } else {
+        format!("<main class=\"{main_class}\">")
+    };
+    let icons = icon_symbols(&[&header, body]);
+    format!(
         "\
 <!DOCTYPE html>\n\
 <html lang=\"en\">\n\
@@ -355,64 +431,16 @@ fn wrap_page(title: &str, nav: Option<&RepoNav>, body: &str) -> String {
 </head>\n\
 <body>\n\
 {icons}\
-<header id=\"header\">\n\
-<div class=\"root-header-shell\">\n\
-<div id=\"got_link\"><a class=\"brand\" href=\"{root}index.html\">{BRAND}</a></div>\n\
-</div>\n\
-</header>\n\
-",
-        escape_str(&title)
-    );
-
-    let main_class = match nav {
-        Some(nav) => {
-            let repo_root = "../".repeat(nav.depth);
-            page.push_str(&format!(
-                "\
-<nav id=\"site_path\"><div id=\"site_link\">{}</div></nav>\n\
-<div class=\"navs_wrapper flex flex-wrap items-center gap\"><nav class=\"navs buttons flex\">\n\
-",
-                crumb(&nav.repo.name, Some(format!("{repo_root}index.html")))
-            ));
-            let links: Vec<String> = repo_tabs(nav.repo)
-                .map(|tab| {
-                    let class = if tab == nav.tab {
-                        " class=\"btn-active\""
-                    } else {
-                        ""
-                    };
-                    format!(
-                        "<a{class} href=\"{repo_root}{}\">{}</a>",
-                        tab.href(nav.git_ref),
-                        tab.label()
-                    )
-                })
-                .collect();
-            page.push_str(&format!("{}\n</nav>\n", links.join("\n")));
-            let files = file_links(nav, &repo_root);
-            if !files.is_empty() {
-                page.push_str(&format!(
-                    "<nav class=\"navs buttons flex ml-auto\">\n{}\n</nav>\n",
-                    files.join("\n")
-                ));
-            }
-            page.push_str("</div>\n");
-            nav.tab.main_class()
-        }
-        None => "action-index",
-    };
-
-    page.push_str(&format!(
-        "\
-<main class=\"{main_class}\">\n\
+{header}\
+{main}\n\
 {body}\
 </main>\n\
+{footer}\
 </body>\n\
 </html>\n\
-"
-    ));
-
-    page
+",
+        escape_str(&title)
+    )
 }
 
 pub fn gen_index(repos: &[RepoInfo]) -> String {
@@ -468,6 +496,7 @@ pub fn gen_summary(
         tab: Tab::Summary,
         depth: 0,
         path: "",
+        commits: repo.commit_list.len(),
     };
     let last_commit = repo.commit_list[0].committer_date.format(DATE).to_string();
     let clone_url = format!("{CLONE_URL_BASE}{}.git", repo.name);
@@ -554,6 +583,7 @@ fn gen_refs(repo: &RepoInfo, tab: Tab, refs: &[RefInfo]) -> String {
         tab,
         depth: 0,
         path: "",
+        commits: repo.commit_list.len(),
     };
 
     let mut body = String::from("<div class=\"box mt-0 p-0\">\n");
@@ -577,6 +607,7 @@ pub fn gen_releases(repo: &RepoInfo, sums: &[Vec<(usize, String)>]) -> String {
         tab: Tab::Releases,
         depth: 0,
         path: "",
+        commits: repo.commit_list.len(),
     };
 
     let mut body = String::new();
@@ -737,6 +768,7 @@ pub fn gen_tree(
     git_ref: &RefInfo,
     dir: &Dir,
     last: &HashMap<String, &CommitInfo>,
+    commits: usize,
 ) -> String {
     let depth = tree_depth(git_ref, dir);
     let nav = RepoNav {
@@ -745,6 +777,7 @@ pub fn gen_tree(
         tab: Tab::Tree,
         depth,
         path: "",
+        commits,
     };
     let repo_root = "../".repeat(depth);
 
@@ -769,6 +802,7 @@ pub fn gen_blob(
     entry: &TreeEntry,
     content: &[u8],
     last: &HashMap<String, &CommitInfo>,
+    commits: usize,
 ) -> String {
     let depth = tree_depth(git_ref, dir);
     let path = join_path(&dir.path, &entry.name);
@@ -778,6 +812,7 @@ pub fn gen_blob(
         tab: Tab::Tree,
         depth,
         path: &path,
+        commits,
     };
     let repo_root = "../".repeat(depth);
     let details = last_details(&repo_root, last, &path);
@@ -859,6 +894,7 @@ pub fn gen_commits(
         tab: Tab::Commits,
         depth,
         path: "",
+        commits: all.len(),
     };
     let repo_root = "../".repeat(depth);
     let total = all.len();
@@ -946,6 +982,7 @@ pub fn gen_commit(
     git_ref: &RefInfo,
     commit: &CommitInfo,
     diff: &CommitDiff,
+    commits: usize,
 ) -> String {
     let nav = RepoNav {
         repo,
@@ -953,6 +990,7 @@ pub fn gen_commit(
         tab: Tab::Commits,
         depth: 1,
         path: "",
+        commits,
     };
     let short = &commit.id[..7];
     let parents: Vec<String> = diff

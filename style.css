@@ -4,90 +4,162 @@
   box-sizing: border-box;
 }
 
+@font-face {
+  font-family: Recursive;
+  font-style: normal;
+  font-weight: 300 1000;
+  font-display: swap;
+  src: url(fonts/recursive-latin.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: Recursive;
+  font-style: normal;
+  font-weight: 300 1000;
+  font-display: swap;
+  src: url(fonts/recursive-latin-ext.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   color-scheme: light dark;
-  --bg: #eef1f7;
+  --font-ui: Recursive, system-ui, sans-serif;
+  --font-mono: Recursive, ui-monospace, monospace;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --radius: 6px;
+  /* For corners inside a 1px border, so they follow the outer curve. */
+  --radius-inner: calc(var(--radius) - 1px);
+  --radius-sm: 4px;
+  --bg: #f2f2ef;
   --surface: #ffffff;
-  --fg: #1a2a44;
-  --line: #7689b3;
-  --line-soft: #d6dce8;
-  --muted: #52648f;
-  --hover: #e4e7f0;
-  --active: #d6dce8;
-  --active-hover: #c8d0e1;
-  --green: #00701f;
-  --red: #aa0000;
-  --orange: #b35900;
-  --stripe: #f6f8fa;
-  --quote: #59636e;
-  --code: #eef1f6;
-  --line-no: #5f6c8a;
-  --target: #e4e7f0;
-  --diff-fg: #1a2a44;
-  --del: #ffdddd;
-  --ins: #ddffdd;
-  --hunk: #9aa6c2;
-  --note: #0969da;
-  --tip: #1a7f37;
-  --important: #8250df;
-  --warning: #9a6700;
-  --caution: #cf222e;
+  --fg: #24262b;
+  --line: #cdcfd2;
+  --line-soft: #e6e7e9;
+  --muted: #5f636b;
+  --hover: #f4f4f1;
+  --active: #e7e7e3;
+  --active-hover: #dcdcd7;
+  --current: #24262b;
+  --current-fg: #ffffff;
+  --current-hover: #3a3d44;
+  --green: #1e7a3c;
+  --red: #b42318;
+  --orange: #a35a00;
+  --stripe: #f7f7f5;
+  --quote: #5f636b;
+  --code: #efefec;
+  --gutter: #f7f7f5;
+  --line-no: #62666d;
+  --target: #fff0a8;
+  --del: #fdecea;
+  --ins: #e7f5e9;
+  --del-ln: #fae2de;
+  --ins-ln: #d6efdb;
+  --hunk-bg: #efeff2;
+  --note: #2459c9;
+  --tip: #1e7a3c;
+  --important: #7445c4;
+  --warning: #8a5a00;
+  --caution: #b42318;
+  --folder: #b07d12;
+  --stuck-shadow: 0 6px 12px -6px rgb(0 0 0 / 0.22);
+  --menu-shadow: 0 6px 18px rgb(0 0 0 / 0.1);
+  --switch-w: 12rem;
+  --bar-h: 2.65rem;
+  /* Rendered markdown's line length: about 80 characters of Recursive. */
+  --measure: 40rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1422;
-    --surface: #131b2b;
-    --fg: #dde3ef;
-    --line: #5d6e96;
-    --line-soft: #2c364d;
-    --muted: #93a2c6;
-    --hover: #222c3f;
-    --active: #2c364d;
-    --active-hover: #36425b;
-    --green: #3fb950;
-    --red: #f47067;
-    --orange: #e0964f;
-    --stripe: #1a2335;
-    --quote: #9aa5bd;
-    --code: #1f2840;
-    --line-no: #8391b3;
-    --target: #2c364d;
-    --diff-fg: #dde3ef;
-    --del: #4a2230;
-    --ins: #1d3b2e;
-    --hunk: #7d89a8;
-    --note: #4493f8;
-    --tip: #3fb950;
-    --important: #ab7df8;
-    --warning: #d29922;
-    --caution: #f85149;
+    --bg: #1c1d20;
+    --surface: #24262a;
+    --fg: #e8e8e4;
+    --line: #45474d;
+    --line-soft: #34363b;
+    --muted: #a4a7ae;
+    --hover: #2c2e33;
+    --active: #383a40;
+    --active-hover: #43464c;
+    --current: #e8e8e4;
+    --current-fg: #1c1d20;
+    --current-hover: #cfd0cb;
+    --green: #6fc483;
+    --red: #f2877c;
+    --orange: #e3a457;
+    --stripe: #292b2f;
+    --quote: #a4a7ae;
+    --code: #303237;
+    --gutter: #212226;
+    --line-no: #a2a5ab;
+    --target: #4d4420;
+    --del: #3e2624;
+    --ins: #213426;
+    --del-ln: #4a2c29;
+    --ins-ln: #263d2c;
+    --hunk-bg: #2c2e34;
+    --note: #7ea6f5;
+    --tip: #6fc483;
+    --important: #b597f2;
+    --warning: #dcae4f;
+    --caution: #f2877c;
+    --folder: #d9ab4e;
+    --stuck-shadow: 0 6px 12px -6px rgb(0 0 0 / 0.55);
+    --menu-shadow: 0 6px 18px rgb(0 0 0 / 0.4);
   }
 }
 
 html {
   background-color: var(--bg);
   color: var(--fg);
-  font-size: 16px;
-  line-height: 1.3rem;
-  font-family:
-    "Iowan Old Style",
-    "Palatino Linotype",
-    "Book Antiqua",
-    Palatino,
-    "URW Palladio L",
-    "Times New Roman",
-    Times,
-    serif;
+  font-size: 100%;
+  line-height: 1.3;
+  font-family: var(--font-ui);
   -webkit-text-size-adjust: 100%;
   tab-size: 4;
-  scroll-padding-top: 3.5rem;
+  scroll-padding-top: calc(var(--bar-h) + 0.85rem);
 }
 
+/* At least the window's height, so the footer can sit at the bottom of
+   short pages. */
 body {
   margin: 0 auto;
   padding: 0 1rem;
   max-width: 86rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.vh {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Toggle radios (source/rendered, branches/tags) stay keyboard-reachable but are
+   pinned inside the viewport: clicking a label focuses its radio, and a radio left
+   at the top of the section would make the browser scroll back up to it. */
+input.vh[type="radio"] {
+  position: fixed !important;
+  top: 50%;
+  left: 0;
+}
+
+sup,
+sub {
+  line-height: 0;
 }
 
 img {
@@ -98,72 +170,137 @@ img {
 }
 
 code,
-pre {
-  font-family: monospace;
+pre,
+kbd,
+.rel-sum,
+.commit-id,
+.commit-parent a {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-variation-settings: "MONO" 1;
+}
+
+/* Back to the UI face inside those: ref names in chips, the "sha256" label,
+   and the dot after a commit's hash (monospace spaces would widen it). */
+.chip code,
+.rel-sum-label,
+.commit-title > .commit-id::after {
+  font-family: var(--font-ui);
+  font-variation-settings: "MONO" 0;
+}
+
+kbd {
+  font-size: 0.875em;
 }
 
 code {
-  font-size: 90%;
+  font-size: 0.875em;
   padding: 0.025rem 0.3rem;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  background-color: var(--code);
 }
 
 pre {
+  font-size: var(--text-sm);
+  line-height: 1.5;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 0.65rem;
   overflow-x: auto;
   background-color: var(--surface);
 }
 
+pre > code {
+  font-size: inherit;
+  padding: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+
 code svg {
-  width: 1em;
-  height: 1em;
+  width: 16px;
+  height: 16px;
   margin-right: 0.3em;
-  vertical-align: -0.125em;
+  vertical-align: -0.25em;
+  color: var(--muted);
 }
 
 .ref-menu {
   position: relative;
 }
 
-.ref-menu > code,
-.ref-menu label,
-.view-switch label {
+.ref-btn,
+label {
   cursor: pointer;
 }
 
-.ref-menu > code {
-  padding: 0.15rem 0.45rem;
+/* Negative block margin cancels the padding so the button sits in the
+   line box exactly like the inline <code> chip it replaced (top-aligned:
+   a flex box's baseline would come from its first icon). It is a flex box
+   no wider than its menu, so a long ref name (.truncate) is cut short
+   between the icons. */
+.ref-btn {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  vertical-align: top;
+  margin: -0.2rem 0;
+  padding: 0.2rem 0.55rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-base);
+  color: inherit;
+  background-color: var(--code);
 }
 
-.ref-more > code {
+.ref-btn svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-right: 0.3em;
+  color: var(--muted);
+}
+
+.ref-more > .ref-btn {
   display: block;
+  margin: 0;
   padding: 0.025rem 0.3rem;
+  font-size: var(--text-xs);
+  color: var(--fg);
 }
 
-.ref-menu:hover > code {
-  background-color: var(--hover);
+.ref-more > .ref-btn svg {
+  vertical-align: -0.25em;
 }
 
-.ref-menu code svg:nth-last-child(-n + 2) {
+/* Laid out like the "N refs" button beside it (block, icon inline), so a
+   long ref name can end in an ellipsis (.truncate) within the cap. The pill
+   stretches to the .chips line, with its text centred in it. */
+.chip code {
+  display: block;
+  align-content: center;
+  max-width: 12rem;
+  font-size: var(--text-xs);
+  color: var(--fg);
+}
+
+.ref-btn:hover,
+.ref-menu:has(> :popover-open) > .ref-btn {
+  background-color: var(--active);
+}
+
+.ref-btn svg:nth-last-child(-n + 2) {
   margin: 0 0 0 0.3em;
 }
 
-.ref-menu code svg:last-child,
-.ref-menu:hover code svg:nth-last-child(2) {
+.ref-btn svg:last-child,
+.ref-menu:has(> :popover-open) .ref-btn svg:nth-last-child(2) {
   display: none;
 }
 
-.ref-menu:hover code svg:last-child {
+.ref-menu:has(> :popover-open) .ref-btn svg:last-child {
   display: inline;
-}
-
-pre > code {
-  padding: 0;
-  border: none;
-  border-radius: 0;
 }
 
 h1,
@@ -172,39 +309,33 @@ h3,
 h4,
 h5,
 h6 {
-  font-style: italic;
-  font-size: 1rem;
-  font-weight: bold;
-  line-height: 1.3rem;
-  margin: 0 0 0.65rem 0;
-  padding: 0;
-  border: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
 }
 
 path {
   fill: currentColor;
 }
 
+/* Hover always moves toward the text colour: muted links darken, links
+   already in the text colour just underline. Links take their colour from
+   --link, and components mute them by setting --link rather than a `color`
+   that would out-rank this hover. */
 a {
   text-decoration: none;
-  color: var(--fg);
+  color: var(--link, var(--fg));
 }
 
-a:hover,
-a:visited:hover {
-  color: var(--muted);
+a:hover {
+  color: var(--fg);
   text-decoration: underline;
-}
-
-a:visited {
-  color: var(--fg);
 }
 
 a,
 .buttons label,
-.tree-row,
-.commit-row,
-.home-card {
+.ref-btn,
+.row {
   transition:
     background-color 0.12s,
     border-color 0.12s,
@@ -216,55 +347,70 @@ a,
   outline-offset: 2px;
 }
 
-header {
-  margin: 1.25rem auto 0.75rem;
+/* The header's first line is "wit / repo", the name cut short (.truncate)
+   if it needs more; the tabs and the repo's documents share the line below
+   (.repo-tabs). */
+#header,
+#site_path {
+  display: flex;
+  align-items: baseline;
 }
 
 #header {
-  overflow: hidden;
+  flex-basis: 100%;
 }
 
-#got_link {
-  float: left;
-  width: 480px;
+a.brand {
+  font-size: var(--text-xl);
+  font-weight: 300;
+  font-variation-settings: "MONO" 1;
+  --link: var(--muted);
 }
 
-.brand {
-  display: block;
-  width: 100%;
-  font-weight: 700;
-  font-size: 1.2rem;
-  letter-spacing: 0.02em;
+a.brand[aria-current] {
+  font-size: var(--text-2xl);
 }
 
-.root-header-shell {
-  overflow: hidden;
+/* The header's names are links without the link look: no underline on hover. */
+:is(a.brand, #site_path a):hover {
+  text-decoration: none;
 }
 
 #site_path {
-  margin-bottom: 0.9rem;
-  font-size: 1.5rem;
-  line-height: 1.2;
-  font-weight: 700;
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+#site_path::before {
+  content: "/";
+  margin: 0 0.45rem 0 0.35rem;
+  font-size: var(--text-xl);
+  color: var(--muted);
+  font-weight: 300;
 }
 
 main {
-  margin: 1rem 0;
+  margin: 0 0 3rem;
   timeline-scope: --switch;
 }
 
-p {
-  margin-top: 1.3rem;
-  margin-bottom: 1.3rem;
+/* Every page but the index ends with this. Sticking at 100vh pushes it as far
+   down as the body allows, so on a short page it sits at the window's bottom;
+   on a long one it is already at the end and stays put. (A flex column would
+   do the same but stop the page's margins collapsing, shifting the content.) */
+.site-footer {
+  position: sticky;
+  top: 100vh;
+  padding: 1rem 0 1.5rem;
+  border-top: 1px solid var(--line);
+  text-align: center;
 }
 
-.mono {
-  font-family: monospace;
-  font-style: normal;
-}
-
-.text-sm {
-  font-size: 0.8rem;
+.text-xs {
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 .flex {
@@ -287,14 +433,6 @@ p {
   align-items: center;
 }
 
-.justify-between {
-  justify-content: space-between;
-}
-
-.justify-end {
-  justify-content: flex-end;
-}
-
 .gap {
   gap: 0.65rem;
 }
@@ -303,29 +441,8 @@ p {
   gap: 1.3rem;
 }
 
-.mb {
-  margin-bottom: 0.65rem;
-}
-
 .ml-auto {
   margin-left: auto;
-}
-
-.my {
-  margin-top: 0.65rem;
-  margin-bottom: 0.65rem;
-}
-
-.my:first-child {
-  margin-top: 0;
-}
-
-.my:last-child {
-  margin-bottom: 0;
-}
-
-.mt-sm {
-  margin-top: 0.3rem;
 }
 
 .color-green {
@@ -340,27 +457,22 @@ p {
   color: var(--orange);
 }
 
-.group-2 {
+.log {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
 }
 
 .px {
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-}
-
-.py {
-  padding-top: 0.65rem;
-  padding-bottom: 0.65rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 
 .box {
   margin: 1rem 0;
-  padding: 0.65rem;
+  padding: 0.65rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background-color: var(--surface);
 }
 
@@ -372,37 +484,16 @@ p {
 .sticky {
   position: sticky;
   top: 0;
-  background-color: var(--surface);
-  animation: stuck-top linear both;
-  animation-timeline: --stuck;
-  animation-range: exit-crossing -1px exit-crossing 0%;
-}
-
-.ref-bar {
-  z-index: 1;
-  padding-right: 0.5rem;
+  z-index: 2;
 }
 
 .summary-tree .ref-bar {
   position: static;
-}
-
-.action-code .ref-bar {
-  animation:
-    stuck-top linear both,
-    switch-under linear both;
-  animation-timeline: --stuck, --switch;
-  animation-range:
-    exit-crossing -1px exit-crossing 0%,
-    exit-crossing -1px exit-crossing 0%;
+  margin-top: 0;
 }
 
 .mt-0 {
   margin-top: 0;
-}
-
-.mb-0 {
-  margin-bottom: 0;
 }
 
 .joined {
@@ -413,14 +504,15 @@ p {
 }
 
 :is(.box, pre):has(+ .joined) {
+  margin-bottom: 0;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   border-bottom-color: var(--line-soft);
 }
 
 .chroma.joined {
-  padding-top: 0.2rem;
-  padding-bottom: 0.2rem;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .m-0 {
@@ -432,13 +524,13 @@ p {
 }
 
 .p-0 > :first-child {
-  border-top-left-radius: 5px;
-  border-top-right-radius: 5px;
+  border-top-left-radius: var(--radius-inner);
+  border-top-right-radius: var(--radius-inner);
 }
 
 .p-0 > :last-child {
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: var(--radius-inner);
+  border-bottom-right-radius: var(--radius-inner);
 }
 
 .white-space-bs {
@@ -454,49 +546,65 @@ p {
 }
 
 .font-bold {
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .buttons a,
 .buttons label,
+.pager > span,
 .file-size {
   padding: 0.15rem 0.65rem;
   border: 1px solid var(--line);
   background-color: var(--surface);
 }
 
+/* The pager mixes links with plain-text cells (gaps, the current page), so
+   its rule has to outrank `.buttons a` to reach every cell. */
 .buttons a + a,
-.buttons label + label {
+.buttons label + label,
+.buttons.pager > * + * {
   border-left: 0;
+}
+
+.pager-gap {
+  color: var(--muted);
 }
 
 .buttons a:hover,
 .buttons label:hover {
-  color: var(--fg);
   text-decoration: none;
   background-color: var(--hover);
 }
 
-.buttons .btn-active {
-  background-color: var(--active);
+.buttons [aria-current] {
+  color: var(--current-fg);
+  background-color: var(--current);
+  border-color: var(--current);
 }
 
-.buttons .btn-active:hover {
-  background-color: var(--active-hover);
+.buttons > :has(+ [aria-current]) {
+  border-right-color: var(--current);
+}
+
+/* Only where the current item is still a link: the pager's current page is
+   plain text. */
+.buttons a[aria-current]:hover {
+  color: var(--current-fg);
+  background-color: var(--current-hover);
 }
 
 .buttons > :first-child {
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
 }
 
 .buttons > :last-child {
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
 }
 
 .file-size {
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
 .file-head {
@@ -515,10 +623,17 @@ p {
   position: sticky;
   top: 0;
   margin-bottom: -1px;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.view-switch label {
+  width: calc(var(--switch-w) / 2);
+  text-align: center;
+  font-size: var(--text-sm);
 }
 
 .action-code .view-switch {
-  top: 2.65rem;
+  top: var(--bar-h);
 }
 
 .view-switch + .file-head {
@@ -527,44 +642,95 @@ p {
 }
 
 .action-code .view-switch + .file-head {
-  view-timeline-inset: 2.65rem 0px;
-}
-
-.view-switch > :first-child,
-.view-switch > :last-child {
-  animation-timeline: --switch;
-  animation-range: exit-crossing -1px exit-crossing 0%;
-  animation-fill-mode: both;
-  animation-timing-function: linear;
+  view-timeline-inset: var(--bar-h) 0px;
 }
 
 .view-switch > :first-child {
-  border-radius: 6px 0 0 0;
-  animation-name: switch-left;
+  border-radius: var(--radius) 0 0 0;
 }
 
 .view-switch > :last-child {
-  border-radius: 0 6px 0 0;
-  animation-name: switch-right;
+  border-radius: 0 var(--radius) 0 0;
+}
+
+/* The stuck look (square corners, shadow, the bar notched around the switch)
+   runs on scroll timelines. Where those are unsupported the timeline would be
+   dropped, the animation would run once with a 0s duration, and `both` fill
+   would hold the stuck keyframe for good, so the animations are only declared
+   alongside their timelines. */
+@supports (animation-timeline: view()) {
+  .sticky {
+    animation: stuck-top linear both;
+    animation-timeline: --stuck;
+    animation-range: exit-crossing -1px exit-crossing 0%;
+  }
+
+  .action-code .ref-bar {
+    animation:
+      stuck-top linear both,
+      switch-under linear both;
+    animation-timeline: --stuck, --switch;
+    animation-range:
+      exit-crossing -1px exit-crossing 0%,
+      exit-crossing -1px exit-crossing 0%;
+  }
+
+  .view-switch {
+    animation: switch-shadow linear both;
+    animation-timeline: --switch;
+    animation-range: exit-crossing -1px exit-crossing 0%;
+  }
+
+  .view-switch > :first-child,
+  .view-switch > :last-child {
+    animation-timeline: --switch;
+    animation-range: exit-crossing -1px exit-crossing 0%;
+    animation-fill-mode: both;
+    animation-timing-function: linear;
+  }
+
+  .view-switch > :first-child {
+    animation-name: switch-left;
+  }
+
+  .view-switch > :last-child {
+    animation-name: switch-right;
+  }
 }
 
 @keyframes stuck-top {
   to {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+    border-bottom-color: var(--line);
+    box-shadow: var(--stuck-shadow);
   }
 }
 
 @keyframes switch-under {
   to {
     border-bottom-right-radius: 0;
+    clip-path: polygon(
+      -100vw -100vh,
+      calc(100% + 100vw) -100vh,
+      calc(100% + 100vw) 100%,
+      calc(100% - var(--switch-w)) 100%,
+      calc(100% - var(--switch-w)) calc(100% + 100vh),
+      -100vw calc(100% + 100vh)
+    );
+  }
+}
+
+@keyframes switch-shadow {
+  to {
+    box-shadow: var(--stuck-shadow);
   }
 }
 
 @keyframes switch-left {
   to {
     border-top-left-radius: 0;
-    border-bottom-left-radius: 6px;
+    border-bottom-left-radius: var(--radius);
     border-bottom-width: 1px;
     padding-bottom: 0.15rem;
   }
@@ -573,7 +739,7 @@ p {
 @keyframes switch-right {
   to {
     border-top-right-radius: 0;
-    border-bottom-right-radius: 6px;
+    border-bottom-right-radius: var(--radius);
     border-bottom-width: 1px;
     padding-bottom: 0.15rem;
   }
@@ -584,43 +750,45 @@ p {
   display: none;
 }
 
+/* The lists are popovers opened by their button (popovertarget): a click or
+   Enter opens one, Esc or a click elsewhere closes it, and only one is open at
+   a time. In the top layer they need no z-index; anchor positioning puts each
+   under the button that opened it, flipping above near the window's bottom.
+   A ref name too long for the 20rem cap is cut short (.truncate). */
 .ref-menu-list {
-  position: absolute;
-  z-index: 1;
-  display: none;
+  inset: auto;
   flex-direction: column;
-  margin-top: 0.3rem;
+  max-width: 20rem;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  overflow: visible;
   white-space: nowrap;
+  color: var(--fg);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background-color: var(--surface);
+  box-shadow: var(--menu-shadow);
+  position-area: bottom span-right;
+  position-try-fallbacks: flip-block;
 }
 
-.ref-menu:hover .ref-menu-list {
+.ref-menu-list:popover-open {
   display: flex;
 }
 
-.ref-menu-list::before {
-  content: "";
-  position: absolute;
-  bottom: 100%;
-  width: 100%;
-  height: 0.4rem;
+.ref-menu:not(.ref-more) > .ref-menu-list {
+  width: max-content;
+  min-width: anchor-size(width);
+  margin-top: 0.45rem;
+}
+
+.ref-menu:not(.ref-more) > .ref-menu-list a {
+  padding-left: calc(0.55rem - 1px);
 }
 
 .ref-more .ref-menu-list {
-  right: 0;
-  font-size: 1rem;
-  font-style: normal;
-}
-
-.ref-menu-list a,
-.ref-menu-list label {
-  border: 0;
-}
-
-.ref-menu input {
-  display: none;
+  font-size: var(--text-base);
+  position-area: bottom span-left;
 }
 
 #ref-branches:checked ~ .ref-tags,
@@ -631,12 +799,15 @@ p {
 }
 
 .ref-kinds {
-  border-bottom: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
 }
 
 .ref-kinds label {
-  flex: 1;
+  border: 0;
+  border-bottom: 1px solid var(--line);
   text-align: center;
+  font-size: var(--text-sm);
 }
 
 .ref-kinds label + label {
@@ -648,6 +819,15 @@ p {
 #view-source:checked ~ .view-switch [for="view-source"],
 #view-rendered:checked ~ .view-switch [for="view-rendered"] {
   background-color: var(--active);
+  font-weight: 600;
+}
+
+#ref-branches:focus-visible ~ .ref-kinds [for="ref-branches"],
+#ref-tags:focus-visible ~ .ref-kinds [for="ref-tags"],
+#view-source:focus-visible ~ .view-switch [for="view-source"],
+#view-rendered:focus-visible ~ .view-switch [for="view-rendered"] {
+  outline: 2px solid var(--muted);
+  outline-offset: -2px;
 }
 
 #ref-branches:checked ~ .ref-kinds [for="ref-branches"]:hover,
@@ -658,28 +838,54 @@ p {
 }
 
 .file-size,
+#ref-branches:checked ~ .ref-kinds [for="ref-branches"],
+#ref-tags:checked ~ .ref-kinds [for="ref-tags"],
 #view-source:checked ~ .view-switch [for="view-source"],
 #view-rendered:checked ~ .view-switch [for="view-rendered"] {
   border-bottom-width: 0;
   padding-bottom: calc(0.15rem + 1px);
 }
 
+/* Either list scrolls within 30rem, and within what the window leaves below
+   the menu's place: the ref button ends at most ~13.5rem down (phones), and
+   the menu's head and a gap take the rest of the 17rem. On a shorter window
+   the list scrolls rather than the menu sliding up over its button, but its
+   limit stays at least 7rem (three rows and a bit of the next, to show it
+   scrolls); below that, the menu slides up after all. A list shorter than
+   its limit keeps its own height. */
 .ref-branches,
 .ref-tags {
   display: flex;
   flex-direction: column;
-}
-
-.ref-menu-list .long {
-  max-height: 50vh;
+  max-height: min(30rem, max(7rem, 100dvh - 17rem));
   overflow-y: auto;
-  scrollbar-gutter: stable;
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: var(--radius-inner);
+  border-bottom-right-radius: var(--radius-inner);
 }
 
+/* A list long enough to scroll keeps room for its scrollbar, so its rows
+   don't shift when one appears. */
+.ref-menu-list .long {
+  scrollbar-gutter: stable;
+}
+
+/* Rows keep their height and a list scrolls: the overflow that cuts a name
+   short (.truncate) would otherwise let them shrink to fit. */
 .ref-menu-list a {
-  padding: 0.3rem 0.7rem;
+  display: block;
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  border: 0;
+}
+
+.ref-menu-list a svg {
+  margin-right: 0.3em;
+}
+
+/* A 16px icon inline with its text, centred on it. */
+.ref-menu-list a svg,
+.commit-title > .commit-id > svg {
+  vertical-align: calc(-0.15em - 1px);
 }
 
 .ref-menu-list a + a {
@@ -692,25 +898,26 @@ p {
 }
 
 .ref-kinds > :first-child {
-  border-top-left-radius: 5px;
+  border-top-left-radius: var(--radius-inner);
 }
 
 .ref-kinds > :last-child {
-  border-top-right-radius: 5px;
+  border-top-right-radius: var(--radius-inner);
 }
 
 :is(.ref-menu-list.buttons, .ref-menu-list > :first-child) > :first-child,
 .ref-menu-list > .long:first-child {
-  border-top-left-radius: 5px;
-  border-top-right-radius: 5px;
+  border-top-left-radius: var(--radius-inner);
+  border-top-right-radius: var(--radius-inner);
 }
 
 :is(.ref-branches, .ref-tags, .ref-menu-list.buttons) > :last-child {
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: var(--radius-inner);
+  border-bottom-right-radius: var(--radius-inner);
 }
 
-.ref-menu-list a.missing {
+.ref-menu-list a.missing,
+.ref-menu-list a:not([aria-current]) svg {
   color: var(--muted);
 }
 
@@ -719,7 +926,7 @@ p {
   max-width: 50%;
 }
 
-.pager a {
+.pager > :is(a, [aria-current]) {
   display: flex;
   align-items: center;
 }
@@ -733,193 +940,313 @@ p {
 }
 
 .tree-date {
-  width: 90px;
+  width: 5.75rem;
   flex-shrink: 0;
+  white-space: nowrap;
   text-align: right;
 }
 
-.tree-commit,
-.tree-commit a,
-.tree-date {
-  color: var(--muted);
-}
-
-.release-date {
+:is(.last-commit, .rel-head) .tree-date {
   width: auto;
 }
 
-.fits {
+.tree-commit,
+.tree-date,
+.rel-size,
+.branch-log,
+.ref-bar-commits,
+.rel-sum,
+.summary-meta-key,
+.doc-link,
+.file-size,
+.site-footer {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  --link: var(--muted);
+}
+
+/* One line of its own text high: what doesn't fit wraps out of sight, and
+   the line sits centred like its neighbours. */
+.commit-stat {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  height: 1.3rem;
+  height: 1lh;
   overflow: hidden;
 }
 
-.fits::before {
+.commit-stat::before {
   content: "";
   height: 100%;
 }
 
-.truncate {
+.truncate,
+.chip code,
+.ref-menu-list a {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tree-row:hover,
-.commit-row:hover,
-:is(#branches_content, #tags_content) > :hover {
-  background-color: var(--hover);
-}
-
-.commit-row code {
-  background-color: var(--surface);
-}
-
-.commit-row code:hover {
-  background-color: var(--hover);
-}
-
-.commit-row .chip:hover {
-  color: var(--fg);
-  text-decoration: none;
-}
-
-.tree-path {
-  min-width: 0;
-}
-
-.tree-path svg {
-  flex-shrink: 0;
-}
-
-.release-sum {
-  margin-top: 0.2rem;
-  padding-left: calc(16px + 0.65rem);
-  color: var(--muted);
+/* Text that wraps rather than being cut short: a word too long for its line
+   breaks wherever it must instead of spilling out of its box (and pushing
+   its neighbours out with it). */
+.summary-meta-val,
+.repo-desc,
+.commit-title,
+.commit-body,
+.commit-meta,
+.commit-files a,
+.diff-head a {
   overflow-wrap: anywhere;
 }
 
+/* A .row is one link: its .row-link stretches over the whole row, so the row
+   lights up and the link underlines wherever the row is pointed at. A commit
+   row has two row links to the same commit, its hash and its summary. Repo
+   cards use the same stretched link with their own hover look. */
+.row:hover {
+  background-color: var(--hover);
+}
+
+.commit-row:has(:is(.chip, .ref-more):hover) {
+  background-color: var(--surface);
+}
+
+.row,
+.repo-row {
+  position: relative;
+}
+
+.row-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* A row's other links and menus sit above the stretched link, so they stay
+   clickable, and so does a release file's checksum, so it can be selected
+   and copied. The rest of the row (dates, sizes) is part of the link. */
+:is(.row, .repo-row) :is(a:not(.row-link), .ref-more, .repo-links, .rel-sum) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Pointing at a row (but not at one of its other links or menus) underlines
+   its row links and brings muted ones up to the text colour. The dot joining
+   a commit's hash and summary sits in .commit-summary, outside the links. */
+.row:hover:not(:has(:is(a:not(.row-link), .ref-more):hover)) :is(.row-link, .commit-summary) {
+  --link: var(--fg);
+  text-decoration: underline;
+}
+
+.commit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.commit-line {
+  order: -1;
+  timeline-scope: --cl;
+}
+
+.commit-summary a {
+  font-weight: 500;
+}
+
+.commit-row :is(code, .ref-btn):hover {
+  background-color: var(--active);
+}
+
+.commit-row .chip:hover {
+  text-decoration: none;
+}
+
+/* Cells holding text that is cut short: each cell may shrink, and the
+   element inside carries .truncate, so that element itself ends at the
+   ellipsis (and a link's focus ring is never clipped by its cell). */
+#header,
+#site_path,
+.tree-path,
+.tree-commit,
+.commit-summary,
+.commit-by,
+.branch-name,
+.rel-name,
+.release-id,
+.ref-menu {
+  min-width: 0;
+}
+
+:is(.tree-path, .branch-name, .rel-name) svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.tree-path svg:has(use[href="#icon.file-directory"]) {
+  color: var(--folder);
+}
+
+/* The side padding centres a --measure-wide column in the box. A word or
+   identifier too long for the line breaks rather than spilling out. */
 .markdown-body {
-  padding: 2rem 10rem;
-  line-height: 1.5rem;
+  padding: 2rem max(2rem, calc((100% - var(--measure)) / 2));
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+@media only screen and (max-width: 600px) {
+  .markdown-body {
+    padding: 1.25rem 1rem;
+  }
 }
 
 .action-releases .markdown-body {
-  padding: 0.65rem 0.5rem;
+  padding: 0.4rem 0.75rem 0.6rem;
 }
 
-.markdown-body > :first-child {
+.action-releases .markdown-body > :is(p, ul, ol, blockquote, .markdown-heading) {
+  max-width: var(--measure);
+}
+
+/* A heading's margins collapse through its .markdown-heading wrapper, so a
+   leading or trailing heading is trimmed inside it. */
+.markdown-body > :first-child,
+.markdown-body > .markdown-heading:first-child > :first-child {
   margin-top: 0;
 }
 
-.markdown-body > :last-child {
+.markdown-body > :last-child,
+.markdown-body > .markdown-heading:last-child > :first-child {
   margin-bottom: 0;
 }
 
-.markdown-body :is(h1, h2, h3, h4, h5, h6) {
-  font-style: normal;
+.markdown-body :is(p, ul, ol, pre, blockquote, details) {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Rendered markdown starts at h2, a level below the page's h1 (the repo
+   name): # is h2, ## is h3, and so on, with ##### and ###### both h6. */
+.markdown-body :is(h2, h3, h4, h5, h6) {
+  margin: 1.75rem 0 0.75rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.markdown-body :is(h2, h3) {
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .markdown-body a {
   text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 0.15em;
+}
+
+.markdown-body a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* A heading's permalink follows it rather than sitting inside it, so the
+   heading's accessible name is just its text. It is drawn in the gutter to
+   the left of the heading (or of the disclosure marker, in a summary), muted
+   until it is pointed at. */
+.markdown-heading,
+.markdown-body summary:has(> .anchor) {
+  position: relative;
 }
 
 .anchor {
-  float: left;
-  margin-left: -20px;
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  display: flex;
   padding-right: 4px;
+  translate: 0 -50%;
+  --link: var(--muted);
+}
+
+.markdown-body a.anchor {
+  text-decoration: none;
 }
 
 .anchor svg {
   visibility: hidden;
 }
 
-:is(h1, h2, h3, h4, h5, h6):hover .anchor svg {
+:is(.markdown-heading, summary):hover > .anchor svg,
+.anchor:focus-visible svg {
   visibility: visible;
 }
 
-summary .anchor {
-  margin-left: -40px;
-}
-
-.markdown-body h1 {
-  font-size: 1.5rem;
-  line-height: 1.25;
-}
-
 .markdown-body h2 {
-  font-size: 1.3rem;
-  line-height: 1.25;
+  font-size: var(--text-2xl);
 }
 
 .markdown-body h3 {
-  font-size: 1.15rem;
-  line-height: 1.25;
+  font-size: var(--text-xl);
 }
 
-.markdown-body h5,
+.markdown-body h4 {
+  font-size: var(--text-lg);
+}
+
 .markdown-body h6 {
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .markdown-body table {
   border-collapse: collapse;
   display: block;
-  margin: 1.3rem 0;
+  margin: 0 0 1rem;
   width: max-content;
   max-width: 100%;
   overflow: auto;
 }
 
 .markdown-body :is(th, td) {
-  padding: 6px 13px;
-  border: 1px solid var(--line);
+  padding: 0.4rem 1.5rem 0.4rem 0;
+  border-bottom: 1px solid var(--line-soft);
 }
 
-.markdown-body tr:nth-child(2n) {
-  background-color: var(--stripe);
+.markdown-body th {
+  font-weight: 600;
+  text-align: left;
+  border-bottom-color: var(--muted);
 }
 
 .markdown-body img {
   display: inline;
-  margin: 0;
 }
 
 .markdown-body blockquote {
-  margin: 0;
-  padding: 0 1em;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0.75rem 1rem;
   color: var(--quote);
-  border-left: 0.25em solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--stripe);
 }
 
 .markdown-body .markdown-alert {
-  margin: 1.3rem 0;
-  padding: 0.5rem 1em;
   color: inherit;
-  border-left-color: var(--alert);
+  background-color: color-mix(in srgb, var(--alert) 9%, var(--surface));
 }
 
-.markdown-alert > :first-child {
-  margin-top: 0;
-}
-
-.markdown-alert > :last-child {
+.markdown-body blockquote > :last-child {
   margin-bottom: 0;
 }
 
-.markdown-alert-title {
+.markdown-body .markdown-alert-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   color: var(--alert);
-  font-weight: 500;
-}
-
-.markdown-alert-title + * {
-  margin-top: 0;
+  font-weight: 600;
 }
 
 .markdown-alert-note {
@@ -943,6 +1270,7 @@ summary .anchor {
 }
 
 .markdown-body hr {
+  margin: 1.5rem 0;
   border: 0;
   border-top: 1px solid var(--line);
 }
@@ -951,12 +1279,11 @@ summary .anchor {
   padding: 1rem;
   border: 0;
   background-color: var(--code);
+  line-height: 1.45;
 }
 
 .markdown-body :not(pre) > code {
   padding: 0.2em 0.4em;
-  border: 0;
-  background-color: var(--code);
 }
 
 .markdown-body li:has(> input[type="checkbox"]) {
@@ -978,11 +1305,13 @@ summary .anchor {
 
 .markdown-body summary :is(h1, h2, h3, h4, h5, h6) {
   display: inline-block;
+  margin: 0;
+  border: 0;
 }
 
 .footnotes {
   border-top: 1px solid var(--line);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .footnotes ol {
@@ -994,20 +1323,30 @@ summary .anchor {
   display: inline;
 }
 
-.chroma .line {
-  display: flex;
-}
-
 .chroma .ln {
   display: inline-block;
-  white-space: pre;
   -webkit-user-select: none;
   user-select: none;
-  margin-right: 0.2em;
-  padding: 0 0.3em 0 0;
+  margin-right: 0.9em;
+  padding: 0 0.6em 0 0;
   color: var(--line-no);
-  outline: none;
   text-decoration: none;
+}
+
+/* Inset ring: lines sit flush against each other and the gutter edge, so the
+   global 2px offset would overlap the neighbouring lines or be clipped. */
+.chroma .ln:focus-visible {
+  outline-offset: -2px;
+}
+
+pre.chroma[style] {
+  background-image: linear-gradient(
+    to right,
+    var(--gutter) calc(0.65rem + var(--ln) + 0.6em),
+    var(--line-soft) 0 calc(0.65rem + var(--ln) + 0.6em + 1px),
+    transparent 0
+  );
+  background-attachment: local;
 }
 
 .chroma .cl {
@@ -1020,7 +1359,7 @@ summary .anchor {
 }
 
 #view-source ~ .chroma .cl {
-  max-width: calc(100% - var(--ln) - 0.5em);
+  max-width: calc(100% - var(--ln) - 1.5em);
   padding-right: 0;
   vertical-align: top;
   white-space: pre-wrap;
@@ -1028,6 +1367,8 @@ summary .anchor {
 }
 
 .chroma .ln:target {
+  color: var(--fg);
+  font-weight: 700;
   background-color: var(--target);
 }
 
@@ -1036,132 +1377,281 @@ summary .anchor {
   min-width: max-content;
 }
 
-.chroma .gd {
-  color: var(--diff-fg);
-  background-color: var(--del);
-}
-
-.chroma .gi {
-  color: var(--diff-fg);
-  background-color: var(--ins);
-}
-
-.chroma .gd,
-.chroma .gi {
-  margin: 0 -0.65rem;
-  padding: 0 0.65rem;
-}
-
-.chroma .gu {
-  color: var(--hunk);
-}
-
 .diff-stat {
+  flex-shrink: 0;
   width: 100px;
   text-align: right;
 }
 
-.people {
+.commit-meta {
   display: grid;
-  grid-template-columns: max-content 1fr max-content;
+  grid-template-columns: max-content 1fr max-content max-content;
   column-gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
-.people-id {
-  text-align: right;
+.commit-meta > :nth-child(2n) {
+  color: var(--fg);
+}
+
+.commit-meta > :nth-child(odd):not(.commit-parent) {
+  grid-column: 1;
+}
+
+.commit-parent {
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: subgrid;
+  column-gap: 0.3em;
+}
+
+.commit-head {
+  padding: 0;
+}
+
+.commit-msg {
+  align-items: baseline;
+  padding: 0.45rem 0.75rem 0.7rem;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.commit-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+/* The hash, its dot and the title's first word run on as one line: no
+   wrapping inside the hash, and no break between it and the title (an
+   inline-flex box would allow one), so a long title starts right after the
+   dot and breaks further on. */
+.commit-title > .commit-id {
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.commit-body {
+  margin-top: 0.35rem;
 }
 
 .summary-meta-box {
-  margin-top: 0;
   padding: 0;
 }
 
 .summary-meta-row {
-  padding: 0.45rem 0.55rem;
-  overflow: hidden;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
 }
 
 .summary-meta-key {
-  float: left;
-  width: 10rem;
-  font-style: italic;
+  width: 7rem;
+  flex-shrink: 0;
 }
 
 .summary-meta-val {
-  display: block;
-  margin-left: 10.5rem;
-  word-break: break-word;
+  min-width: 0;
 }
 
-.home-grid {
-  width: 100%;
+/* One line: a long release name is cut short (.truncate) rather than
+   squeezing the date beside it. */
+.summary-meta-val:has(> :is(.commit-id, .release-id)) {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
-.home-card {
-  float: none;
-  width: 100%;
-  margin: 0 0 0.8rem 0;
-  padding: 0.55rem 0.7rem;
-  overflow: hidden;
+.summary-meta-row:first-child {
+  padding: 0.4rem 0.75rem;
+  line-height: 1.5;
 }
 
-@media screen and (min-width: 681px) {
-  .home-grid {
-    overflow: hidden;
-    margin-right: -0.8rem;
-  }
-
-  .home-card {
-    float: left;
-    width: 47.5%;
-    margin: 0 0.8rem 0.8rem 0;
-  }
+.summary-meta-row:last-child {
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.75rem;
 }
 
-@media screen and (min-width: 1201px) {
-  .home-card {
-    width: 31.2%;
-  }
+.summary-meta-row:last-child .summary-meta-val {
+  padding: 0.35rem 0.5rem;
+  font-family: var(--font-mono);
+  font-variation-settings: "MONO" 1;
+  font-size: var(--text-xs);
+  background-color: var(--code);
+  border-radius: var(--radius-sm);
+  user-select: all;
 }
 
-.repo-name {
-  font-size: 1.22rem;
-  line-height: 1.1;
-  font-weight: 700;
-  margin: 0 0 0.2rem 0;
-}
-
-.repo-desc {
-  font-size: 0.88rem;
-  line-height: 1.25;
-  min-height: 2.5em;
-  opacity: 0.92;
-}
-
-.repo-links {
-  clear: both;
-  margin-top: 0.65rem;
-  padding-top: 0.45rem;
-  border-top: 1px solid var(--line-soft);
-  font-size: 0.88rem;
-}
-
-.home-card:hover {
-  border-color: var(--muted);
-}
-
-#site_path,
-.navs,
-.text-sm {
+.empty {
+  color: var(--muted);
   font-style: italic;
 }
 
-.navs a,
-code,
-pre,
-.mono,
-.tree-path a {
-  font-style: normal;
+.summary-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.summary-main,
+.summary-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+/* Only the readme's own boxes (rendered and source), not the code blocks
+   inside the rendered markdown, which keep their spacing. */
+.summary-tree .box,
+.summary-readme > :is(.box, pre) {
+  margin-bottom: 0;
+}
+
+.action-code > .summary-readme {
+  margin-top: 1.5rem;
+}
+
+.summary-side .box {
+  margin: 0;
+}
+
+.summary-side .commit-by {
+  flex: 1;
+}
+
+.summary-side .commit-by > :nth-child(2) {
+  display: none;
+}
+
+/* The date sits at the far right, and keeps a gap from an author name cut
+   short beside it. */
+.summary-side .commit-by > :last-child {
+  margin-left: auto;
+  padding-left: 0.65rem;
+}
+
+.side-all a {
+  font-size: var(--text-sm);
+  --link: var(--muted);
+}
+
+@media screen and (min-width: 1100px) {
+  .summary-layout {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+  }
+}
+
+/* The index: one card per repo, the same box the repo pages use, with the
+   name set like the tab bar (light, heavy when pointed at). */
+.repo-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repo-row {
+  display: grid;
+  grid-template:
+    "name date" auto
+    "desc desc" 1fr
+    "links links" auto / minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  container-type: inline-size;
+}
+
+.repo-name {
+  grid-area: name;
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+/* Pointing at a repo (or tabbing to it) makes it "current": its name takes
+   the tab bar's weight shift and its date and description come up from
+   muted. */
+.repo-row:hover .repo-name a,
+.repo-name a:focus-visible {
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.repo-row:hover :is(.repo-date, .repo-desc),
+.repo-row:has(.repo-name a:focus-visible) :is(.repo-date, .repo-desc) {
+  color: var(--fg);
+}
+
+.repo-name a:focus-visible {
+  outline: none;
+}
+
+.repo-row:has(.repo-name a:focus-visible) {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+}
+
+.repo-desc {
+  display: -webkit-box;
+  grid-area: desc;
+  min-height: calc(2lh);
+  margin: 0.1rem 0 0;
+  overflow: hidden;
+  font-size: var(--text-base);
+  line-height: 1.45;
+  color: var(--muted);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Every card spaces its links alike, so they line up from card to card. The
+   gap is the one that spreads the full set (summary to releases, 22em of
+   text) across the row (100cqi, the card's inner width), so that row ends at
+   the inset it starts with; it never drops below 0.7rem, wrapping instead. */
+.repo-links {
+  display: flex;
+  grid-area: links;
+  flex-wrap: wrap;
+  column-gap: max(0.7rem, (100cqi - 22em) / 5);
+  margin: 0.65rem -0.75rem 0;
+  padding: 0.3rem 0.75rem 0.35rem;
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--text-sm);
+}
+
+.repo-links a {
+  line-height: 1.5rem;
+  --link: var(--muted);
+}
+
+.repo-date {
+  grid-area: date;
+  margin: 0;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+@media only screen and (max-width: 700px) {
+  .repo-name {
+    font-size: var(--text-xl);
+  }
 }
 
 @media only screen and (max-width: 900px) {
@@ -1169,34 +1659,596 @@ pre,
     padding: 0 0.5rem;
   }
 
-  header {
-    margin: 0;
-  }
-
-  #got_link {
-    float: none;
-    width: 100%;
-  }
-
-  .navs_wrapper .buttons a {
-    padding: 0.025rem 0.35rem;
-  }
-
   .tree-commit {
     display: none;
   }
 
-  .people {
+  :is(.last-commit, .rel-head) > .tree-commit,
+  :is(.last-commit, .rel-head) .short-id {
+    display: flex;
+  }
+
+  .branch-row .branch-sha::after {
+    content: none;
+  }
+
+  .commit-meta {
     grid-template-columns: max-content 1fr;
   }
 
-  .people-id {
-    grid-column: 2;
+  /* The parent row's label and hashes become cells of the two-column grid,
+     lining up under the author and committer rows. */
+  .commit-parent {
+    display: contents;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+}
+
+.ref-bar > span:not([class]) {
+  color: var(--muted);
+}
+
+.ref-bar {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.ref-bar > :is(a, span) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ref-bar > a:not(.ref-bar-commits) {
+  flex-shrink: 100;
+  min-width: 1.5em;
+}
+
+.ref-bar > :is(.ref-bar-commits, span:not([class])) {
+  flex-shrink: 0;
+}
+
+.ref-bar-commits {
+  margin-left: auto;
+}
+
+/* On phones the bar wraps to show the full path and is not sticky, so
+   nothing below it depends on its height. */
+@media only screen and (max-width: 600px) {
+  .ref-bar {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .ref-bar > :is(a, span) {
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  .ref-bar.sticky {
+    position: static;
+  }
+
+  .action-code .ref-bar {
+    animation: none;
+  }
+
+  .action-code .view-switch {
+    top: 0;
+  }
+
+  .action-code .view-switch + .file-head {
+    view-timeline-inset: 0px;
+  }
+
+  .ref-bar-commits {
+    margin-left: 0;
+  }
+}
+
+.joined.p-0 > :first-child {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.last-commit,
+.rel-head {
+  background-color: var(--stripe);
+}
+
+.last-commit > .tree-commit {
+  color: var(--fg);
+  --link: var(--fg);
+}
+
+.last-commit > .tree-commit a {
+  font-weight: 500;
+}
+
+.up-row .tree-path a {
+  letter-spacing: 0.1em;
+}
+
+.tree-row,
+.side-all,
+.last-commit,
+.rel-head {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Each day's date sits in a gutter left of its commits: inset from the edge
+   as far as text inside a box (padding plus border), then about the rows'
+   own 1rem column gap before the commits. */
+.log-day {
+  --date-gutter: 6.5rem;
+  display: flow-root;
+  padding-left: var(--date-gutter);
+}
+
+.log-date {
+  position: sticky;
+  top: calc(var(--bar-h) + 1.1rem);
+  float: left;
+  width: var(--date-gutter);
+  margin-left: calc(-1 * var(--date-gutter));
+  padding: 0.7rem 0 0 calc(0.75rem + 1px);
+  font-weight: 600;
+}
+
+@media screen and (min-width: 1000px) {
+  .action-commits .commit-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 10rem 6.5rem 12rem;
+    grid-template-areas: "id summary author time stat";
+    column-gap: 1rem;
+    align-items: center;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .action-commits .commit-row > div,
+  .action-commits .commit-row .commit-by {
+    display: contents;
+  }
+
+  .action-commits .commit-row .commit-by > :first-child {
+    grid-area: author;
+  }
+
+  .action-commits .commit-row .commit-by > :nth-child(2) {
+    display: none;
+  }
+
+  .action-commits .commit-row .commit-by > :last-child {
+    grid-area: time;
+  }
+
+  .action-commits .commit-row .commit-stat {
+    grid-area: stat;
+  }
+
+  /* The hash is smaller than the summary beside it; this drops its hover
+     underline onto the summary's, so the two read as one line. */
+  .action-commits .commit-row .commit-id {
+    grid-area: id;
+    text-underline-offset: 0.3em;
+  }
+
+  .action-commits .commit-row > .commit-line {
+    display: flex;
+    grid-area: summary;
+    margin-left: -1rem;
+  }
+
+  /* The smaller dot sits on the summary's baseline, as it would inline. */
+  .action-commits .commit-row .commit-summary {
+    align-items: baseline;
+  }
+
+  .action-commits .commit-row .commit-summary::before {
+    content: "\a0\b7\a0";
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+
+  .action-commits .commit-row .commit-by::before {
+    content: none;
+  }
+}
+
+.commit-files {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+  font-size: var(--text-sm);
+}
+
+.commit-files > div {
+  padding: 0.25rem 0;
+}
+
+.commit-files .diff-stat {
+  font-size: var(--text-xs);
+}
+
+.diff-head {
+  font-size: var(--text-sm);
+}
+
+.diff-head + .box {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.chroma.joined .line {
+  display: flex;
+  margin: 0 -0.65rem;
+  padding: 0 0.65rem 0 0;
+}
+
+.chroma.joined .gd {
+  background-color: var(--del);
+}
+
+.chroma.joined .gi {
+  background-color: var(--ins);
+}
+
+.chroma.joined .gu {
+  color: var(--muted);
+}
+
+.chroma.joined .ln {
+  margin: 0;
+  padding: 0 0.6em;
+  background-color: var(--gutter);
+}
+
+.chroma.joined .ln:first-child {
+  padding-left: 0.75rem;
+}
+
+.chroma.joined .ln + .ln {
+  margin-right: 0.75em;
+}
+
+.chroma.joined .gd .ln {
+  background-color: var(--del-ln);
+}
+
+.chroma.joined .gi .ln {
+  background-color: var(--ins-ln);
+}
+
+.chroma.joined .line:has(.gu),
+.chroma.joined .line:has(.gu) .ln {
+  background-color: var(--hunk-bg);
+}
+
+header.subtitle h2 {
+  font-size: var(--text-lg);
+}
+
+header.subtitle h2 .count {
+  margin-left: 0.25rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.action-branches header.subtitle ~ header.subtitle {
+  margin-top: 1.5rem;
+}
+
+
+.branch-sha {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.branch-log {
+  flex-shrink: 0;
+  width: 6.5rem;
+  text-align: right;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0;
+  margin-bottom: 2rem;
+  padding-top: 2rem;
+}
+
+/* On repo pages the tabs end the header: they stand clear of the title
+   (.repo-tabs) and close to the content they switch. */
+.topbar:has(> .repo-tabs) {
+  margin-bottom: 1rem;
+}
+
+.repo-docs {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+/* The text, not the icon, gives the link its baseline, so it lines up with
+   the tabs' text. */
+.doc-link {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.doc-link svg {
+  align-self: center;
+  color: var(--muted);
+}
+
+.doc-link:hover,
+.tab:hover {
+  text-decoration: none;
+}
+
+.doc-link[aria-current] {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.doc-link[aria-current] svg {
+  color: var(--fg);
+}
+
+/* The tabs take the room the documents leave at the right of their line,
+   wrapping onto more lines rather than pushing the documents onto one of
+   their own. (On phones it is the other way round; see below.) */
+.repo-tabs {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.1rem;
+  margin-top: 1rem;
+}
+
+.tab {
+  display: flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: 0.2rem;
+  font-size: var(--text-2xl);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  --link: var(--muted);
+}
+
+/* The brand and the tabs go heavy when current or pointed at; repo cards on
+   the index borrow the same shift for their names and fade their dates and
+   descriptions in. Neither "wit" (set mono) nor a repo name (in a fixed grid
+   column) needs the tabs' .tab-label width reservation. */
+a.brand,
+.tab,
+.repo-name a,
+.repo-date,
+.repo-desc {
+  transition:
+    color 0.12s,
+    font-weight 0.12s;
+}
+
+:is(a.brand, .tab):is([aria-current], :hover, :focus-visible) {
+  --link: var(--fg);
+  font-weight: 800;
+}
+
+.tab-label {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.tab-label::after {
+  content: attr(data-label);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 800;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tab-count {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.15rem;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.rel {
+  margin-bottom: 1.5rem;
+}
+
+.rel-head .rel-name a {
+  font-weight: 600;
+}
+
+.rel-sum {
+  min-width: 0;
+}
+
+.rel-sum-label {
+  user-select: none;
+}
+
+.rel-size {
+  width: 6rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.commit-by::before,
+.short-id::after,
+.commit-title > .commit-id::after {
+  content: "\a0\b7\a0";
+}
+
+.commit-by {
+  margin-left: -0.65rem;
+}
+
+a:is(.commit-id, .release-id) {
+  display: flex;
+  align-items: center;
+  --link: var(--muted);
+}
+
+:is(.commit-id, .release-id) > svg {
+  flex-shrink: 0;
+  margin-right: 0.3em;
+}
+
+/* A branch or tag row's tip hash and message are two links to one commit,
+   so they sit together (the margin undoes the row's gap) and light up
+   together: pointing at either underlines both, and the dot between them,
+   and brings both up from muted. The hash sets its own muted --link, so it is
+   named as well as the two cells. */
+.branch-sha + .tree-commit {
+  margin-left: -1.3rem;
+}
+
+.branch-row:has(> .tree-commit a:hover) > .tree-commit,
+.branch-row:has(> .tree-commit a:hover) .commit-id {
+  --link: var(--fg);
+  text-decoration: underline var(--fg);
+}
+
+.chips {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+  height: calc(1.35rem + 2px);
+  overflow: hidden;
+}
+
+.chips::before {
+  content: "";
+  height: 100%;
+}
+
+.chips > .chip {
+  margin-left: 0.65rem;
+}
+
+.chips > :last-child {
+  view-timeline: --cl block;
+}
+
+.commit-row .commit-line .ref-more {
+  flex: none;
+  margin-left: 0.65rem;
+  white-space: nowrap;
+}
+
+@supports (animation-timeline: view()) {
+  .commit-row .commit-line .ref-more:not(:has(.ref-menu-list > :nth-child(3))) {
+    max-width: 0;
+    margin-left: 0;
+    overflow-x: clip;
+    visibility: hidden;
+    animation: more-needed linear both;
+    animation-timeline: --cl;
+  }
+}
+
+/* Collapsed, the button would still spill out of its zero-width box, and
+   hidden content still counts towards the page's width (scrolling sideways),
+   so it is clipped until it is needed. The menu opens in the top layer, so
+   clipping never cuts it off. */
+@keyframes more-needed {
+  0% {
+    max-width: 10rem;
+    margin-left: 0.65rem;
+    overflow-x: visible;
+    visibility: visible;
+  }
+
+  1%,
+  100% {
+    max-width: 0;
+    margin-left: 0;
+    overflow-x: clip;
+    visibility: hidden;
+  }
+}
+
+.tree-date,
+.rel-size,
+.commit-by > :last-child,
+.summary-meta-val:has(> :is(.commit-id, .release-id)),
+.log-date,
+.repo-date,
+.commit-meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-meta-val > .release-id {
+  font-variant-numeric: normal;
+}
+
+@media only screen and (max-width: 600px) {
+  a.brand[aria-current],
+  #site_path,
+  .tab {
+    font-size: var(--text-xl);
+  }
+
+  a.brand,
+  #site_path::before {
+    font-size: var(--text-lg);
+  }
+
+  /* The tabs keep their own width: the documents drop below them rather
+     than squeezing them into a narrow column. */
+  .repo-tabs {
+    flex-basis: auto;
+  }
+
+  .branch-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 0.15rem 0.65rem;
+  }
+
+  .branch-row .branch-sha {
+    margin-left: calc(16px + 0.65rem);
+  }
+
+  .branch-row .tree-date {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+
+  .branch-row .branch-log {
+    grid-area: 2 / 2;
+  }
+
+  .log-day {
+    padding-left: 0;
+  }
+
+  .log-date {
+    position: static;
+    float: none;
+    width: auto;
+    margin: 0 0 0.5rem;
+    padding-top: 0;
   }
 }
