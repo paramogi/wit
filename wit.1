@@ -13,10 +13,7 @@
 .Sh DESCRIPTION
 .Nm
 writes static HTML pages for git repositories into
-.Ar outdir :
-an index of the repositories and, for each one, a summary page,
-tree and file pages and a commit log for every branch and tag,
-a page for every commit, the branches, the tags and the releases.
+.Ar outdir .
 .Pp
 Each
 .Ar repo
@@ -107,3 +104,5 @@ wit -o /var/www/git -u . /srv/git/*.git
 .Sh SEE ALSO
 .Xr git 1 ,
 .Xr githooks 5
+.Sh AUTHORS
+.An Miguel Leitão Aq Mt git@paramogi.world

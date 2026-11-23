@@ -4,10 +4,12 @@ A lightweight, static Git web frontend written in Rust
 
 Build with Rust's cargo, then install (`PREFIX` defaults to `/usr/local`):
 
-    make
-    sudo make install
+```
+make
+sudo make install
+```
 
-This installs `wit` to `${PREFIX}/bin`, its man page to `${PREFIX}/man/man1` (`man wit`; with mandoc, `makewhatis ${PREFIX}/man` adds it to `apropos`), and `style.css`, `fonts/`, `post-receive`, `README.md` and `LICENSE` to `${PREFIX}/share/doc/wit`. `make uninstall` removes them. `DESTDIR` and `MANPREFIX` work as usual.
+This installs `wit` to `${PREFIX}/bin`, its man page to `${PREFIX}/man/man1`, and `style.css`, `fonts/`, `post-receive`, `README.md` and `LICENSE` to `${PREFIX}/share/doc/wit`. `make uninstall` removes them. `DESTDIR` and `MANPREFIX` work as usual.
 
 At runtime wit needs libgit2 and git (for `git archive`).
 
@@ -22,11 +24,30 @@ Create dependencies:
 
 ## Usage:
 
-// TODO
+```sh
+wit [-O owner] [-u repo] -o outdir repo...
+```
+
+wit writes a static site for the listed repos into `outdir`: an index of the repos, and for each one a summary, tree and file pages and a commit log for every branch and tag, a page for every commit, and its branches, tags and releases. A repo is a bare repo or a working copy, named after its folder without `.git`.
+
+- `-o outdir`: the site dir.
+- `-O owner`: the owner shown for repos whose `owner` file is missing or empty.
+- `-u repo`: rebuild only this repo, plus any listed repo that has no pages yet (see Rebuilding on every push).
+
+Each repo can have a `description` and an `owner` file, in a bare repo's dir or a working copy's `.git/`. Two repos with the same name stop the run; a repo whose HEAD has no commits or is detached is skipped with a warning.
+
+For example, to build a site for every repo in `/srv/git`:
+
+```sh
+wit -O alice -o /var/www/git /srv/git/*.git
+cp -r /usr/local/share/doc/wit/style.css /usr/local/share/doc/wit/fonts /var/www/git/
+```
+
+See `man wit` for the details.
 
 ### Stylesheet
 
-wit doesn't write a stylesheet. Copy `style.css` and the `fonts/` dir into the site dir (the one after `-o`), and copy them again after changing them.
+wit doesn't write a stylesheet. Copy `style.css` and the `fonts/` dir (installed in `${PREFIX}/share/doc/wit`) into the site dir (the one after `-o`), and copy them again after changing them or updating wit.
 
 ### Rebuilding on every push
 
