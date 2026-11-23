@@ -307,8 +307,5 @@ fn write_repo(repo: &RepoInfo, repo_dir: &Path) -> Result<()> {
         }
     }
     let head_last = last_changes(&repo.commit_list, &changes);
-    write_file(
-        &repo_dir.join("index.html"),
-        &gen_summary(repo, &stats, &head_last),
-    )
+    write_file(&repo_dir.join("index.html"), &gen_summary(repo, &head_last))
 }

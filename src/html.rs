@@ -23,7 +23,7 @@ const DATE: &str = "%d-%m-%Y";
 
 const DATE_TIME: &str = "%d-%m-%Y&nbsp;%H:%M:%S";
 
-pub const COMMITS_PER_PAGE: usize = 2000;
+pub const COMMITS_PER_PAGE: usize = 200;
 
 const SUMMARY_REF_COUNT: usize = 3;
 
@@ -170,13 +170,6 @@ fn ref_icon(git_ref: &RefInfo) -> String {
         icon("tag")
     } else {
         icon("git-branch")
-    }
-}
-
-fn crumb(text: &str, href: Option<String>) -> String {
-    match href {
-        Some(href) => format!("<a href=\"{href}\">{}</a>", escape_str(text)),
-        None => format!("<a class=\"btn-active\" href=\"\">{}</a>", escape_str(text)),
     }
 }
 
@@ -488,11 +481,7 @@ pub fn gen_index(repos: &[RepoInfo]) -> String {
     wrap_page("repositories", None, &body)
 }
 
-pub fn gen_summary(
-    repo: &RepoInfo,
-    stats: &HashMap<String, String>,
-    last: &HashMap<String, &CommitInfo>,
-) -> String {
+pub fn gen_summary(repo: &RepoInfo, last: &HashMap<String, &CommitInfo>) -> String {
     let nav = RepoNav {
         repo,
         git_ref: &repo.head_dir,
@@ -534,7 +523,7 @@ pub fn gen_summary(
         ));
     }
     body.push_str("</div>\n");
-    write_briefs(&mut body, repo, stats);
+    write_briefs(&mut body, repo);
     if repo.branches.len() > 1 {
         write_summary_refs(
             &mut body,
@@ -930,6 +919,7 @@ pub fn gen_commits(
         ref_menu(repo, git_ref, &repo_root, Tab::Commits, "", "page")
     );
     let mut day = String::new();
+    let mut menus = 1;
     for commit in commits {
         let date = commit.committer_date.format(DATE).to_string();
         let joined = if date == day {
@@ -939,22 +929,16 @@ pub fn gen_commits(
                 body.push_str("</div>\n");
             }
             body.push_str(&format!(
-                "\
-<div>\n\
-<div class=\"flex items-center gap mb text-sm\">\n\
-{}\n\
-<span>Commits on {date}</span>\n\
-</div>\n\
-",
-                icon("git-commit")
+                "<div class=\"log-day\">\n<div class=\"text-xs log-date\">{date}</div>\n"
             ));
             ""
         };
+        let labels = ref_labels(repo, &commit.id, &repo_root, &mut menus);
         write_commit_row(
             &mut body,
-            repo,
             commit,
-            &stats[&commit.id],
+            Some(&stats[&commit.id]),
+            &labels,
             &repo_root,
             joined,
             &format_zoned(&commit.committer_date, "%H:%M"),
@@ -973,6 +957,9 @@ pub fn gen_commits(
 }
 
 pub fn diff_stat(diff: &CommitDiff) -> String {
+    if diff.files.is_empty() {
+        return "no changes".to_string();
+    }
     let s = if diff.files.len() == 1 { "" } else { "s" };
     format!(
         "<strong>{}</strong> file{s} changed,&nbsp;<span class=\"color-green\">+{}</span>, <span class=\"color-red\">-{}</span>",
@@ -1142,37 +1129,38 @@ fn write_diff(body: &mut String, n: usize, lines: &[Line]) {
 }
 
 fn commits_pager(page: usize, pages: usize) -> String {
-    let first = page
-        .saturating_sub(2)
-        .clamp(1, pages.saturating_sub(4).max(1));
-    let last = pages.min(first + 4);
-    let arrow = |n: usize, title: &str, chevrons: &str| {
+    let arrow = |n: usize, label: &str, name: &str| {
         format!(
-            "<a href=\"{}\" title=\"{title}\">{chevrons}</a>",
-            commits_page(n)
+            "<a href=\"{}\" title=\"{label}\" aria-label=\"{label}\">{}</a>\n",
+            commits_page(n),
+            icon(name)
         )
     };
-    let (left, right) = (icon("chevron-left"), icon("chevron-right"));
-    let mut buttons = Vec::new();
-    if first > 1 {
-        buttons.push(arrow(1, "first page", &left.repeat(2)));
-    }
+    let mut pager =
+        String::from("<nav class=\"buttons flex flex-wrap pager\" aria-label=\"pages\">\n");
     if page > 1 {
-        buttons.push(arrow(page - 1, "previous page", &left));
+        pager.push_str(&arrow(page - 1, "previous page", "chevron-left"));
     }
-    for n in first..=last {
-        buttons.push(crumb(&n.to_string(), (n != page).then(|| commits_page(n))));
+    let mut shown = 0;
+    for n in 1..=pages {
+        if n != 1 && n != pages && n.abs_diff(page) > 1 {
+            continue;
+        }
+        if n > shown + 1 {
+            pager.push_str("<span class=\"pager-gap\">&hellip;</span>\n");
+        }
+        if n == page {
+            pager.push_str(&format!("<span aria-current=\"page\">{n}</span>\n"));
+        } else {
+            pager.push_str(&format!("<a href=\"{}\">{n}</a>\n", commits_page(n)));
+        }
+        shown = n;
     }
     if page < pages {
-        buttons.push(arrow(page + 1, "next page", &right));
+        pager.push_str(&arrow(page + 1, "next page", "chevron-right"));
     }
-    if last < pages {
-        buttons.push(arrow(pages, "last page", &right.repeat(2)));
-    }
-    format!(
-        "<nav class=\"navs buttons flex flex-wrap pager\">\n{}\n</nav>\n",
-        buttons.join("\n")
-    )
+    pager.push_str("</nav>\n");
+    pager
 }
 
 fn has_source_view(entry: &TreeEntry) -> bool {
@@ -1349,8 +1337,11 @@ fn ref_bar(
                 escape_str(part)
             ));
         } else {
-            let href = format!("{repo_root}{}", Tab::Tree.href(tree_path));
-            bar.push_str(&format!("{}\n", crumb(part, Some(href))));
+            bar.push_str(&format!(
+                "<a href=\"{repo_root}{}\">{}</a>\n",
+                Tab::Tree.href(tree_path),
+                escape_str(part)
+            ));
         }
     }
     bar.push_str(&format!(
@@ -1572,90 +1563,94 @@ fn write_listing(
     body.push_str("</div>\n");
 }
 
-fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str) -> String {
+fn ref_labels(repo: &RepoInfo, id: &str, repo_root: &str, menus: &mut usize) -> String {
     let mut refs: Vec<&RefInfo> = repo
         .branches
         .iter()
         .chain(&repo.tags)
         .filter(|git_ref| git_ref.id == id)
         .collect();
+    if refs.is_empty() {
+        return String::new();
+    }
     refs.sort_by(|a, b| RefInfo::newest_first(a, b));
-    let mut labels: String = refs
+    let link = |git_ref: &&RefInfo| {
+        (
+            format!("{repo_root}{}", Tab::Tree.href(&git_ref.dir)),
+            format!("{}{}", ref_icon(git_ref), escape_str(&git_ref.name)),
+        )
+    };
+    let chips: String = refs
         .iter()
         .take(REF_CHIPS)
         .map(|git_ref| {
-            format!(
-                "<a class=\"chip flex\" href=\"{repo_root}{}\"><code>{}{}</code></a>\n",
-                Tab::Tree.href(&git_ref.dir),
-                ref_icon(git_ref),
-                escape_str(&git_ref.name)
-            )
+            let (href, text) = link(git_ref);
+            format!("<a class=\"chip flex\" href=\"{href}\"><code>{text}</code></a>\n")
         })
         .collect();
-    if refs.len() > REF_CHIPS {
-        let rest: String = refs[REF_CHIPS..]
-            .iter()
-            .map(|git_ref| {
-                format!(
-                    "<a class=\"flex items-center gap\" href=\"{repo_root}{}\">{}{}</a>\n",
-                    Tab::Tree.href(&git_ref.dir),
-                    ref_icon(git_ref),
-                    escape_str(&git_ref.name)
-                )
-            })
-            .collect();
-        labels.push_str(&format!(
-            "<div class=\"ref-menu ref-more\">\n<code>more{}{}</code>\n<div class=\"ref-menu-list buttons\">\n{rest}</div>\n</div>\n",
-            icon("chevron-down"),
-            icon("chevron-up")
-        ));
-    }
-    labels
+    let entries: String = refs
+        .iter()
+        .map(|git_ref| {
+            let (href, text) = link(git_ref);
+            format!("<a class=\"flex items-center gap\" href=\"{href}\">{text}</a>\n")
+        })
+        .collect();
+    *menus += 1;
+    let n = *menus;
+    let s = if refs.len() == 1 { "" } else { "s" };
+    format!(
+        "\
+<div class=\"chips text-xs\">\n{chips}</div>\n\
+<div class=\"ref-menu ref-more text-xs\">\n\
+<button type=\"button\" class=\"ref-btn\" popovertarget=\"ref-more-{n}\">{} ref{s}{}{}</button>\n\
+<div class=\"ref-menu-list buttons\" id=\"ref-more-{n}\" popover>\n{entries}</div>\n\
+</div>\n\
+",
+        refs.len(),
+        icon("chevron-down"),
+        icon("chevron-up")
+    )
 }
 
 fn write_commit_row(
     body: &mut String,
-    repo: &RepoInfo,
     commit: &CommitInfo,
-    stat: &str,
+    stat: Option<&str>,
+    labels: &str,
     repo_root: &str,
     joined: &str,
     date: &str,
 ) {
     let href = format!("{repo_root}commits/{}.html", commit.id);
-    let labels = ref_labels(repo, &commit.id, repo_root);
-    let chips = if labels.is_empty() {
-        String::new()
-    } else {
-        format!("<div class=\"ml-auto flex flex-wrap justify-end gap text-sm\">\n{labels}</div>\n")
-    };
+    let stat = stat
+        .map(|stat| format!("<div class=\"commit-stat flex-1\"><div>{stat}</div></div>\n"))
+        .unwrap_or_default();
     body.push_str(&format!(
         "\
-<div class=\"box m-0 commit-row{joined}\">\n\
-<div class=\"flex flex-wrap items-center gap text-sm\">\n\
-{}<a href=\"{href}\" class=\"mono\">{}</a>\n\
-<div class=\"flex items-center gap-xs\">\n\
-<span>{}</span>\n\
+<div class=\"box m-0 row commit-row{joined}\">\n\
+<div class=\"flex flex-wrap items-center gap text-xs\">\n\
+<a href=\"{href}\" class=\"commit-id row-link\">{}{}</a>\n\
+<div class=\"flex items-center commit-by\">\n\
+<span class=\"truncate\">{}</span>\n\
 <span>&nbsp;&centerdot;&nbsp;</span>\n\
-<span>{}</span>\n\
+<span>{date}</span>\n\
 </div>\n\
-<div class=\"fits flex-1\"><div class=\"mono\">{stat}</div></div>\n\
+{stat}\
 </div>\n\
-<div class=\"mt-sm flex flex-wrap items-center gap\">\n\
-<div class=\"flex-1 white-space-bs\"><a href=\"{href}\">{}</a></div>\n\
-{chips}\
+<div class=\"flex items-center commit-line\">\n\
+<div class=\"flex commit-summary\"><a class=\"truncate row-link\" href=\"{href}\">{}</a></div>\n\
+{labels}\
 </div>\n\
 </div>\n\
 ",
         icon("git-commit"),
         &commit.id[..7],
         escape_str(&commit.author_name),
-        date,
         escape_str(&commit.summary)
     ));
 }
 
-fn write_briefs(body: &mut String, repo: &RepoInfo, stats: &HashMap<String, String>) {
+fn write_briefs(body: &mut String, repo: &RepoInfo) {
     body.push_str(
         "\
 <div class=\"summary-briefs\">\n\
@@ -1665,11 +1660,12 @@ fn write_briefs(body: &mut String, repo: &RepoInfo, stats: &HashMap<String, Stri
 <div id=\"briefs_content\">\n\
 ",
     );
+    let mut menus = 1;
     for (n, commit) in repo.commit_list.iter().take(BRIEF_COUNT).enumerate() {
         let joined = if n == 0 { "" } else { " joined" };
-        let stat = stats.get(&commit.id).map_or("", String::as_str);
+        let labels = ref_labels(repo, &commit.id, "", &mut menus);
         let date = commit.committer_date.format(DATE).to_string();
-        write_commit_row(body, repo, commit, stat, "", joined, &date);
+        write_commit_row(body, commit, None, &labels, "", joined, &date);
     }
     body.push_str("</div>\n</div>\n");
 }
