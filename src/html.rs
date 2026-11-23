@@ -951,12 +951,13 @@ fn write_file_head(body: &mut String, entry: &TreeEntry, content: &[u8], views: 
     ));
 }
 
-fn page_href(page: usize) -> String {
-    if page == 1 {
-        "./".to_string()
+fn page_href(page: usize, to: usize) -> String {
+    let up = if page == 1 { "" } else { "../" };
+    here(if to == 1 {
+        up.to_string()
     } else {
-        format!("{page}.html")
-    }
+        format!("{up}{to}/")
+    })
 }
 
 fn here(href: String) -> String {
@@ -971,7 +972,7 @@ pub fn commits_page(page: usize) -> String {
     if page == 1 {
         "index.html".to_string()
     } else {
-        format!("{page}.html")
+        format!("{page}/index.html")
     }
 }
 
@@ -982,7 +983,7 @@ pub fn gen_commits(
     stats: &HashMap<String, String>,
     page: usize,
 ) -> String {
-    let depth = 1 + git_ref.dir.split('/').count();
+    let depth = 1 + git_ref.dir.split('/').count() + usize::from(page > 1);
     let nav = RepoNav {
         repo,
         git_ref: &git_ref.dir,
@@ -1257,7 +1258,7 @@ fn commits_pager(page: usize, pages: usize) -> String {
     let arrow = |n: usize, label: &str, name: &str| {
         format!(
             "<a href=\"{}\" title=\"{label}\" aria-label=\"{label}\">{}</a>\n",
-            page_href(n),
+            page_href(page, n),
             icon(name)
         )
     };
@@ -1277,7 +1278,7 @@ fn commits_pager(page: usize, pages: usize) -> String {
         if n == page {
             pager.push_str(&format!("<span aria-current=\"page\">{n}</span>\n"));
         } else {
-            pager.push_str(&format!("<a href=\"{}\">{n}</a>\n", page_href(n)));
+            pager.push_str(&format!("<a href=\"{}\">{n}</a>\n", page_href(page, n)));
         }
         shown = n;
     }
