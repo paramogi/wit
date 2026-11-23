@@ -561,7 +561,6 @@ pub fn gen_summary(
 ",
         );
         body.push_str(&ref_bar(repo, head, "", "", repo.commit_list.len(), "true"));
-        body.push_str(&bar_details("", &head.id, &head.summary, &head.date));
         let tree_dir = format!("tree/{}/", repo.head_dir);
         write_listing(&mut body, head, root, "", &tree_dir, last);
         body.push_str("</div>\n</div>\n");
@@ -711,32 +710,35 @@ fn ref_row(git_ref: &RefInfo, element: &str, row_class: &str, name_class: &str) 
 fn summary_cell(repo_root: &str, id: &str, summary: &str) -> String {
     let summary = escape_str(summary);
     format!(
-        "<div class=\"flex-2 truncate tree-commit\"><a href=\"{repo_root}commits/{id}.html\" title=\"{summary}\">{summary}</a></div>\n"
+        "<div class=\"flex flex-2 tree-commit\"><a class=\"truncate\" href=\"{repo_root}commits/{id}.html\" title=\"{summary}\">{summary}</a></div>\n"
     )
 }
 
-fn bar_details(repo_root: &str, id: &str, summary: &str, date: &DateTime<FixedOffset>) -> String {
+fn commit_cells(repo_root: &str, id: &str, summary: &str, date: &DateTime<FixedOffset>) -> String {
     format!(
         "\
 {}\
-<div class=\"ml-auto flex items-center gap\">\n\
-<div class=\"flex items-center gap tree-commit mono\">{}<a href=\"{repo_root}commits/{id}.html\">{}</a></div>\n\
+<div class=\"ml-auto flex items-center\">\n\
+<div class=\"flex items-center tree-commit short-id\">{}</div>\n\
 {}\
 </div>\n\
 ",
         summary_cell(repo_root, id, summary),
-        icon("git-commit"),
-        &id[..7],
+        short_id(repo_root, id),
         date_cell(date)
     )
 }
 
-fn date_cell(date: &DateTime<FixedOffset>) -> String {
+fn short_id(repo_root: &str, id: &str) -> String {
     format!(
-        "<div class=\"tree-date\" title=\"{}\">{}</div>\n",
-        format_zoned(date, DATE_TIME),
-        date.format(DATE)
+        "<a href=\"{repo_root}commits/{id}.html\" class=\"commit-id\">{}{}</a>",
+        icon("git-commit"),
+        &id[..7]
     )
+}
+
+fn date_cell(date: &DateTime<FixedOffset>) -> String {
+    format!("<div class=\"tree-date\">{}</div>\n", date.format(DATE))
 }
 
 fn format_zoned(date: &DateTime<FixedOffset>, format: &str) -> String {
@@ -757,7 +759,7 @@ fn tree_depth(git_ref: &RefInfo, dir: &Dir) -> usize {
 
 fn last_details(repo_root: &str, last: &HashMap<String, &CommitInfo>, path: &str) -> String {
     last.get(path).map_or_else(String::new, |commit| {
-        bar_details(
+        commit_cells(
             repo_root,
             &commit.id,
             &commit.summary,
@@ -784,14 +786,7 @@ pub fn gen_tree(
     };
     let repo_root = "../".repeat(depth);
 
-    let details = if dir.path.is_empty() {
-        bar_details(&repo_root, &git_ref.id, &git_ref.summary, &git_ref.date)
-    } else {
-        last_details(&repo_root, last, &dir.path)
-    };
-
     let mut body = ref_bar(repo, git_ref, &dir.path, &repo_root, commits, "page");
-    body.push_str(&details);
     write_listing(&mut body, git_ref, dir, &repo_root, "", last);
     write_readme(&mut body, repo, git_ref, dir, &repo_root);
 
@@ -1482,13 +1477,36 @@ fn write_listing(
     tree_dir: &str,
     last: &HashMap<String, &CommitInfo>,
 ) {
-    body.push_str("<div class=\"box p-0\">\n");
+    body.push_str("<div class=\"box p-0 joined\">\n");
+    let head = if dir.path.is_empty() {
+        commit_cells(repo_root, &git_ref.id, &git_ref.summary, &git_ref.date)
+    } else {
+        last_details(repo_root, last, &dir.path)
+    };
+    if !head.is_empty() {
+        body.push_str(&format!(
+            "<div class=\"flex items-center gap px border-b last-commit\">\n{head}</div>\n"
+        ));
+    }
+    if !dir.path.is_empty() {
+        body.push_str(&format!(
+            "\
+<div class=\"flex items-center gap-2 px row tree-row border-b up-row\">\n\
+<div class=\"flex-1 tree-path flex items-center gap\">\n\
+{}\n\
+<a class=\"truncate row-link\" href=\"../index.html\" title=\"parent folder\">..</a>\n\
+</div>\n\
+</div>\n\
+",
+            icon("file-directory")
+        ));
+    }
     for entry in &dir.entries {
         let name = &entry.name;
         let path = join_path(&dir.path, name);
         let link = |href: String, text: String| {
             format!(
-                "<a class=\"truncate\" href=\"{}\">{text}</a>",
+                "<a class=\"truncate row-link\" href=\"{}\">{text}</a>",
                 escape_str(&href)
             )
         };
@@ -1502,8 +1520,10 @@ fn write_listing(
                 summary_cell(repo_root, &commit.id, &commit.summary),
                 date_cell(&commit.committer_date)
             ),
-            None => "<div class=\"flex-2 tree-commit\"></div>\n<div class=\"tree-date\"></div>\n"
-                .to_string(),
+            None => {
+                "<div class=\"flex flex-2 tree-commit\"></div>\n<div class=\"tree-date\"></div>\n"
+                    .to_string()
+            }
         };
         let (icon_name, name) = if entry.is_dir {
             let href = percent_encode(&format!("{tree_dir}{name}/index.html"));
@@ -1519,7 +1539,7 @@ fn write_listing(
         };
         body.push_str(&format!(
             "\
-<div class=\"flex justify-between items-center gap-2 py px tree-row border-b\">\n\
+<div class=\"flex items-center gap-2 px row tree-row border-b\">\n\
 <div class=\"flex-1 tree-path flex items-center gap\">\n\
 {}\n\
 {name}\n\
